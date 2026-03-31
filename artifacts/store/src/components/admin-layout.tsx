@@ -1,0 +1,107 @@
+import { ReactNode } from "react";
+import { Link, useLocation } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
+import { 
+  LayoutDashboard, 
+  Package, 
+  ShoppingCart, 
+  Users, 
+  Settings, 
+  LogOut, 
+  Tags,
+  Percent,
+  Star,
+  LineChart,
+  Download
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+const navItems = [
+  { href: "/admin", label: "לוח בקרה", icon: LayoutDashboard },
+  { href: "/admin/analytics", label: "דוחות וסטטיסטיקה", icon: LineChart },
+  { href: "/admin/orders", label: "הזמנות", icon: ShoppingCart },
+  { href: "/admin/products", label: "מוצרים", icon: Package },
+  { href: "/admin/inventory", label: "מלאי", icon: Tags },
+  { href: "/admin/customers", label: "לקוחות", icon: Users },
+  { href: "/admin/coupons", label: "קופונים", icon: Percent },
+  { href: "/admin/loyalty", label: "מועדון לקוחות", icon: Star },
+  { href: "/admin/import", label: "ייבוא וייצוא", icon: Download },
+];
+
+export function AdminLayout({ children }: { children: ReactNode }) {
+  const { user, logout } = useAuth();
+  const [location] = useLocation();
+
+  if (user?.role !== "admin") {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-destructive mb-2">אין הרשאה</h1>
+          <p className="text-muted-foreground mb-4">רק מנהלים מורשים לגשת לאזור זה.</p>
+          <Button asChild>
+            <Link href="/">חזרה לדף הבית</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-[100dvh] flex bg-muted/30">
+      {/* Sidebar */}
+      <aside className="w-64 bg-card border-l border-border flex flex-col hidden md:flex sticky top-0 h-screen">
+        <div className="p-6 border-b border-border">
+          <Link href="/" className="text-2xl font-black text-primary flex items-center gap-2">
+            <Package className="h-6 w-6" />
+            טק-סטור אדמין
+          </Link>
+        </div>
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = location === item.href || (item.href !== "/admin" && location.startsWith(item.href));
+            return (
+              <Link 
+                key={item.href} 
+                href={item.href}
+                className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive 
+                    ? "bg-primary/10 text-primary" 
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <Icon className="h-5 w-5" />
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="p-4 border-t border-border">
+          <div className="flex items-center gap-3 mb-4 px-3">
+            <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
+              {user.firstName[0]}
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-medium">{user.firstName} {user.lastName}</span>
+              <span className="text-xs text-muted-foreground">מנהל מערכת</span>
+            </div>
+          </div>
+          <Button variant="outline" className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => logout()}>
+            <LogOut className="ml-2 h-4 w-4" />
+            התנתק
+          </Button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <header className="h-16 bg-card border-b border-border flex items-center px-6 sticky top-0 z-10 md:hidden">
+          <h1 className="text-xl font-bold">לוח בקרה מנהלים</h1>
+        </header>
+        <div className="flex-1 p-6 overflow-y-auto">
+          {children}
+        </div>
+      </main>
+    </div>
+  );
+}

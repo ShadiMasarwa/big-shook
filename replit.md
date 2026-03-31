@@ -48,6 +48,34 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 - `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages that define it
 - `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly` using project references
 
+## Project: Hebrew RTL E-Commerce Platform (טק-סטור)
+
+A production-ready Israeli tech/electronics store with full Hebrew RTL UI.
+
+### Artifacts
+- `artifacts/api-server` — Express 5 API server on port 8080
+- `artifacts/store` — React/Vite frontend (Hebrew RTL)
+
+### Features
+- Product catalog with filters (category, brand, price, search)
+- Product detail pages with related products, add to cart, wishlist
+- Shopping cart (session-based via `x-session-id` header)
+- User authentication (SHA-256 hash, base64 token)
+- Wishlist, product comparison, recently viewed
+- Loyalty points program
+- Coupon/discount codes
+- Inventory management (multi-warehouse)
+- Full admin panel (dashboard, products, orders, users, analytics, coupons, loyalty, inventory)
+- Hebrew UI (he-IL), RTL layout, Heebo font, ₪ price format
+
+### Test Credentials
+- Admin: `admin@store.co.il` / `Admin123!`
+- User: `yossi@example.co.il` / `User123!`
+
+### Known Bugs Fixed
+- `categoryId`/`brandId` empty string params were parsed to `NaN` and broke SQL queries — now guarded with `isNaN()` checks
+- `/api/products/[object Object]/related` — frontend was passing options object instead of product ID to `useGetRelatedProducts`
+
 ## Packages
 
 ### `artifacts/api-server` (`@workspace/api-server`)

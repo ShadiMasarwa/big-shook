@@ -1,0 +1,234 @@
+Build a production-ready Hebrew RTL e-commerce platform inspired by large Israeli retail sites (like KSP structure), but DO NOT copy branding or proprietary content.
+
+==================================================
+ADDITIONAL ADVANCED FEATURES (CRITICAL REQUIREMENTS)
+==================================================
+
+Enhance the system with advanced e-commerce capabilities to reach enterprise-level functionality:
+
+1. Loyalty System (Customer Club)
+- Points system per purchase
+- Points redemption in checkout
+- Tier levels (Silver, Gold, VIP)
+- Personalized discounts based on customer tier
+- Referral system (optional phase 2)
+
+2. Product Comparison
+- Allow users to compare multiple products side-by-side
+- Compare specs, price, features
+- Store comparison list per user/session
+
+3. Wishlist / Favorites
+- Save products
+- Sync across devices
+- Move items to cart
+- Notify on price drop (future-ready)
+
+4. Recently Viewed Products
+- Track recently viewed items per user/session
+- Show in homepage and product page
+
+5. Coupons & Promotions Engine (Extended)
+- Coupon codes with conditions:
+  - min order amount
+  - specific categories
+  - specific brands
+- Usage limits per user
+- Expiration dates
+- Stackable vs non-stackable coupons
+
+6. Excel Import/Export
+- Bulk import products via Excel/CSV
+- Export products/orders/customers
+- Data validation during import
+
+7. Inventory Management (Advanced)
+- Multi-warehouse support
+- Stock per warehouse
+- Low stock alerts
+- Reserved stock for pending orders
+- Stock history logs
+
+8. Shipping & Fulfillment Expansion
+- Integration-ready architecture for delivery companies
+- Delivery tracking placeholder
+- Pickup point system
+- Multiple shipping rules based on region
+
+9. Invoicing & Documents (Future-ready)
+- Generate invoices (PDF)
+- Order receipts
+- Tax handling (VAT support)
+
+10. SEO Optimization (Hebrew-first)
+- SEO-friendly URLs (slug system)
+- Meta titles/descriptions per product/category
+- Structured data (schema.org)
+- Sitemap generation
+- Server-side SEO strategy discussion for Flutter Web
+
+11. Analytics & KPI Dashboard
+Admin dashboard must include:
+- revenue charts
+- conversion rate
+- average order value
+- top selling products
+- top customers
+- traffic placeholder (future integration)
+
+12. Smart Recommendations (Phase 2 Ready)
+- “Customers also bought”
+- “Recommended for you”
+- Based on browsing and purchase behavior
+
+==================================================
+CORE SYSTEM (UNCHANGED BUT EXTENDED)
+==================================================
+
+[Keep all original sections: architecture, MongoDB, API, admin, etc.]
+
+==================================================
+EXTENSIONS TO EXISTING MODULES
+==================================================
+
+Update the system with these enhancements:
+
+1. Product Model MUST include:
+- rating summary
+- views count
+- sales count
+- tags
+- related products
+- cross-sell products
+- upsell products
+
+2. User Model MUST include:
+- loyalty points
+- tier level
+- preferences
+- browsing history (lightweight)
+
+3. Order Model MUST include:
+- coupon used
+- discount breakdown
+- points used
+- invoice reference
+
+4. Cart Model MUST include:
+- applied coupon
+- estimated shipping
+- saved for later items
+
+==================================================
+NEW MODULES TO ADD
+==================================================
+
+Add these backend modules:
+
+- loyalty module
+- coupons module (extended)
+- recommendations module (basic logic)
+- inventory module (multi-warehouse)
+- analytics module
+- import/export module
+- comparison module
+- wishlist module
+- recently viewed module
+
+==================================================
+ADMIN DASHBOARD EXTENSIONS
+==================================================
+
+Admin must have additional panels:
+
+1. Loyalty Management
+- configure points rules
+- manage tiers
+- adjust user points
+
+2. Analytics Dashboard
+- charts and KPIs
+- export reports
+
+3. Import/Export Panel
+- upload Excel files
+- validate and preview
+- confirm import
+
+4. Inventory Panel
+- manage warehouses
+- view stock distribution
+- adjust stock manually
+
+5. Coupons Panel (Advanced)
+- create complex rules
+- track usage
+
+==================================================
+FRONTEND ADDITIONS (FLUTTER)
+==================================================
+
+Add new UI features:
+
+- product comparison screen
+- wishlist screen
+- recently viewed carousel
+- recommendations sections
+- loyalty points display
+- coupon input UX improvements
+- advanced filters UX
+- smart sorting UX
+- loading skeletons for performance
+
+==================================================
+PERFORMANCE & SCALABILITY
+==================================================
+
+System must be designed for scale:
+- modular backend
+- async processing for heavy tasks
+- caching for product listings
+- pagination everywhere
+- lazy loading images
+- optimized queries (indexes in MongoDB)
+
+==================================================
+PHASED IMPLEMENTATION (UPDATED)
+==================================================
+
+Phase 1:
+- Auth + OTP
+- Catalog + Categories
+- Product pages
+
+Phase 2:
+- Cart + Checkout + Orders
+- Wishlist + Recently Viewed
+
+Phase 3:
+- Admin Dashboard
+- Inventory
+- Coupons
+
+Phase 4:
+- Loyalty system
+- Analytics dashboard
+- Import/export
+
+Phase 5:
+- Recommendations engine
+- SEO improvements
+- Performance optimization
+
+==================================================
+FIRST TASK
+==================================================
+
+Start by generating:
+1. full architecture diagram
+2. MongoDB schemas including loyalty, coupons, inventory
+3. full API list including new modules
+4. Flutter screen list including comparison, wishlist
+5. admin dashboard structure (extended)
+6. sample seed data including promotions and coupons
+7. VS Code setup instructions
