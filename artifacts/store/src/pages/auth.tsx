@@ -25,15 +25,15 @@ export default function Auth() {
   const [regPhone, setRegPhone] = useState("");
 
   if (user) {
-    setLocation("/");
+    setLocation(user.role === "admin" ? "/admin" : "/");
     return null;
   }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await login({ data: { email: loginEmail, password: loginPassword } });
-      setLocation("/");
+      const res = await login({ data: { email: loginEmail, password: loginPassword } });
+      setLocation(res.user?.role === "admin" ? "/admin" : "/");
     } catch (err) {
       console.error(err);
     }
@@ -42,7 +42,7 @@ export default function Auth() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await register({
+      const res = await register({
         data: {
           firstName: regFirstName,
           lastName: regLastName,
@@ -51,7 +51,7 @@ export default function Auth() {
           phone: regPhone
         }
       });
-      setLocation("/");
+      setLocation(res.user?.role === "admin" ? "/admin" : "/");
     } catch (err) {
       console.error(err);
     }
