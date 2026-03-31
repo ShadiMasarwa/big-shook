@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { Layout } from "@/components/layout";
 import { ProductCard } from "@/components/product-card";
 import { useListProducts, useListCategories, useListBrands } from "@workspace/api-client-react";
@@ -12,13 +12,18 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Search, X } from "lucide-react";
 
 export default function Catalog() {
-  const [location, navigate] = useLocation();
+  const [, navigate] = useLocation();
+  const rawSearch = useSearch(); // reactive to ?param changes
 
-  const searchParams = new URLSearchParams(window.location.search);
-  const urlCategoryId = searchParams.get("categoryId") ? Number(searchParams.get("categoryId")) : null;
-  const urlSearch = searchParams.get("q") ?? "";
+  const urlParams = new URLSearchParams(rawSearch);
+  const urlCategoryId = urlParams.get("categoryId") ? Number(urlParams.get("categoryId")) : null;
+  const urlSearch = urlParams.get("q") ?? "";
 
-  const [categoryId, setCategoryId] = useState<number | null>(urlCategoryId);
+  // Filters that come from the URL — derived directly (no useState needed)
+  const categoryId = urlCategoryId;
+  const search = urlSearch;
+
+  // Filters that are local-only (not URL-driven)
   const [brandId, setBrandId] = useState<number | null>(null);
   const [minPrice, setMinPrice] = useState<number | null>(null);
   const [maxPrice, setMaxPrice] = useState<number | null>(null);
@@ -26,28 +31,23 @@ export default function Catalog() {
   const [sort, setSort] = useState<any>("popular");
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState(urlSearch);
-  const [search, setSearch] = useState(urlSearch);
 
+  // Sync searchInput when URL search changes (e.g. from header)
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const newCategoryId = params.get("categoryId") ? Number(params.get("categoryId")) : null;
-    const newSearch = params.get("q") ?? "";
-    setCategoryId(newCategoryId);
-    setSearch(newSearch);
-    setSearchInput(newSearch);
+    setSearchInput(urlSearch);
     setPage(1);
-  }, [location]);
+  }, [rawSearch]);
 
   const { data: productsData, isLoading } = useListProducts({
-    categoryId,
-    brandId,
-    minPrice,
-    maxPrice,
-    inStock: inStock ? true : null,
+    categoryId: categoryId ?? undefined,
+    brandId: brandId ?? undefined,
+    minPrice: minPrice ?? undefined,
+    maxPrice: maxPrice ?? undefined,
+    inStock: inStock ? true : undefined,
     sort,
     page,
     limit: 12,
-    search: search || null,
+    search: search || undefined,
   });
 
   const { data: categories } = useListCategories();
@@ -56,7 +56,6 @@ export default function Catalog() {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const q = searchInput.trim();
-    setSearch(q);
     setPage(1);
     if (q) {
       navigate(`/catalog?q=${encodeURIComponent(q)}`);
@@ -66,15 +65,18 @@ export default function Catalog() {
   };
 
   const clearSearch = () => {
-    setSearch("");
     setSearchInput("");
     setPage(1);
     navigate("/catalog");
   };
 
   const handleCategoryClick = (id: number | null) => {
-    setCategoryId(id);
     setPage(1);
+    if (id) {
+      navigate(`/catalog?categoryId=${id}`);
+    } else {
+      navigate("/catalog");
+    }
   };
 
   return (
@@ -128,7 +130,7 @@ export default function Catalog() {
                   כל הקטגוריות
                 </button>
               </li>
-              {categories?.map(cat => (
+              {categories?.filter(c => c.parentId !== null && c.parentId !== undefined).map(cat => (
                 <li key={cat.id}>
                   <button
                     className={`text-sm ${categoryId === cat.id ? "font-bold text-primary" : "text-muted-foreground hover:text-foreground"}`}

@@ -123,7 +123,7 @@ export function Layout({ children }: { children: ReactNode }) {
                   כל הקטגוריות
                 </Link>
               </li>
-              {categories?.slice(0, 8).map(category => (
+              {categories?.filter(c => c.parentId !== null && c.parentId !== undefined).slice(0, 8).map(category => (
                 <li key={category.id}>
                   <Link href={`/catalog?categoryId=${category.id}`} className="hover:text-primary transition-colors whitespace-nowrap">
                     {category.nameHe}
@@ -173,7 +173,7 @@ export function Layout({ children }: { children: ReactNode }) {
                     כל הקטגוריות
                   </Link>
                 </li>
-                {categories?.map(category => (
+                {categories?.filter(c => c.parentId !== null && c.parentId !== undefined).map(category => (
                   <li key={category.id}>
                     <Link
                       href={`/catalog?categoryId=${category.id}`}
