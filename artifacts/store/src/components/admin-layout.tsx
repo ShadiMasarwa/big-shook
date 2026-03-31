@@ -32,12 +32,35 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   const [location] = useLocation();
 
-  if (user?.role !== "admin") {
+  if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <div className="text-center bg-card border border-border rounded-2xl p-10 shadow-sm max-w-sm w-full mx-4">
+          <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+            <Package className="h-8 w-8 text-primary" />
+          </div>
+          <h1 className="text-2xl font-bold mb-2">כניסה לאדמין</h1>
+          <p className="text-muted-foreground mb-6">יש להתחבר עם חשבון מנהל מערכת כדי לגשת לאזור זה.</p>
+          <Button asChild className="w-full mb-3">
+            <Link href="/auth">התחבר כמנהל</Link>
+          </Button>
+          <Button variant="ghost" asChild className="w-full">
+            <Link href="/">חזרה לדף הבית</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (user.role !== "admin") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <div className="text-center bg-card border border-border rounded-2xl p-10 shadow-sm max-w-sm w-full mx-4">
+          <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+            <Package className="h-8 w-8 text-destructive" />
+          </div>
           <h1 className="text-2xl font-bold text-destructive mb-2">אין הרשאה</h1>
-          <p className="text-muted-foreground mb-4">רק מנהלים מורשים לגשת לאזור זה.</p>
+          <p className="text-muted-foreground mb-6">המשתמש שלך אינו מורשה לגשת לאזור הניהול.</p>
           <Button asChild>
             <Link href="/">חזרה לדף הבית</Link>
           </Button>
