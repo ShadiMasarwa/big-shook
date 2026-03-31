@@ -1,4 +1,5 @@
 import { useState, useEffect, createContext, useContext } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { User } from "@workspace/api-zod/src/generated/types";
 import { useGetCurrentUser, useLoginUser, useRegisterUser, useLogoutUser } from "@workspace/api-client-react";
 
@@ -7,12 +8,13 @@ interface AuthContextType {
   isLoading: boolean;
   login: ReturnType<typeof useLoginUser>["mutateAsync"];
   register: ReturnType<typeof useRegisterUser>["mutateAsync"];
-  logout: ReturnType<typeof useLogoutUser>["mutateAsync"];
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient();
   const [token, setToken] = useState<string | null>(localStorage.getItem("token"));
   
   const { data: user, isLoading, refetch } = useGetCurrentUser({
@@ -46,10 +48,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return res;
   };
 
-  const logout = async (data?: any, options?: any) => {
-    await logoutMutation.mutateAsync(data, options);
-    localStorage.removeItem("token");
-    setToken(null);
+  const logout = async () => {
+    try {
+      await logoutMutation.mutateAsync();
+    } catch {
+      // still clear locally even if the API call fails
+    } finally {
+      localStorage.removeItem("token");
+      setToken(null);
+      queryClient.removeQueries({ queryKey: ["/api/auth/me"] });
+    }
   };
 
   return (

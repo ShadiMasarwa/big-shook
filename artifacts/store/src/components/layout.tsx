@@ -82,7 +82,7 @@ export function Layout({ children }: { children: ReactNode }) {
                       </span>
                     )}
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => logout()} data-testid="btn-logout" title="התנתק">
+                  <Button variant="ghost" size="icon" onClick={async () => { await logout(); navigate("/"); }} data-testid="btn-logout" title="התנתק">
                     <LogOut className="h-5 w-5" />
                   </Button>
                 </div>
@@ -205,7 +205,7 @@ export function Layout({ children }: { children: ReactNode }) {
                     </li>
                     <li>
                       <button
-                        onClick={() => { logout(); setMobileOpen(false); }}
+                        onClick={async () => { await logout(); setMobileOpen(false); navigate("/"); }}
                         className="flex items-center gap-2 py-2 px-3 rounded-md hover:bg-muted text-sm w-full text-right text-destructive"
                       >
                         <LogOut className="h-4 w-4" />
