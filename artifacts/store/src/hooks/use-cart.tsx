@@ -5,10 +5,10 @@ import { useQueryClient } from "@tanstack/react-query";
 interface CartContextType {
   cart: any;
   isLoading: boolean;
-  addToCart: ReturnType<typeof useAddToCart>["mutateAsync"];
-  updateItem: ReturnType<typeof useUpdateCartItem>["mutateAsync"];
-  removeItem: ReturnType<typeof useRemoveFromCart>["mutateAsync"];
-  clearCart: ReturnType<typeof useClearCart>["mutateAsync"];
+  addToCart: (args: { productId: number; quantity: number }, options?: any) => Promise<any>;
+  updateItem: (args: { productId: number; quantity: number }, options?: any) => Promise<any>;
+  removeItem: (args: { productId: number }, options?: any) => Promise<any>;
+  clearCart: (options?: any) => Promise<any>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -30,20 +30,32 @@ export function CartProvider({ children }: { children: ReactNode }) {
     queryClient.invalidateQueries({ queryKey: getGetCartQueryKey() });
   };
 
-  const addToCart = async (data: any, options?: any) => {
-    return addToCartMutation.mutateAsync(data, { ...options, onSuccess: handleSuccess });
+  const addToCart = async ({ productId, quantity }: { productId: number; quantity: number }, options?: any) => {
+    return addToCartMutation.mutateAsync(
+      { data: { productId, quantity } },
+      { ...options, onSuccess: handleSuccess }
+    );
   };
 
-  const updateItem = async (data: any, options?: any) => {
-    return updateItemMutation.mutateAsync(data, { ...options, onSuccess: handleSuccess });
+  const updateItem = async ({ productId, quantity }: { productId: number; quantity: number }, options?: any) => {
+    return updateItemMutation.mutateAsync(
+      { productId, data: { quantity } },
+      { ...options, onSuccess: handleSuccess }
+    );
   };
 
-  const removeItem = async (data: any, options?: any) => {
-    return removeItemMutation.mutateAsync(data, { ...options, onSuccess: handleSuccess });
+  const removeItem = async ({ productId }: { productId: number }, options?: any) => {
+    return removeItemMutation.mutateAsync(
+      { productId },
+      { ...options, onSuccess: handleSuccess }
+    );
   };
 
-  const clearCart = async (data?: any, options?: any) => {
-    return clearCartMutation.mutateAsync(data, { ...options, onSuccess: handleSuccess });
+  const clearCart = async (options?: any) => {
+    return clearCartMutation.mutateAsync(
+      undefined,
+      { ...options, onSuccess: handleSuccess }
+    );
   };
 
   return (
