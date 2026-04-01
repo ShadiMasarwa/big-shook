@@ -29,7 +29,7 @@ const emptyCoupon = {
   type: "percentage" as CouponType,
   value: 0,
   minOrderAmount: 0,
-  maxUsageCount: 0,
+  usageLimit: 0,
   isActive: true,
   expiresAt: "",
 };
@@ -59,7 +59,7 @@ export default function AdminCoupons() {
       type: coupon.type,
       value: coupon.value,
       minOrderAmount: coupon.minOrderAmount || 0,
-      maxUsageCount: coupon.maxUsageCount || 0,
+      usageLimit: coupon.usageLimit || 0,
       isActive: coupon.isActive,
       expiresAt: coupon.expiresAt ? coupon.expiresAt.split("T")[0] : "",
     });
@@ -76,7 +76,7 @@ export default function AdminCoupons() {
       type: form.type,
       value: Number(form.value),
       minOrderAmount: Number(form.minOrderAmount) > 0 ? Number(form.minOrderAmount) : null,
-      maxUsageCount: Number(form.maxUsageCount) > 0 ? Number(form.maxUsageCount) : null,
+      usageLimit: Number(form.usageLimit) > 0 ? Number(form.usageLimit) : null,
       isActive: form.isActive,
       expiresAt: form.expiresAt ? new Date(form.expiresAt).toISOString() : null,
     };
@@ -143,14 +143,14 @@ export default function AdminCoupons() {
                   ))}
                 </TableRow>
               ))
-            ) : !data?.coupons || data.coupons.length === 0 ? (
+            ) : !data || (Array.isArray(data) ? data.length === 0 : !(data as any).length) ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
                   אין קופונים. לחץ על "קופון חדש" להוספה.
                 </TableCell>
               </TableRow>
             ) : (
-              data.coupons.map(coupon => (
+              (Array.isArray(data) ? data : (data as any).coupons).map((coupon: any) => (
                 <TableRow key={coupon.id}>
                   <TableCell className="font-bold text-primary tracking-wider">{coupon.code}</TableCell>
                   <TableCell>
@@ -171,7 +171,7 @@ export default function AdminCoupons() {
                   </TableCell>
                   <TableCell className="text-center font-medium">
                     {coupon.usedCount}
-                    {coupon.maxUsageCount ? ` / ${coupon.maxUsageCount}` : ''}
+                    {coupon.usageLimit ? ` / ${coupon.usageLimit}` : ''}
                   </TableCell>
                   <TableCell className="text-left">
                     <div className="flex items-center justify-end gap-2">
@@ -247,8 +247,8 @@ export default function AdminCoupons() {
               <Label>מגבלת שימוש (כמות)</Label>
               <Input 
                 type="number" min="0" placeholder="0 = ללא הגבלה"
-                value={form.maxUsageCount || ""}
-                onChange={e => setForm({...form, maxUsageCount: Number(e.target.value)})}
+                value={form.usageLimit || ""}
+                onChange={e => setForm({...form, usageLimit: Number(e.target.value)})}
               />
             </div>
             <div className="space-y-1">
