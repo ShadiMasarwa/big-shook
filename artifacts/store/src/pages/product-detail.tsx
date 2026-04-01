@@ -13,8 +13,9 @@ import { useCart } from "@/hooks/use-cart";
 import { useCompare } from "@/hooks/use-compare";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useState, useEffect } from "react";
-import { ShoppingCart, Heart, ArrowRightLeft, Check, Star } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ShoppingCart, Heart, ArrowRightLeft, Check, Star, ChevronRight, ChevronLeft } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
 import { ProductCard } from "@/components/product-card";
@@ -53,13 +54,29 @@ export default function ProductDetail() {
   const trackView = useTrackProductView();
   
   const [quantity, setQuantity] = useState(1);
-  const [mainImage, setMainImage] = useState<string | null>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [direction, setDirection] = useState(0);
+  const thumbsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (product) {
       trackView.mutateAsync({ data: { productId: product.id } }).catch(() => {});
+      setActiveIndex(0);
     }
   }, [product?.id]);
+
+  const images = product?.images ?? [];
+  const totalImages = images.length;
+
+  const goTo = (idx: number, dir?: number) => {
+    const next = (idx + totalImages) % totalImages;
+    setDirection(dir ?? (next > activeIndex ? -1 : 1));
+    setActiveIndex(next);
+    thumbsRef.current?.children[next]?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+  };
+
+  const goPrev = () => goTo(activeIndex - 1, 1);
+  const goNext = () => goTo(activeIndex + 1, -1);
 
   const handleAddToCart = async () => {
     if (!product) return;
@@ -108,7 +125,11 @@ export default function ProductDetail() {
     );
   }
 
-  const currentMainImage = mainImage || (product.images && product.images.length > 0 ? product.images[0] : null);
+  const slideVariants = {
+    enter: (dir: number) => ({ x: dir * 60, opacity: 0, scale: 0.97 }),
+    center: { x: 0, opacity: 1, scale: 1 },
+    exit: (dir: number) => ({ x: dir * -60, opacity: 0, scale: 0.97 }),
+  };
 
   return (
     <Layout>
@@ -126,24 +147,86 @@ export default function ProductDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-16">
           {/* Images */}
           <div className="flex flex-col gap-4">
-            <div className="aspect-square bg-white rounded-2xl border border-border flex items-center justify-center overflow-hidden p-4">
-              {currentMainImage ? (
-                <img src={currentMainImage} alt={product.nameHe} className="max-w-full max-h-full object-contain" />
-              ) : (
-                <span className="text-muted-foreground">אין תמונה</span>
+            {/* Main image with animation */}
+            <div className="relative aspect-square bg-white rounded-2xl border border-border overflow-hidden group">
+              <AnimatePresence initial={false} custom={direction} mode="popLayout">
+                <motion.div
+                  key={activeIndex}
+                  custom={direction}
+                  variants={slideVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                  className="absolute inset-0 flex items-center justify-center p-6"
+                >
+                  {images[activeIndex] ? (
+                    <img
+                      src={images[activeIndex]}
+                      alt={`${product.nameHe} ${activeIndex + 1}`}
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  ) : (
+                    <span className="text-muted-foreground">אין תמונה</span>
+                  )}
+                </motion.div>
+              </AnimatePresence>
+
+              {/* Arrow navigation — only show when >1 image */}
+              {totalImages > 1 && (
+                <>
+                  <button
+                    onClick={goNext}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/80 border border-border shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                    aria-label="תמונה הבאה"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={goPrev}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/80 border border-border shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                    aria-label="תמונה הקודמת"
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                  {/* Counter badge */}
+                  <div dir="ltr" className="absolute bottom-3 left-3 z-10 bg-black/50 text-white text-xs font-medium px-2 py-0.5 rounded-full">
+                    {activeIndex + 1} / {totalImages}
+                  </div>
+                </>
               )}
             </div>
-            <div className="flex gap-4 overflow-x-auto pb-2">
-              {product.images?.map((img, idx) => (
-                <button 
-                  key={idx} 
-                  onClick={() => setMainImage(img)}
-                  className={`aspect-square w-24 rounded-lg border-2 bg-white flex items-center justify-center p-2 shrink-0 ${currentMainImage === img ? 'border-primary' : 'border-border'}`}
-                >
-                  <img src={img} alt={`${product.nameHe} ${idx}`} className="max-w-full max-h-full object-contain" />
-                </button>
-              ))}
-            </div>
+
+            {/* Thumbnail strip */}
+            {totalImages > 1 && (
+              <div ref={thumbsRef} className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                {images.map((img, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => goTo(idx)}
+                    className={`relative aspect-square w-20 shrink-0 rounded-lg border-2 bg-white flex items-center justify-center p-1.5 transition-all duration-200 ${
+                      activeIndex === idx
+                        ? "border-primary shadow-md scale-105"
+                        : "border-border hover:border-primary/50 opacity-70 hover:opacity-100"
+                    }`}
+                    aria-label={`תמונה ${idx + 1}`}
+                  >
+                    {activeIndex === idx && (
+                      <motion.span
+                        layoutId="thumb-indicator"
+                        className="absolute inset-0 rounded-lg ring-2 ring-primary/30"
+                        transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                      />
+                    )}
+                    <img
+                      src={img}
+                      alt={`${product.nameHe} ${idx + 1}`}
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Info */}
