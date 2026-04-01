@@ -1,11 +1,28 @@
 import { Router, type IRouter } from "express";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { db, ordersTable, orderItemsTable, cartItemsTable, cartCouponsTable, productsTable, usersTable, loyaltyTransactionsTable } from "@workspace/db";
 import { getSessionId } from "./cart.js";
 
 const router: IRouter = Router();
 
-function serializeOrder(order: typeof ordersTable.$inferSelect, items: typeof orderItemsTable.$inferSelect[]) {
+async function fetchItemsWithProductData(orderId: number) {
+  const rawItems = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, orderId));
+  if (rawItems.length === 0) return [];
+  const productIds = [...new Set(rawItems.map(i => i.productId))];
+  const products = await db.select({ id: productsTable.id, images: productsTable.images, slug: productsTable.slug })
+    .from(productsTable).where(inArray(productsTable.id, productIds));
+  const productMap = new Map(products.map(p => [p.id, p]));
+  return rawItems.map(i => ({
+    ...i,
+    price: parseFloat(i.price),
+    subtotal: parseFloat(i.subtotal),
+    createdAt: i.createdAt.toISOString(),
+    productImages: productMap.get(i.productId)?.images ?? [],
+    productSlug: productMap.get(i.productId)?.slug ?? null,
+  }));
+}
+
+function serializeOrder(order: typeof ordersTable.$inferSelect, items: any[]) {
   return {
     ...order,
     subtotal: parseFloat(order.subtotal),
@@ -16,12 +33,7 @@ function serializeOrder(order: typeof ordersTable.$inferSelect, items: typeof or
     couponDiscount: parseFloat(order.couponDiscount),
     createdAt: order.createdAt.toISOString(),
     updatedAt: order.updatedAt.toISOString(),
-    items: items.map(i => ({
-      ...i,
-      price: parseFloat(i.price),
-      subtotal: parseFloat(i.subtotal),
-      createdAt: i.createdAt.toISOString(),
-    })),
+    items,
   };
 }
 
@@ -39,7 +51,7 @@ router.get("/orders", async (req, res): Promise<void> => {
   const orders = await db.select().from(ordersTable).where(whereClause).orderBy(desc(ordersTable.createdAt)).limit(limit).offset(offset);
 
   const result = await Promise.all(orders.map(async (order) => {
-    const items = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, order.id));
+    const items = await fetchItemsWithProductData(order.id);
     return serializeOrder(order, items);
   }));
 
@@ -101,22 +113,20 @@ router.post("/orders", async (req, res): Promise<void> => {
       productName: p.nameHe, productSku: p.sku ?? null,
       quantity: item.quantity, price: String(price),
       subtotal: String(price * item.quantity),
+      itemStatus: "pending",
     }).returning();
     return oi;
   }));
 
-  // Update sales counts
   await Promise.all(cartItems.map(item => {
     const p = productMap.get(item.productId);
     if (!p) return Promise.resolve();
     return db.update(productsTable).set({ salesCount: p.salesCount + item.quantity }).where(eq(productsTable.id, item.productId));
   }));
 
-  // Clear cart
   await db.delete(cartItemsTable).where(eq(cartItemsTable.sessionId, sessionId));
   await db.delete(cartCouponsTable).where(eq(cartCouponsTable.sessionId, sessionId));
 
-  // Loyalty transaction if user is logged in
   if (order.userId) {
     await db.insert(loyaltyTransactionsTable).values({
       userId: order.userId, points: order.loyaltyPointsEarned,
@@ -128,15 +138,14 @@ router.post("/orders", async (req, res): Promise<void> => {
       const newSpent = parseFloat(user.totalSpent) + total;
       const tier = newPoints >= 5000 ? "vip" : newPoints >= 2000 ? "gold" : newPoints >= 500 ? "silver" : "bronze";
       await db.update(usersTable).set({
-        loyaltyPoints: newPoints,
-        loyaltyTier: tier,
-        totalSpent: String(newSpent),
-        ordersCount: user.ordersCount + 1,
+        loyaltyPoints: newPoints, loyaltyTier: tier,
+        totalSpent: String(newSpent), ordersCount: user.ordersCount + 1,
       }).where(eq(usersTable.id, order.userId));
     }
   }
 
-  res.status(201).json(serializeOrder(order, orderItems.filter(Boolean) as typeof orderItemsTable.$inferSelect[]));
+  const serializedItems = await fetchItemsWithProductData(order.id);
+  res.status(201).json(serializeOrder(order, serializedItems));
 });
 
 router.get("/orders/:id", async (req, res): Promise<void> => {
@@ -147,7 +156,7 @@ router.get("/orders/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "הזמנה לא נמצאה" });
     return;
   }
-  const items = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, id));
+  const items = await fetchItemsWithProductData(id);
   res.json(serializeOrder(order, items));
 });
 
@@ -162,8 +171,27 @@ router.patch("/orders/:id/status", async (req, res): Promise<void> => {
     res.status(404).json({ error: "הזמנה לא נמצאה" });
     return;
   }
-  const items = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, id));
+  const items = await fetchItemsWithProductData(id);
   res.json(serializeOrder(order, items));
+});
+
+router.patch("/orders/:orderId/items/:itemId/status", async (req, res): Promise<void> => {
+  const orderId = parseInt(req.params.orderId, 10);
+  const itemId = parseInt(req.params.itemId, 10);
+  const { itemStatus } = req.body;
+  if (!itemStatus) {
+    res.status(400).json({ error: "itemStatus נדרש" });
+    return;
+  }
+  const [item] = await db.update(orderItemsTable)
+    .set({ itemStatus })
+    .where(and(eq(orderItemsTable.id, itemId), eq(orderItemsTable.orderId, orderId)))
+    .returning();
+  if (!item) {
+    res.status(404).json({ error: "פריט הזמנה לא נמצא" });
+    return;
+  }
+  res.json({ ...item, price: parseFloat(item.price), subtotal: parseFloat(item.subtotal), createdAt: item.createdAt.toISOString() });
 });
 
 export default router;
