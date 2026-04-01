@@ -1,10 +1,13 @@
 import { Router, type IRouter } from "express";
 import { eq, and, gte, lte, ilike, desc, asc, gt, sql } from "drizzle-orm";
-import { db, productsTable } from "@workspace/db";
+import { db, productsTable, suppliersTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
-function serializeProduct(p: typeof productsTable.$inferSelect) {
+function serializeProduct(
+  p: typeof productsTable.$inferSelect,
+  extra?: { supplierName?: string | null }
+) {
   return {
     ...p,
     price: parseFloat(p.price),
@@ -17,6 +20,7 @@ function serializeProduct(p: typeof productsTable.$inferSelect) {
     images: p.images ?? [],
     tags: p.tags ?? [],
     specs: p.specs ?? {},
+    supplierName: extra?.supplierName ?? null,
   };
 }
 
@@ -71,13 +75,18 @@ router.get("/products/:id/related", async (req, res): Promise<void> => {
 router.get("/products/:id", async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
-  const [product] = await db.select().from(productsTable).where(eq(productsTable.id, id));
-  if (!product) {
+  const [row] = await db
+    .select({ product: productsTable, supplierName: suppliersTable.companyName })
+    .from(productsTable)
+    .leftJoin(suppliersTable, eq(productsTable.supplierId, suppliersTable.id))
+    .where(eq(productsTable.id, id));
+  if (!row) {
     res.status(404).json({ error: "מוצר לא נמצא" });
     return;
   }
+  const { product, supplierName } = row;
   await db.update(productsTable).set({ viewsCount: product.viewsCount + 1 }).where(eq(productsTable.id, id));
-  res.json(serializeProduct({ ...product, viewsCount: product.viewsCount + 1 }));
+  res.json(serializeProduct({ ...product, viewsCount: product.viewsCount + 1 }, { supplierName }));
 });
 
 router.get("/products", async (req, res): Promise<void> => {

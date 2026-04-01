@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/ui/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronDown, ChevronUp, Package, Star, Tag, Layers } from "lucide-react";
+import { ChevronDown, ChevronUp, Package, Star, Tag, Layers, Truck } from "lucide-react";
+import { useLocation } from "wouter";
 
 const ORDER_STATUSES = [
   { value: "pending",    label: "ממתין" },
@@ -73,6 +74,13 @@ interface OrderItem {
 
 function ProductDetailDialog({ productId, open, onClose }: { productId: number; open: boolean; onClose: () => void }) {
   const { data: product, isLoading } = useGetProduct(productId, { query: { enabled: open && productId > 0 } });
+  const [, navigate] = useLocation();
+
+  const handleSupplierClick = () => {
+    if (!product?.supplierId) return;
+    onClose();
+    navigate(`/admin/suppliers/${product.supplierId}`);
+  };
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
@@ -166,6 +174,21 @@ function ProductDetailDialog({ productId, open, onClose }: { productId: number; 
               </Badge>
               {product.isFeatured && <Badge variant="outline" className="border-yellow-300 text-yellow-700">מומלץ</Badge>}
             </div>
+
+            {/* Supplier */}
+            {product.supplierId && (
+              <div className="flex items-center gap-2">
+                <Truck className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="text-sm text-muted-foreground">ספק:</span>
+                <button
+                  type="button"
+                  className="text-sm font-medium text-primary hover:underline"
+                  onClick={handleSupplierClick}
+                >
+                  {(product as any).supplierName ?? `ספק #${product.supplierId}`}
+                </button>
+              </div>
+            )}
 
             {/* Tags */}
             {product.tags && product.tags.length > 0 && (
