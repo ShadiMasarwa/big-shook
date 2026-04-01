@@ -197,6 +197,9 @@ export default function AdminCoupons() {
   const formatDateShort = (iso: string | null) =>
     iso ? new Date(iso).toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit", year: "2-digit" }) : null;
 
+  const isExpired = (iso: string | null) => !!iso && new Date(iso) < new Date();
+  const notStarted = (iso: string | null) => !!iso && new Date(iso) > new Date();
+
   return (
     <AdminLayout>
       <div className="flex justify-between items-center mb-6">
@@ -240,7 +243,7 @@ export default function AdminCoupons() {
               </TableRow>
             ) : (
               coupons.map((coupon: any) => (
-                <TableRow key={coupon.id}>
+                <TableRow key={coupon.id} className={isExpired(coupon.expiresAt) ? "opacity-60" : ""}>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <code className="font-bold text-primary tracking-wider">{coupon.code}</code>
@@ -267,8 +270,18 @@ export default function AdminCoupons() {
                     {coupon.minOrderAmount ? formatPrice(coupon.minOrderAmount) : "—"}
                   </TableCell>
                   <TableCell className="text-center text-xs text-muted-foreground">
-                    {coupon.startsAt && <div className="text-green-600">מ- {formatDateShort(coupon.startsAt)}</div>}
-                    {coupon.expiresAt ? <div>עד {formatDateShort(coupon.expiresAt)}</div> : <div>ללא תפוגה</div>}
+                    {coupon.startsAt && (
+                      <div className={notStarted(coupon.startsAt) ? "text-amber-500" : "text-green-600"}>
+                        מ- {formatDateShort(coupon.startsAt)}
+                      </div>
+                    )}
+                    {coupon.expiresAt ? (
+                      <div className={isExpired(coupon.expiresAt) ? "text-destructive font-semibold" : ""}>
+                        עד {formatDateShort(coupon.expiresAt)}
+                      </div>
+                    ) : (
+                      <div>ללא תפוגה</div>
+                    )}
                   </TableCell>
                   <TableCell className="text-center text-sm">
                     <div>{coupon.usedCount}{coupon.usageLimit ? ` / ${coupon.usageLimit}` : ""} כולל</div>
@@ -291,9 +304,11 @@ export default function AdminCoupons() {
                     )}
                   </TableCell>
                   <TableCell className="text-center">
-                    {coupon.isActive
-                      ? <Badge variant="outline" className="text-green-600 border-green-600">פעיל</Badge>
-                      : <Badge variant="secondary">לא פעיל</Badge>}
+                    {isExpired(coupon.expiresAt)
+                      ? <Badge variant="destructive">פג תוקף</Badge>
+                      : coupon.isActive
+                        ? <Badge variant="outline" className="text-green-600 border-green-600">פעיל</Badge>
+                        : <Badge variant="secondary">לא פעיל</Badge>}
                   </TableCell>
                   <TableCell className="text-left">
                     <div className="flex items-center justify-end gap-2">
