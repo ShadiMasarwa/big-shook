@@ -24,7 +24,7 @@ export default function Checkout() {
   const [shipping, setShipping] = useState({
     firstName: user?.firstName || "",
     lastName: user?.lastName || "",
-    phone: "",
+    phone: user?.phone || "",
     city: "",
     street: "",
     houseNumber: "",
