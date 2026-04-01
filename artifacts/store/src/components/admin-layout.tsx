@@ -75,7 +75,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       {/* Sidebar */}
       <aside className="w-64 bg-card border-l border-border flex flex-col hidden md:flex sticky top-0 h-screen">
         <div className="p-6 border-b border-border">
-          <Link href="/" className="text-2xl font-black text-primary flex items-center gap-2">
+          <Link href="/admin" className="text-2xl font-black text-primary flex items-center gap-2">
             <Package className="h-6 w-6" />
             טק-סטור אדמין
           </Link>
