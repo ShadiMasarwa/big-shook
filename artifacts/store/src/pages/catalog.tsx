@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useLocation, useSearch } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/layout";
 import { ProductCard } from "@/components/product-card";
-import { useListProducts, useListCategories, useListBrands } from "@workspace/api-client-react";
+import { useListProducts, useListCategories } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -51,7 +52,29 @@ export default function Catalog() {
   });
 
   const { data: categories } = useListCategories();
-  const { data: brands } = useListBrands();
+
+  const brandsParams = new URLSearchParams();
+  if (categoryId) brandsParams.set("categoryId", String(categoryId));
+  if (search) brandsParams.set("search", search);
+  if (minPrice) brandsParams.set("minPrice", String(minPrice));
+  if (maxPrice) brandsParams.set("maxPrice", String(maxPrice));
+  if (inStock) brandsParams.set("inStock", "true");
+  const brandsQs = brandsParams.toString();
+
+  const { data: brands } = useQuery({
+    queryKey: ["/api/brands", brandsQs],
+    queryFn: async () => {
+      const res = await fetch(`/api/brands${brandsQs ? `?${brandsQs}` : ""}`);
+      return res.json() as Promise<{ id: number; nameHe: string; nameEn: string | null }[]>;
+    },
+  });
+
+  // Clear selected brand if it no longer appears in the filtered brands list
+  useEffect(() => {
+    if (brandId !== null && brands && !brands.some(b => b.id === brandId)) {
+      setBrandId(null);
+    }
+  }, [brands, brandId]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
