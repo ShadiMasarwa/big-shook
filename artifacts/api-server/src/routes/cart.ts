@@ -76,6 +76,7 @@ async function buildCart(sessionId: string) {
   let couponDiscount = 0;
   let couponCode: string | null = null;
   let couponScope: string | null = null; // "all" | "partial"
+  let couponType: string | null = null;
 
   if (couponRow) {
     const [coupon] = await db.select().from(couponsTable).where(eq(couponsTable.code, couponRow.couponCode));
@@ -87,6 +88,7 @@ async function buildCart(sessionId: string) {
 
       if (!isExpired && !notStarted && !overLimit) {
         couponCode = coupon.code;
+        couponType = coupon.type;
 
         // Determine eligible items (category / brand restrictions)
         const hasCategories = (coupon.applicableCategories ?? []).length > 0;
@@ -133,6 +135,7 @@ async function buildCart(sessionId: string) {
     couponCode,
     couponDiscount,
     couponScope,
+    couponType,
     loyaltyPointsUsed: 0,
     loyaltyDiscount: 0,
     itemCount: cartItems.reduce((sum, i) => sum + i.quantity, 0),

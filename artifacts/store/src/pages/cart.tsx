@@ -73,6 +73,7 @@ export default function Cart() {
   }
 
   const isPartialCoupon = (cart as any).couponScope === "partial";
+  const couponType: string | null = (cart as any).couponType ?? null;
 
   return (
     <Layout>
@@ -184,21 +185,31 @@ export default function Cart() {
                 </div>
               )}
 
-              {/* Applied coupon badge when no discount yet (free_shipping might show 0 if shipping is already free) */}
+              {/* Applied coupon badge when discount = 0 */}
               {cart.couponCode && cart.couponDiscount === 0 && (
-                <div className="flex items-center justify-between text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Tag className="h-3 w-3" />
-                    קופון פעיל
-                    <code className="text-xs bg-muted px-1 rounded font-mono">{cart.couponCode}</code>
-                    <button
-                      onClick={handleRemoveCoupon}
-                      className="text-xs underline ml-1 hover:text-destructive"
-                    >
-                      הסר
-                    </button>
-                  </span>
-                  <span className="text-xs">ללא עלות משלוח</span>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Tag className="h-3 w-3" />
+                      קופון פעיל
+                      <code className="text-xs bg-muted px-1 rounded font-mono">{cart.couponCode}</code>
+                      <button
+                        onClick={handleRemoveCoupon}
+                        className="text-xs underline ml-1 hover:text-destructive"
+                      >
+                        הסר
+                      </button>
+                    </span>
+                    <span className="text-xs">
+                      {couponType === "free_shipping" ? "ללא עלות משלוח" : "-₪0"}
+                    </span>
+                  </div>
+                  {couponType !== "free_shipping" && (
+                    <div className="flex items-start gap-1 text-xs text-amber-600 bg-amber-50 rounded-md px-2 py-1.5">
+                      <Info className="h-3 w-3 mt-0.5 shrink-0" />
+                      <span>הקופון אינו חל על המוצרים בעגלה</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
