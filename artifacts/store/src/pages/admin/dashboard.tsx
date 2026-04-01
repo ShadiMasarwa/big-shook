@@ -45,6 +45,7 @@ export default function AdminDashboard() {
   ];
 
   const activeCoupons: any[] = s.activeCouponsList ?? [];
+  const inactiveCoupons: any[] = s.inactiveCouponsList ?? [];
   const totalEarned: number = s.totalLoyaltyPointsEarned ?? 0;
   const totalRedeemed: number = s.totalLoyaltyPointsRedeemed ?? 0;
   const netPoints: number = s.totalLoyaltyPoints ?? (totalEarned - totalRedeemed);
@@ -92,24 +93,33 @@ export default function AdminDashboard() {
 
       {/* Coupons + Points expanded cards */}
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Active Coupons card */}
+        {/* Coupons card */}
         <Card className="border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-3 border-b border-border">
             <div className="flex items-center gap-2">
               <div className="p-1.5 rounded-lg bg-cyan-50">
                 <Tag className="h-4 w-4 text-cyan-500" />
               </div>
-              <CardTitle className="text-base font-bold">קופונים פעילים</CardTitle>
+              <CardTitle className="text-base font-bold">קופונים</CardTitle>
             </div>
-            <Badge variant="secondary" className="text-xs font-bold">
-              {activeCoupons.length} קופונים
-            </Badge>
+            <div className="flex items-center gap-1.5">
+              <Badge variant="secondary" className="text-xs font-bold">
+                {activeCoupons.length} פעילים
+              </Badge>
+              {inactiveCoupons.length > 0 && (
+                <Badge variant="outline" className="text-xs font-bold text-muted-foreground">
+                  {inactiveCoupons.length} לא פעילים
+                </Badge>
+              )}
+            </div>
           </CardHeader>
-          <CardContent className="pt-4">
+          <CardContent className="pt-4 space-y-4">
+            {/* Active coupons */}
             {activeCoupons.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">אין קופונים פעילים כרגע</p>
+              <p className="text-sm text-muted-foreground text-center py-2">אין קופונים פעילים כרגע</p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-0">
+                <p className="text-xs font-semibold text-green-600 mb-2 uppercase tracking-wide">פעילים</p>
                 {activeCoupons.map((c) => (
                   <div key={c.id} className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
                     <div className="flex items-center gap-2">
@@ -120,6 +130,29 @@ export default function AdminDashboard() {
                     </div>
                     <div className="flex items-center gap-3 text-sm">
                       <span className="font-bold text-primary">{formatCouponValue(c.type, c.value)}</span>
+                      <span className="text-muted-foreground text-xs">
+                        {c.usageCount}/{c.usageLimit ?? "∞"} שימושים
+                      </span>
+                      <span className="text-muted-foreground text-xs hidden sm:block">
+                        עד {formatExpiry(c.expiresAt)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Inactive coupons */}
+            {inactiveCoupons.length > 0 && (
+              <div className="space-y-0">
+                <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">לא פעילים</p>
+                {inactiveCoupons.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between py-2 border-b border-border/40 last:border-0 opacity-60">
+                    <div className="flex items-center gap-2">
+                      <code className="bg-muted/60 px-2 py-0.5 rounded text-sm font-bold font-mono tracking-wide line-through decoration-muted-foreground/60">{c.code}</code>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm">
+                      <span className="font-medium text-muted-foreground">{formatCouponValue(c.type, c.value)}</span>
                       <span className="text-muted-foreground text-xs">
                         {c.usageCount}/{c.usageLimit ?? "∞"} שימושים
                       </span>

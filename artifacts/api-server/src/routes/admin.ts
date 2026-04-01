@@ -39,18 +39,26 @@ router.get("/admin/summary", async (_req, res): Promise<void> => {
   const [pendingOrdersRow] = await db.select({ count: sql<number>`count(*)::int` }).from(ordersTable).where(eq(ordersTable.status, "pending"));
   const [lowStockRow] = await db.select({ count: sql<number>`count(*)::int` }).from(inventoryTable).where(sql`quantity <= low_stock_threshold`);
 
+  const couponFields = {
+    id: couponsTable.id,
+    code: couponsTable.code,
+    type: couponsTable.type,
+    value: couponsTable.value,
+    usedCount: couponsTable.usedCount,
+    usageLimit: couponsTable.usageLimit,
+    expiresAt: couponsTable.expiresAt,
+  };
+
   const activeCouponsList = await db
-    .select({
-      id: couponsTable.id,
-      code: couponsTable.code,
-      type: couponsTable.type,
-      value: couponsTable.value,
-      usedCount: couponsTable.usedCount,
-      usageLimit: couponsTable.usageLimit,
-      expiresAt: couponsTable.expiresAt,
-    })
+    .select(couponFields)
     .from(couponsTable)
     .where(eq(couponsTable.isActive, true))
+    .orderBy(couponsTable.code);
+
+  const inactiveCouponsList = await db
+    .select(couponFields)
+    .from(couponsTable)
+    .where(eq(couponsTable.isActive, false))
     .orderBy(couponsTable.code);
 
   const [earnedRow] = await db.select({ total: sql<number>`coalesce(sum(points), 0)` }).from(loyaltyTransactionsTable).where(eq(loyaltyTransactionsTable.type, "earned"));
@@ -69,6 +77,15 @@ router.get("/admin/summary", async (_req, res): Promise<void> => {
     lowStockProducts: lowStockRow.count,
     activeCoupons: activeCouponsList.length,
     activeCouponsList: activeCouponsList.map(c => ({
+      id: c.id,
+      code: c.code,
+      type: c.type,
+      value: parseFloat(String(c.value)),
+      usageCount: c.usedCount ?? 0,
+      usageLimit: c.usageLimit ?? null,
+      expiresAt: c.expiresAt?.toISOString() ?? null,
+    })),
+    inactiveCouponsList: inactiveCouponsList.map(c => ({
       id: c.id,
       code: c.code,
       type: c.type,
