@@ -3,44 +3,52 @@ import { useCart } from "@/hooks/use-cart";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { formatPrice } from "@/lib/utils";
-import { Trash2, ShoppingCart, ArrowLeft, Tag } from "lucide-react";
+import { Trash2, ShoppingCart, ArrowLeft, Tag, Info } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
-import { useApplyCouponToCart, useRemoveCouponFromCart } from "@workspace/api-client-react";
+import { useApplyCouponToCart, useRemoveCouponFromCart, getGetCartQueryKey } from "@workspace/api-client-react";
 import { toast } from "@/components/ui/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function Cart() {
   const { cart, isLoading, updateItem, removeItem, clearCart } = useCart();
   const [couponCode, setCouponCode] = useState("");
   const applyCoupon = useApplyCouponToCart();
   const removeCoupon = useRemoveCouponFromCart();
+  const queryClient = useQueryClient();
 
   const handleApplyCoupon = async () => {
-    if (!couponCode) return;
+    if (!couponCode.trim()) return;
     try {
-      await applyCoupon.mutateAsync({ data: { code: couponCode } });
+      const updated = await applyCoupon.mutateAsync({ data: { code: couponCode.trim() } });
+      // Update cart cache immediately with the returned cart
+      queryClient.setQueryData(getGetCartQueryKey(), updated);
       toast({ title: "הקופון הופעל בהצלחה" });
       setCouponCode("");
-    } catch (e) {
-      toast({ title: "קופון לא חוקי", variant: "destructive" });
+    } catch (e: any) {
+      const msg = e?.response?.data?.error ?? e?.message ?? "קופון לא חוקי";
+      toast({ title: msg, variant: "destructive" });
     }
   };
 
   const handleRemoveCoupon = async () => {
     try {
-      await removeCoupon.mutateAsync();
+      const updated = await removeCoupon.mutateAsync();
+      queryClient.setQueryData(getGetCartQueryKey(), updated);
       toast({ title: "הקופון הוסר" });
-    } catch (e) {
-      console.error(e);
+    } catch {
+      queryClient.invalidateQueries({ queryKey: getGetCartQueryKey() });
     }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") handleApplyCoupon();
   };
 
   if (isLoading) {
     return (
       <Layout>
-        <div className="container mx-auto px-4 py-16 text-center">
-          טוען עגלה...
-        </div>
+        <div className="container mx-auto px-4 py-16 text-center">טוען עגלה...</div>
       </Layout>
     );
   }
@@ -63,6 +71,8 @@ export default function Cart() {
       </Layout>
     );
   }
+
+  const isPartialCoupon = (cart as any).couponScope === "partial";
 
   return (
     <Layout>
@@ -100,16 +110,16 @@ export default function Cart() {
                   <p className="text-sm text-muted-foreground mt-1">{formatPrice(item.price)}</p>
                 </div>
               </div>
-              
+
               <div className="w-1/6 flex justify-center">
                 <div className="flex items-center border border-border rounded-md bg-background w-fit">
-                  <button 
-                    className="px-2 py-1 hover:text-primary transition-colors" 
+                  <button
+                    className="px-2 py-1 hover:text-primary transition-colors"
                     onClick={() => updateItem({ productId: item.productId, quantity: item.quantity - 1 })}
                   >-</button>
                   <span className="w-8 text-center font-medium text-sm">{item.quantity}</span>
-                  <button 
-                    className="px-2 py-1 hover:text-primary transition-colors" 
+                  <button
+                    className="px-2 py-1 hover:text-primary transition-colors"
                     onClick={() => updateItem({ productId: item.productId, quantity: item.quantity + 1 })}
                   >+</button>
                 </div>
@@ -123,7 +133,7 @@ export default function Cart() {
               </div>
             </div>
           ))}
-          
+
           <div className="flex justify-start pt-4">
             <Button variant="outline" className="text-destructive border-destructive hover:bg-destructive hover:text-white" onClick={() => clearCart()}>
               נקה עגלה
@@ -135,26 +145,60 @@ export default function Cart() {
         <div className="w-full lg:w-96 shrink-0">
           <div className="bg-muted rounded-xl p-6 border border-border sticky top-24">
             <h2 className="text-xl font-bold mb-6 border-b border-border pb-4">סיכום הזמנה</h2>
-            
+
             <div className="space-y-4 text-sm mb-6">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">סכום ביניים ({cart.itemCount} פריטים)</span>
                 <span className="font-medium">{formatPrice(cart.subtotal)}</span>
               </div>
-              
+
               <div className="flex justify-between">
                 <span className="text-muted-foreground">משלוח</span>
                 <span className="font-medium">{cart.shipping > 0 ? formatPrice(cart.shipping) : 'חינם'}</span>
               </div>
-              
+
               {cart.couponDiscount > 0 && (
-                <div className="flex justify-between text-green-600">
+                <div className="space-y-1">
+                  <div className="flex justify-between text-green-600">
+                    <span className="flex items-center gap-1">
+                      <Tag className="h-3 w-3" />
+                      הנחת קופון
+                      {cart.couponCode && (
+                        <code className="text-xs bg-green-100 text-green-700 px-1 rounded font-mono">{cart.couponCode}</code>
+                      )}
+                      <button
+                        onClick={handleRemoveCoupon}
+                        className="text-xs text-muted-foreground underline ml-1 hover:text-destructive"
+                      >
+                        הסר
+                      </button>
+                    </span>
+                    <span className="font-bold">-{formatPrice(cart.couponDiscount)}</span>
+                  </div>
+                  {isPartialCoupon && (
+                    <div className="flex items-start gap-1 text-xs text-amber-600 bg-amber-50 rounded-md px-2 py-1.5">
+                      <Info className="h-3 w-3 mt-0.5 shrink-0" />
+                      <span>הקופון חל רק על חלק מהמוצרים בעגלה</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Applied coupon badge when no discount yet (free_shipping might show 0 if shipping is already free) */}
+              {cart.couponCode && cart.couponDiscount === 0 && (
+                <div className="flex items-center justify-between text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <Tag className="h-3 w-3" />
-                    הנחת קופון
-                    <button onClick={handleRemoveCoupon} className="text-xs text-muted-foreground underline ml-2 mr-2 hover:text-destructive">הסר</button>
+                    קופון פעיל
+                    <code className="text-xs bg-muted px-1 rounded font-mono">{cart.couponCode}</code>
+                    <button
+                      onClick={handleRemoveCoupon}
+                      className="text-xs underline ml-1 hover:text-destructive"
+                    >
+                      הסר
+                    </button>
                   </span>
-                  <span className="font-bold">-{formatPrice(cart.couponDiscount)}</span>
+                  <span className="text-xs">ללא עלות משלוח</span>
                 </div>
               )}
             </div>
@@ -166,18 +210,28 @@ export default function Cart() {
               </div>
             </div>
 
-            <div className="mb-6">
-              <label className="text-sm font-medium mb-2 block">קוד קופון</label>
-              <div className="flex gap-2">
-                <Input 
-                  placeholder="הזן קוד..." 
-                  value={couponCode} 
-                  onChange={(e) => setCouponCode(e.target.value)} 
-                  disabled={cart.couponCode ? true : false}
-                />
-                <Button variant="secondary" onClick={handleApplyCoupon} disabled={!couponCode || !!cart.couponCode}>הפעל</Button>
+            {/* Coupon input — only shown when no coupon is applied */}
+            {!cart.couponCode && (
+              <div className="mb-6">
+                <label className="text-sm font-medium mb-2 block">קוד קופון</label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="הזן קוד..."
+                    value={couponCode}
+                    onChange={e => setCouponCode(e.target.value.toUpperCase())}
+                    onKeyDown={handleKeyDown}
+                    className="uppercase font-mono tracking-wider"
+                  />
+                  <Button
+                    variant="secondary"
+                    onClick={handleApplyCoupon}
+                    disabled={!couponCode.trim() || applyCoupon.isPending}
+                  >
+                    {applyCoupon.isPending ? "..." : "הפעל"}
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
 
             <Button size="lg" className="w-full font-bold text-lg h-14" asChild>
               <Link href="/checkout">המשך לתשלום <ArrowLeft className="ml-2 h-5 w-5" /></Link>
