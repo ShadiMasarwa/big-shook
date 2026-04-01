@@ -1,5 +1,6 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation, useSearch } from "wouter";
+import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
 import { useCart } from "@/hooks/use-cart";
 import { ShoppingCart, User, Heart, Search, Menu, Package, Star, X, LogOut } from "lucide-react";
@@ -121,23 +122,37 @@ export function Layout({ children }: { children: ReactNode }) {
         <div className="border-t border-border hidden md:block">
           <div className="container mx-auto px-4">
             <ul className="flex items-center gap-6 py-3 text-sm font-medium overflow-x-auto">
-              <li>
+              <li className="relative pb-0.5">
                 <Link
                   href="/catalog"
-                  className={`flex items-center gap-1 transition-colors whitespace-nowrap ${isOnCatalog && !activeCategoryId ? "text-primary font-bold underline underline-offset-4" : "hover:text-primary"}`}
+                  className={`flex items-center gap-1 transition-colors duration-200 whitespace-nowrap ${isOnCatalog && !activeCategoryId ? "text-primary font-bold" : "hover:text-primary"}`}
                 >
                   <Menu className="h-4 w-4" />
                   כל הקטגוריות
                 </Link>
+                {isOnCatalog && !activeCategoryId && (
+                  <motion.span
+                    layoutId="desktop-cat-indicator"
+                    className="absolute bottom-0 right-0 left-0 h-0.5 bg-primary rounded-full"
+                    transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                  />
+                )}
               </li>
               {categories?.filter(c => c.parentId !== null && c.parentId !== undefined).slice(0, 8).map(category => (
-                <li key={category.id}>
+                <li key={category.id} className="relative pb-0.5">
                   <Link
                     href={`/catalog?categoryId=${category.id}`}
-                    className={`transition-colors whitespace-nowrap ${activeCategoryId === category.id ? "text-primary font-bold underline underline-offset-4" : "hover:text-primary"}`}
+                    className={`transition-colors duration-200 whitespace-nowrap ${activeCategoryId === category.id ? "text-primary font-bold" : "hover:text-primary"}`}
                   >
                     {category.nameHe}
                   </Link>
+                  {activeCategoryId === category.id && (
+                    <motion.span
+                      layoutId="desktop-cat-indicator"
+                      className="absolute bottom-0 right-0 left-0 h-0.5 bg-primary rounded-full"
+                      transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                    />
+                  )}
                 </li>
               ))}
             </ul>
@@ -173,22 +188,36 @@ export function Layout({ children }: { children: ReactNode }) {
             <div className="px-4 py-2">
               <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wide mb-2">קטגוריות</p>
               <ul className="space-y-1">
-                <li>
+                <li className="relative">
+                  {isOnCatalog && !activeCategoryId && (
+                    <motion.span
+                      layoutId="mobile-cat-indicator"
+                      className="absolute inset-0 bg-primary/10 rounded-md"
+                      transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                    />
+                  )}
                   <Link
                     href="/catalog"
                     onClick={handleCategoryClick}
-                    className={`flex items-center gap-2 py-2 px-3 rounded-md text-sm font-medium ${isOnCatalog && !activeCategoryId ? "bg-primary/10 text-primary font-bold" : "hover:bg-muted"}`}
+                    className={`relative flex items-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-colors duration-200 ${isOnCatalog && !activeCategoryId ? "text-primary font-bold" : "hover:bg-muted"}`}
                   >
                     <Menu className="h-4 w-4" />
                     כל הקטגוריות
                   </Link>
                 </li>
                 {categories?.filter(c => c.parentId !== null && c.parentId !== undefined).map(category => (
-                  <li key={category.id}>
+                  <li key={category.id} className="relative">
+                    {activeCategoryId === category.id && (
+                      <motion.span
+                        layoutId="mobile-cat-indicator"
+                        className="absolute inset-0 bg-primary/10 rounded-md"
+                        transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                      />
+                    )}
                     <Link
                       href={`/catalog?categoryId=${category.id}`}
                       onClick={handleCategoryClick}
-                      className={`flex items-center py-2 px-3 rounded-md text-sm ${activeCategoryId === category.id ? "bg-primary/10 text-primary font-bold" : "hover:bg-muted"}`}
+                      className={`relative flex items-center py-2 px-3 rounded-md text-sm transition-colors duration-200 ${activeCategoryId === category.id ? "text-primary font-bold" : "hover:bg-muted"}`}
                     >
                       {category.nameHe}
                     </Link>
