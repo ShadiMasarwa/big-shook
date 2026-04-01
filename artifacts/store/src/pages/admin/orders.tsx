@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { AdminLayout } from "@/components/admin-layout";
-import { useListOrders, useUpdateOrderStatus, getListOrdersQueryKey } from "@workspace/api-client-react";
+import { useListOrders, useUpdateOrderStatus, getListOrdersQueryKey, useGetProduct } from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatPrice } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/ui/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Link } from "wouter";
-import { ChevronDown, ChevronUp, Package } from "lucide-react";
+import { ChevronDown, ChevronUp, Package, Star, Tag, Layers } from "lucide-react";
 
 const ORDER_STATUSES = [
   { value: "pending",    label: "ממתין" },
@@ -71,12 +71,144 @@ interface OrderItem {
   productSlug: string | null;
 }
 
+function ProductDetailDialog({ productId, open, onClose }: { productId: number; open: boolean; onClose: () => void }) {
+  const { data: product, isLoading } = useGetProduct(productId, { query: { enabled: open && productId > 0 } });
+
+  return (
+    <Dialog open={open} onOpenChange={v => !v && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto" dir="rtl">
+        <DialogHeader>
+          <DialogTitle className="text-xl">
+            {isLoading ? <Skeleton className="h-6 w-48" /> : product?.nameHe}
+          </DialogTitle>
+        </DialogHeader>
+
+        {isLoading ? (
+          <div className="space-y-4 mt-2">
+            <Skeleton className="h-48 w-full rounded-lg" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+          </div>
+        ) : product ? (
+          <div className="space-y-5 mt-1">
+            {/* Images */}
+            {product.images && product.images.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {product.images.map((img, i) => (
+                  <img
+                    key={i}
+                    src={img}
+                    alt=""
+                    className="h-40 w-40 object-contain rounded-lg border border-border bg-white shrink-0"
+                    onError={e => (e.currentTarget.style.display = "none")}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Name + SKU */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground mb-0.5">שם בעברית</p>
+                <p className="font-semibold">{product.nameHe}</p>
+              </div>
+              {product.nameEn && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">שם באנגלית</p>
+                  <p className="font-semibold" dir="ltr">{product.nameEn}</p>
+                </div>
+              )}
+              {product.sku && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">מק"ט</p>
+                  <p dir="ltr" className="font-mono text-sm">{product.sku}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Description */}
+            {product.descriptionHe && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">תיאור</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">{product.descriptionHe}</p>
+              </div>
+            )}
+
+            {/* Price + Stock */}
+            <div className="grid grid-cols-3 gap-4 bg-muted/30 rounded-lg p-3">
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground mb-1">מחיר רגיל</p>
+                <p className="font-bold text-lg">{formatPrice(product.price)}</p>
+              </div>
+              {product.salePrice && (
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground mb-1">מחיר מבצע</p>
+                  <p className="font-bold text-lg text-green-600">{formatPrice(product.salePrice)}</p>
+                </div>
+              )}
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground mb-1">מלאי</p>
+                <p className={`font-bold text-lg ${product.stockQuantity === 0 ? "text-destructive" : ""}`}>
+                  {product.stockQuantity}
+                </p>
+              </div>
+            </div>
+
+            {/* Rating + Status */}
+            <div className="flex flex-wrap gap-3">
+              <div className="flex items-center gap-1.5 text-sm">
+                <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
+                <span className="font-medium">{parseFloat(String(product.ratingAverage)).toFixed(1)}</span>
+                <span className="text-muted-foreground">({product.ratingCount} דירוגים)</span>
+              </div>
+              <Badge variant={product.isActive ? "default" : "secondary"}>
+                {product.isActive ? "פעיל" : "לא פעיל"}
+              </Badge>
+              {product.isFeatured && <Badge variant="outline" className="border-yellow-300 text-yellow-700">מומלץ</Badge>}
+            </div>
+
+            {/* Tags */}
+            {product.tags && product.tags.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1"><Tag className="h-3 w-3" />תגיות</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {product.tags.map(tag => (
+                    <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Specs */}
+            {product.specs && Object.keys(product.specs as object).length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1"><Layers className="h-3 w-3" />מפרט טכני</p>
+                <div className="border border-border rounded-lg overflow-hidden text-sm">
+                  {Object.entries(product.specs as Record<string, string>).map(([k, v]) => (
+                    <div key={k} className="flex border-b border-border last:border-0">
+                      <div className="w-1/3 px-3 py-2 bg-muted/40 font-medium">{k}</div>
+                      <div className="flex-1 px-3 py-2">{String(v)}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-muted-foreground text-center py-8">מוצר לא נמצא</p>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function OrderItemsRow({ orderId, items, onItemStatusChange }: {
   orderId: number;
   items: OrderItem[];
   onItemStatusChange: (itemId: number, newStatus: string) => void;
 }) {
   const [pendingItems, setPendingItems] = useState<Record<number, boolean>>({});
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
 
   const handleItemStatus = async (itemId: number, newStatus: string) => {
     setPendingItems(p => ({ ...p, [itemId]: true }));
@@ -95,6 +227,7 @@ function OrderItemsRow({ orderId, items, onItemStatusChange }: {
   };
 
   return (
+    <>
     <TableRow className="bg-muted/30 hover:bg-muted/40">
       <TableCell colSpan={6} className="p-0">
         <div className="px-4 py-3 border-t border-border">
@@ -124,13 +257,13 @@ function OrderItemsRow({ orderId, items, onItemStatusChange }: {
                   </td>
                   <td className="py-2 pr-2">
                     <div>
-                      <Link
-                        href={`/product/${item.productId}`}
-                        className="font-medium text-primary hover:underline"
-                        target="_blank"
+                      <button
+                        type="button"
+                        className="font-medium text-primary hover:underline text-right"
+                        onClick={() => setSelectedProductId(item.productId)}
                       >
                         {item.productName}
-                      </Link>
+                      </button>
                       {item.productSku && (
                         <p className="text-xs text-muted-foreground" dir="ltr">{item.productSku}</p>
                       )}
@@ -162,6 +295,14 @@ function OrderItemsRow({ orderId, items, onItemStatusChange }: {
         </div>
       </TableCell>
     </TableRow>
+    {selectedProductId !== null && (
+      <ProductDetailDialog
+        productId={selectedProductId}
+        open={selectedProductId !== null}
+        onClose={() => setSelectedProductId(null)}
+      />
+    )}
+  </>
   );
 }
 
