@@ -127,7 +127,7 @@ export default function Catalog() {
 
       <div className="container mx-auto px-4 pb-16 flex flex-col md:flex-row gap-8">
         {/* Sidebar Filters */}
-        <aside className="w-full md:w-64 shrink-0 space-y-6">
+        <aside className="w-full md:w-64 shrink-0 space-y-6 order-2 md:order-1">
           {/* In-page search */}
           <form onSubmit={handleSearchSubmit} className="relative">
             <Input
@@ -222,7 +222,7 @@ export default function Catalog() {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1">
+        <main className="flex-1 order-1 md:order-2">
           <div className="flex justify-between items-center mb-6">
             <p className="text-sm text-muted-foreground">
               מציג {productsData?.products.length || 0} מתוך {productsData?.total || 0} מוצרים
