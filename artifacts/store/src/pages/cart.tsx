@@ -26,7 +26,7 @@ export default function Cart() {
       toast({ title: "הקופון הופעל בהצלחה" });
       setCouponCode("");
     } catch (e: any) {
-      const msg = e?.response?.data?.error ?? e?.message ?? "קופון לא חוקי";
+      const msg = e?.data?.error ?? "קופון לא חוקי";
       toast({ title: msg, variant: "destructive" });
     }
   };
