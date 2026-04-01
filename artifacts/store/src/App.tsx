@@ -30,6 +30,9 @@ import AdminLoyalty from "@/pages/admin/loyalty";
 import AdminAnalytics from "@/pages/admin/analytics";
 import AdminUsers from "@/pages/admin/users";
 import AdminImport from "@/pages/admin/import";
+import AdminSuppliers from "@/pages/admin/suppliers";
+import AdminSupplierForm from "@/pages/admin/supplier-form";
+import AdminSupplierDetail from "@/pages/admin/supplier-detail";
 
 const queryClient = new QueryClient();
 
@@ -61,7 +64,11 @@ function Router() {
       <Route path="/admin/customers" component={AdminUsers} />
       <Route path="/admin/users" component={AdminUsers} />
       <Route path="/admin/import" component={AdminImport} />
-      
+      <Route path="/admin/suppliers" component={AdminSuppliers} />
+      <Route path="/admin/suppliers/new" component={AdminSupplierForm} />
+      <Route path="/admin/suppliers/:id" component={AdminSupplierDetail} />
+      <Route path="/admin/suppliers/:id/edit" component={AdminSupplierForm} />
+
       <Route component={NotFound} />
     </Switch>
   );

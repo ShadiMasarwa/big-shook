@@ -6,13 +6,13 @@ import {
   Package, 
   ShoppingCart, 
   Users, 
-  Settings, 
   LogOut, 
   Tags,
   Percent,
   Star,
   LineChart,
-  Download
+  Download,
+  Truck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -21,6 +21,7 @@ const navItems = [
   { href: "/admin/analytics", label: "דוחות וסטטיסטיקה", icon: LineChart },
   { href: "/admin/orders", label: "הזמנות", icon: ShoppingCart },
   { href: "/admin/products", label: "מוצרים", icon: Package },
+  { href: "/admin/suppliers", label: "ספקים", icon: Truck },
   { href: "/admin/inventory", label: "מלאי", icon: Tags },
   { href: "/admin/customers", label: "לקוחות", icon: Users },
   { href: "/admin/coupons", label: "קופונים", icon: Percent },

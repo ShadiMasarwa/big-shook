@@ -23,6 +23,7 @@ export const productsTable = pgTable("products", {
   costPrice: numeric("cost_price", { precision: 10, scale: 2 }),
   categoryId: integer("category_id"),
   brandId: integer("brand_id"),
+  supplierId: integer("supplier_id"),
   images: text("images").array().notNull().default([]),
   tags: text("tags").array().notNull().default([]),
   specs: jsonb("specs").notNull().default({}),

@@ -126,7 +126,7 @@ router.get("/products", async (req, res): Promise<void> => {
 router.post("/products", async (req, res): Promise<void> => {
   const {
     nameHe, nameEn, slug, descriptionHe, sku, price, salePrice, costPrice,
-    categoryId, brandId, images, tags, specs, stockQuantity, isActive, isFeatured,
+    categoryId, brandId, supplierId, images, tags, specs, stockQuantity, isActive, isFeatured,
     weight, metaTitle, metaDescription,
   } = req.body;
   if (!nameHe || !slug || price === undefined || price === null) {
@@ -138,7 +138,7 @@ router.post("/products", async (req, res): Promise<void> => {
     sku: sku ?? null, price: String(price),
     salePrice: salePrice != null ? String(salePrice) : null,
     costPrice: costPrice != null ? String(costPrice) : null,
-    categoryId: categoryId ?? null, brandId: brandId ?? null,
+    categoryId: categoryId ?? null, brandId: brandId ?? null, supplierId: supplierId ?? null,
     images: images ?? [], tags: tags ?? [], specs: specs ?? {},
     stockQuantity: stockQuantity ?? 0, isActive: isActive ?? true,
     isFeatured: isFeatured ?? false, weight: weight != null ? String(weight) : null,
@@ -152,7 +152,7 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
   const id = parseInt(raw, 10);
   const body = req.body;
   const updateData: Record<string, unknown> = {};
-  const fields = ["nameHe", "nameEn", "slug", "descriptionHe", "sku", "categoryId", "brandId",
+  const fields = ["nameHe", "nameEn", "slug", "descriptionHe", "sku", "categoryId", "brandId", "supplierId",
     "images", "tags", "specs", "stockQuantity", "isActive", "isFeatured", "weight", "metaTitle", "metaDescription"];
   for (const f of fields) {
     if (body[f] !== undefined) updateData[f] = body[f];

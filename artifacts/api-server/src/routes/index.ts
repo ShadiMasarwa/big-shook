@@ -15,6 +15,7 @@ import couponsRouter from "./coupons.js";
 import inventoryRouter from "./inventory.js";
 import analyticsRouter from "./analytics.js";
 import adminRouter from "./admin.js";
+import suppliersRouter from "./suppliers.js";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use(couponsRouter);
 router.use(inventoryRouter);
 router.use(analyticsRouter);
 router.use(adminRouter);
+router.use(suppliersRouter);
 
 export default router;

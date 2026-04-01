@@ -8,11 +8,14 @@ import { Plus, Edit, Trash2, CheckCircle, XCircle } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSuppliers } from "@/hooks/use-suppliers";
 
 export default function AdminProducts() {
   const queryClient = useQueryClient();
   const { data, isLoading } = useListProducts({ limit: 50 });
   const deleteProduct = useDeleteProduct();
+  const { data: suppliers } = useSuppliers();
+  const supplierMap = Object.fromEntries((suppliers ?? []).map(s => [s.id, s]));
 
   const handleDelete = async (id: number) => {
     if (window.confirm("האם אתה בטוח שברצונך למחוק מוצר זה?")) {
@@ -44,6 +47,7 @@ export default function AdminProducts() {
               <TableHead className="text-center">מק"ט</TableHead>
               <TableHead className="text-center">מחיר</TableHead>
               <TableHead className="text-center">מלאי</TableHead>
+              <TableHead className="text-center">ספק</TableHead>
               <TableHead className="text-center">פעיל</TableHead>
               <TableHead className="text-left">פעולות</TableHead>
             </TableRow>
@@ -81,6 +85,18 @@ export default function AdminProducts() {
                   <TableCell className="text-center">{product.sku || '-'}</TableCell>
                   <TableCell className="text-center">{formatPrice(product.price)}</TableCell>
                   <TableCell className="text-center font-bold">{product.stockQuantity}</TableCell>
+                  <TableCell className="text-center">
+                    {(product as any).supplierId && supplierMap[(product as any).supplierId] ? (
+                      <Link
+                        href={`/admin/suppliers/${(product as any).supplierId}`}
+                        className="text-primary hover:underline text-sm font-medium"
+                      >
+                        {supplierMap[(product as any).supplierId].companyName}
+                      </Link>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">—</span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-center">
                     {product.isActive ? (
                       <CheckCircle className="h-5 w-5 text-green-500 mx-auto" />

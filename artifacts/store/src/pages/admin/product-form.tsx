@@ -7,6 +7,7 @@ import {
   useListBrands,
   getGetProductQueryKey
 } from "@workspace/api-client-react";
+import { useSuppliers } from "@/hooks/use-suppliers";
 import { useParams, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,7 @@ export default function AdminProductForm() {
 
   const { data: categories } = useListCategories();
   const { data: brands } = useListBrands();
+  const { data: suppliers } = useSuppliers();
   
   const { data: product, isLoading: isLoadingProduct } = useGetProduct(productId, {
     query: { enabled: isEditing, queryKey: getGetProductQueryKey(productId) }
@@ -47,6 +49,7 @@ export default function AdminProductForm() {
     stockQuantity: 0,
     categoryId: "",
     brandId: "",
+    supplierId: "",
     isActive: true,
     isFeatured: false,
     images: "",
@@ -71,6 +74,7 @@ export default function AdminProductForm() {
         stockQuantity: product.stockQuantity,
         categoryId: product.categoryId?.toString() || "",
         brandId: product.brandId?.toString() || "",
+        supplierId: (product as any).supplierId?.toString() || "",
         isActive: product.isActive,
         isFeatured: product.isFeatured,
         images: product.images.join("\n"),
@@ -125,6 +129,7 @@ export default function AdminProductForm() {
       stockQuantity: Number(formData.stockQuantity),
       categoryId: formData.categoryId ? Number(formData.categoryId) : null,
       brandId: formData.brandId ? Number(formData.brandId) : null,
+      supplierId: formData.supplierId ? Number(formData.supplierId) : null,
       isActive: formData.isActive,
       isFeatured: formData.isFeatured,
       images: formData.images.split("\n").map(s => s.trim()).filter(Boolean),
@@ -191,6 +196,15 @@ export default function AdminProductForm() {
                   <SelectTrigger><SelectValue placeholder="בחר מותג" /></SelectTrigger>
                   <SelectContent>
                     {brands?.map(b => <SelectItem key={b.id} value={b.id.toString()}>{b.nameHe}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>ספק</Label>
+                <Select value={formData.supplierId} onValueChange={v => setFormData({...formData, supplierId: v})}>
+                  <SelectTrigger><SelectValue placeholder="בחר ספק" /></SelectTrigger>
+                  <SelectContent>
+                    {suppliers?.map(s => <SelectItem key={s.id} value={s.id.toString()}>{s.companyName}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
