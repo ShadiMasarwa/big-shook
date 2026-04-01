@@ -1,5 +1,5 @@
 import { ReactNode, useState } from "react";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useCart } from "@/hooks/use-cart";
 import { ShoppingCart, User, Heart, Search, Menu, Package, Star, X, LogOut } from "lucide-react";
@@ -11,9 +11,13 @@ import { useListCategories } from "@workspace/api-client-react";
 export function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   const { cart } = useCart();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const [searchValue, setSearchValue] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
+  const search = useSearch();
+  const searchParams = new URLSearchParams(search);
+  const activeCategoryId = searchParams.get("categoryId") ? Number(searchParams.get("categoryId")) : null;
+  const isOnCatalog = location === "/catalog" || location.startsWith("/catalog");
 
   const { data: categories } = useListCategories();
 
@@ -118,14 +122,20 @@ export function Layout({ children }: { children: ReactNode }) {
           <div className="container mx-auto px-4">
             <ul className="flex items-center gap-6 py-3 text-sm font-medium overflow-x-auto">
               <li>
-                <Link href="/catalog" className="flex items-center gap-1 text-primary hover:underline">
+                <Link
+                  href="/catalog"
+                  className={`flex items-center gap-1 transition-colors whitespace-nowrap ${isOnCatalog && !activeCategoryId ? "text-primary font-bold underline underline-offset-4" : "hover:text-primary"}`}
+                >
                   <Menu className="h-4 w-4" />
                   כל הקטגוריות
                 </Link>
               </li>
               {categories?.filter(c => c.parentId !== null && c.parentId !== undefined).slice(0, 8).map(category => (
                 <li key={category.id}>
-                  <Link href={`/catalog?categoryId=${category.id}`} className="hover:text-primary transition-colors whitespace-nowrap">
+                  <Link
+                    href={`/catalog?categoryId=${category.id}`}
+                    className={`transition-colors whitespace-nowrap ${activeCategoryId === category.id ? "text-primary font-bold underline underline-offset-4" : "hover:text-primary"}`}
+                  >
                     {category.nameHe}
                   </Link>
                 </li>
@@ -167,7 +177,7 @@ export function Layout({ children }: { children: ReactNode }) {
                   <Link
                     href="/catalog"
                     onClick={handleCategoryClick}
-                    className="flex items-center gap-2 py-2 px-3 rounded-md hover:bg-muted text-sm font-medium"
+                    className={`flex items-center gap-2 py-2 px-3 rounded-md text-sm font-medium ${isOnCatalog && !activeCategoryId ? "bg-primary/10 text-primary font-bold" : "hover:bg-muted"}`}
                   >
                     <Menu className="h-4 w-4" />
                     כל הקטגוריות
@@ -178,7 +188,7 @@ export function Layout({ children }: { children: ReactNode }) {
                     <Link
                       href={`/catalog?categoryId=${category.id}`}
                       onClick={handleCategoryClick}
-                      className="flex items-center py-2 px-3 rounded-md hover:bg-muted text-sm"
+                      className={`flex items-center py-2 px-3 rounded-md text-sm ${activeCategoryId === category.id ? "bg-primary/10 text-primary font-bold" : "hover:bg-muted"}`}
                     >
                       {category.nameHe}
                     </Link>
