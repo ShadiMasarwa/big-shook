@@ -227,8 +227,19 @@ export default function Checkout() {
               </div>
               {cart.couponDiscount > 0 && (
                 <div className="flex justify-between text-green-600">
-                  <span>הנחה</span>
+                  <span>
+                    הנחת קופון
+                    {cart.couponCode && (
+                      <code className="text-xs bg-green-100 text-green-700 px-1 rounded font-mono mr-1">{cart.couponCode}</code>
+                    )}
+                  </span>
                   <span>-{formatPrice(cart.couponDiscount)}</span>
+                </div>
+              )}
+              {(cart as any).loyaltyDiscount > 0 && (
+                <div className="flex justify-between text-amber-600">
+                  <span>נקודות נאמנות ({(cart as any).loyaltyPointsUsed?.toLocaleString("he-IL")} נק׳)</span>
+                  <span>-{formatPrice((cart as any).loyaltyDiscount)}</span>
                 </div>
               )}
               <div className="flex justify-between font-black text-lg pt-2 border-t border-border">
