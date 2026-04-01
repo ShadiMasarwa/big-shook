@@ -33,6 +33,7 @@ import AdminImport from "@/pages/admin/import";
 import AdminSuppliers from "@/pages/admin/suppliers";
 import AdminSupplierForm from "@/pages/admin/supplier-form";
 import AdminSupplierDetail from "@/pages/admin/supplier-detail";
+import AdminCategories from "@/pages/admin/categories";
 
 const queryClient = new QueryClient();
 
@@ -68,6 +69,7 @@ function Router() {
       <Route path="/admin/suppliers/new" component={AdminSupplierForm} />
       <Route path="/admin/suppliers/:id" component={AdminSupplierDetail} />
       <Route path="/admin/suppliers/:id/edit" component={AdminSupplierForm} />
+      <Route path="/admin/categories" component={AdminCategories} />
 
       <Route component={NotFound} />
     </Switch>
