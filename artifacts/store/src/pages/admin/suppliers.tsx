@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { AdminLayout } from "@/components/admin-layout";
 import { useSuppliers, useDeleteSupplier, useToggleSupplierStatus, Supplier } from "@/hooks/use-suppliers";
 import { Button } from "@/components/ui/button";
@@ -8,16 +7,8 @@ import { Link, useLocation } from "wouter";
 import { Plus, Eye, Edit, Trash2, Phone, Mail, MapPin, Building2, PowerOff, Power } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
 
 function SupplierCard({ supplier, onDelete }: { supplier: Supplier; onDelete: (id: number) => void }) {
-  const [showDetail, setShowDetail] = useState(false);
   const [, navigate] = useLocation();
   const toggleStatus = useToggleSupplierStatus();
 
@@ -31,8 +22,7 @@ function SupplierCard({ supplier, onDelete }: { supplier: Supplier; onDelete: (i
   };
 
   return (
-    <>
-      <Card className="hover:shadow-md transition-shadow">
+    <Card className="hover:shadow-md transition-shadow">
         <CardContent className="p-5">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
@@ -60,7 +50,7 @@ function SupplierCard({ supplier, onDelete }: { supplier: Supplier; onDelete: (i
               )}
             </div>
             <div className="flex flex-col gap-2 shrink-0">
-              <Button size="sm" variant="default" onClick={() => setShowDetail(true)}>
+              <Button size="sm" variant="default" onClick={() => navigate(`/admin/suppliers/${supplier.id}`)}>
                 <Eye className="h-4 w-4 ml-1" />הצג
               </Button>
               <Button size="sm" variant="outline" onClick={() => navigate(`/admin/suppliers/${supplier.id}/edit`)}>
@@ -85,83 +75,6 @@ function SupplierCard({ supplier, onDelete }: { supplier: Supplier; onDelete: (i
           </div>
         </CardContent>
       </Card>
-
-      <Dialog open={showDetail} onOpenChange={setShowDetail}>
-        <DialogContent className="max-w-lg" dir="rtl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl">
-              <Building2 className="h-5 w-5 text-primary" />
-              {supplier.companyName}
-            </DialogTitle>
-            <DialogDescription>פרטי ספק</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 text-sm">
-            {supplier.contactPerson && (
-              <div className="flex justify-between border-b border-border pb-2">
-                <span className="font-medium text-muted-foreground">איש קשר</span>
-                <span>{supplier.contactPerson}</span>
-              </div>
-            )}
-            {supplier.taxId && (
-              <div className="flex justify-between border-b border-border pb-2">
-                <span className="font-medium text-muted-foreground">ח.פ / עוסק מורשה</span>
-                <span dir="ltr">{supplier.taxId}</span>
-              </div>
-            )}
-            {supplier.phone1 && (
-              <div className="flex justify-between border-b border-border pb-2">
-                <span className="font-medium text-muted-foreground">טלפון ראשי</span>
-                <span dir="ltr">{supplier.phone1}</span>
-              </div>
-            )}
-            {supplier.phone2 && (
-              <div className="flex justify-between border-b border-border pb-2">
-                <span className="font-medium text-muted-foreground">טלפון נוסף</span>
-                <span dir="ltr">{supplier.phone2}</span>
-              </div>
-            )}
-            {supplier.email && (
-              <div className="flex justify-between border-b border-border pb-2">
-                <span className="font-medium text-muted-foreground">אימייל</span>
-                <a href={`mailto:${supplier.email}`} className="text-primary hover:underline" dir="ltr">{supplier.email}</a>
-              </div>
-            )}
-            {supplier.website && (
-              <div className="flex justify-between border-b border-border pb-2">
-                <span className="font-medium text-muted-foreground">אתר אינטרנט</span>
-                <a href={supplier.website.startsWith("http") ? supplier.website : `https://${supplier.website}`} target="_blank" rel="noreferrer" className="text-primary hover:underline" dir="ltr">{supplier.website}</a>
-              </div>
-            )}
-            {(supplier.address || supplier.city) && (
-              <div className="flex justify-between border-b border-border pb-2">
-                <span className="font-medium text-muted-foreground">כתובת</span>
-                <span>{[supplier.address, supplier.city].filter(Boolean).join(", ")}</span>
-              </div>
-            )}
-            {supplier.notes && (
-              <div className="border-b border-border pb-2">
-                <p className="font-medium text-muted-foreground mb-1">הערות</p>
-                <p className="text-sm">{supplier.notes}</p>
-              </div>
-            )}
-            <div className="flex justify-between">
-              <span className="font-medium text-muted-foreground">סטטוס</span>
-              <Badge variant={supplier.isActive ? "default" : "secondary"}>
-                {supplier.isActive ? "פעיל" : "לא פעיל"}
-              </Badge>
-            </div>
-          </div>
-          <div className="flex gap-2 mt-4">
-            <Button onClick={() => { setShowDetail(false); navigate(`/admin/suppliers/${supplier.id}/edit`); }} className="flex-1">
-              <Edit className="h-4 w-4 ml-1" />ערוך ספק
-            </Button>
-            <Button variant="outline" asChild className="flex-1">
-              <Link href={`/admin/suppliers/${supplier.id}`}>מוצרי הספק</Link>
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
   );
 }
 
