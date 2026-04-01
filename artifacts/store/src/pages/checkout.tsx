@@ -25,10 +25,11 @@ export default function Checkout() {
     firstName: user?.firstName || "",
     lastName: user?.lastName || "",
     phone: user?.phone || "",
-    city: "",
-    street: "",
-    houseNumber: "",
-    zipCode: ""
+    city: user?.city || "",
+    street: user?.street || "",
+    houseNumber: user?.houseNumber || "",
+    zipCode: user?.zipCode || "",
+    addressNote: user?.addressNote || "",
   });
 
   const handleNextStep = (e: React.FormEvent) => {
@@ -136,13 +137,22 @@ export default function Checkout() {
                     <Input required value={shipping.houseNumber} onChange={(e) => setShipping({...shipping, houseNumber: e.target.value})} />
                   </div>
                 </div>
+                <div className="space-y-2">
+                  <Label>מיקוד</Label>
+                  <Input value={shipping.zipCode} onChange={(e) => setShipping({...shipping, zipCode: e.target.value})} placeholder="לדוגמה: 6433223" />
+                </div>
+                <div className="space-y-2">
+                  <Label>הערות לכתובת <span className="text-muted-foreground text-xs">(אופציונלי)</span></Label>
+                  <Input value={shipping.addressNote} onChange={(e) => setShipping({...shipping, addressNote: e.target.value})} placeholder="קומה, דירה, הוראות כניסה..." />
+                </div>
                 <Button type="submit" size="lg" className="w-full sm:w-auto mt-4 font-bold">המשך לתשלום</Button>
               </form>
             ) : (
-              <div className="text-sm text-muted-foreground">
-                {shipping.firstName} {shipping.lastName}<br/>
-                {shipping.street} {shipping.houseNumber}, {shipping.city}<br/>
-                טלפון: {shipping.phone}
+              <div className="text-sm text-muted-foreground space-y-0.5">
+                <div>{shipping.firstName} {shipping.lastName}</div>
+                <div>{shipping.street} {shipping.houseNumber}, {shipping.city}{shipping.zipCode ? ` ${shipping.zipCode}` : ""}</div>
+                <div>טלפון: {shipping.phone}</div>
+                {shipping.addressNote && <div className="italic">{shipping.addressNote}</div>}
               </div>
             )}
           </div>
