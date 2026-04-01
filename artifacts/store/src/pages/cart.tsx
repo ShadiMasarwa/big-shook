@@ -3,7 +3,7 @@ import { useCart } from "@/hooks/use-cart";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { formatPrice } from "@/lib/utils";
-import { Trash2, ShoppingCart, ArrowLeft, Tag, Info } from "lucide-react";
+import { Trash2, ShoppingCart, ArrowLeft, Tag, Info, Star } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { useApplyCouponToCart, useRemoveCouponFromCart, getGetCartQueryKey } from "@workspace/api-client-react";
@@ -13,9 +13,56 @@ import { useQueryClient } from "@tanstack/react-query";
 export default function Cart() {
   const { cart, isLoading, updateItem, removeItem, clearCart } = useCart();
   const [couponCode, setCouponCode] = useState("");
+  const [loyaltyInput, setLoyaltyInput] = useState("");
+  const [loyaltyPending, setLoyaltyPending] = useState(false);
   const applyCoupon = useApplyCouponToCart();
   const removeCoupon = useRemoveCouponFromCart();
   const queryClient = useQueryClient();
+
+  const handleApplyLoyalty = async () => {
+    const points = parseInt(loyaltyInput, 10);
+    if (!points || points < 1) return;
+    setLoyaltyPending(true);
+    try {
+      const token = localStorage.getItem("token");
+      const sid = localStorage.getItem("sessionId") ?? "default-session";
+      const res = await fetch("/api/cart/loyalty", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-session-id": sid,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ points }),
+      });
+      const data = await res.json();
+      if (!res.ok) { toast({ title: data.error ?? "שגיאה", variant: "destructive" }); return; }
+      queryClient.setQueryData(getGetCartQueryKey(), data);
+      setLoyaltyInput("");
+      toast({ title: `${points.toLocaleString("he-IL")} נקודות מומשו` });
+    } catch {
+      toast({ title: "שגיאה בהפעלת הנקודות", variant: "destructive" });
+    } finally {
+      setLoyaltyPending(false);
+    }
+  };
+
+  const handleRemoveLoyalty = async () => {
+    setLoyaltyPending(true);
+    try {
+      const sid = localStorage.getItem("sessionId") ?? "default-session";
+      const res = await fetch("/api/cart/loyalty", {
+        method: "DELETE",
+        headers: { "x-session-id": sid },
+      });
+      const data = await res.json();
+      if (!res.ok) { queryClient.invalidateQueries({ queryKey: getGetCartQueryKey() }); return; }
+      queryClient.setQueryData(getGetCartQueryKey(), data);
+      toast({ title: "הנקודות הוסרו" });
+    } finally {
+      setLoyaltyPending(false);
+    }
+  };
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) return;
@@ -74,6 +121,10 @@ export default function Cart() {
 
   const isPartialCoupon = (cart as any).couponScope === "partial";
   const couponType: string | null = (cart as any).couponType ?? null;
+  const userAvailablePoints: number = (cart as any).userAvailablePoints ?? 0;
+  const loyaltyDiscount: number = (cart as any).loyaltyDiscount ?? 0;
+  const shekelPerPoint: number = (cart as any).shekelPerPoint ?? 0.01;
+  const minRedemptionPoints: number = (cart as any).minRedemptionPoints ?? 100;
 
   return (
     <Layout>
@@ -212,6 +263,24 @@ export default function Cart() {
                   )}
                 </div>
               )}
+              {/* Applied loyalty discount line in the summary */}
+              {loyaltyDiscount > 0 && (
+                <div className="flex justify-between text-amber-600">
+                  <span className="flex items-center gap-1">
+                    <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
+                    נקודות נאמנות
+                    <span className="text-xs text-muted-foreground">({(cart as any).loyaltyPointsUsed?.toLocaleString("he-IL")} נק׳)</span>
+                    <button
+                      onClick={handleRemoveLoyalty}
+                      disabled={loyaltyPending}
+                      className="text-xs text-muted-foreground underline ml-1 hover:text-destructive"
+                    >
+                      הסר
+                    </button>
+                  </span>
+                  <span className="font-bold">-{formatPrice(loyaltyDiscount)}</span>
+                </div>
+              )}
             </div>
 
             <div className="border-t border-border pt-4 mb-6">
@@ -241,6 +310,48 @@ export default function Cart() {
                     {applyCoupon.isPending ? "..." : "הפעל"}
                   </Button>
                 </div>
+              </div>
+            )}
+
+            {/* Loyalty points redemption */}
+            {userAvailablePoints >= minRedemptionPoints && loyaltyDiscount === 0 && (
+              <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
+                  <span className="font-semibold text-sm">נקודות נאמנות</span>
+                  <span className="text-xs text-muted-foreground mr-auto">
+                    יתרה: <strong>{userAvailablePoints.toLocaleString("he-IL")}</strong> נק׳
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mb-3">
+                  {Math.round(1 / shekelPerPoint).toLocaleString("he-IL")} נקודות = ₪1 · מינימום {minRedemptionPoints} נקודות
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    placeholder={`עד ${userAvailablePoints.toLocaleString("he-IL")} נק׳`}
+                    value={loyaltyInput}
+                    min={minRedemptionPoints}
+                    max={userAvailablePoints}
+                    step={minRedemptionPoints}
+                    onChange={e => setLoyaltyInput(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && handleApplyLoyalty()}
+                    className="text-sm"
+                  />
+                  <Button
+                    variant="secondary"
+                    onClick={handleApplyLoyalty}
+                    disabled={!loyaltyInput || loyaltyPending}
+                    className="shrink-0"
+                  >
+                    {loyaltyPending ? "..." : "הפעל"}
+                  </Button>
+                </div>
+                {loyaltyInput && parseInt(loyaltyInput) >= minRedemptionPoints && (
+                  <p className="text-xs text-amber-700 mt-2">
+                    חיסכון: ₪{(parseInt(loyaltyInput) * shekelPerPoint).toFixed(2)}
+                  </p>
+                )}
               </div>
             )}
 

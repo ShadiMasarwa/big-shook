@@ -27,6 +27,14 @@ export const cartCouponsTable = pgTable("cart_coupons", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const cartLoyaltyTable = pgTable("cart_loyalty", {
+  id: serial("id").primaryKey(),
+  sessionId: text("session_id").notNull().unique(),
+  userId: integer("user_id").notNull(),
+  pointsToUse: integer("points_to_use").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const insertCartItemSchema = createInsertSchema(cartItemsTable).omit({
   id: true,
   createdAt: true,

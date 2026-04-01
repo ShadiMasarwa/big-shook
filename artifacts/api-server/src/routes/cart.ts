@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, sql } from "drizzle-orm";
-import { db, cartItemsTable, cartCouponsTable, productsTable, couponsTable, couponUsagesTable } from "@workspace/db";
+import { db, cartItemsTable, cartCouponsTable, cartLoyaltyTable, productsTable, couponsTable, couponUsagesTable, loyaltyRulesTable, usersTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -10,15 +10,15 @@ function getSessionId(req: { headers: Record<string, string | string[] | undefin
 }
 
 function getUserId(req: { headers: Record<string, string | string[] | undefined> }): number | null {
-  // Try to extract userId from a simple bearer token check (best-effort, not security-critical here)
   const auth = req.headers["authorization"];
   if (!auth) return null;
   try {
     const token = Array.isArray(auth) ? auth[0] : auth;
-    const base64 = token.replace("Bearer ", "");
+    const base64 = token.replace(/^Bearer\s+/i, "");
     const decoded = Buffer.from(base64, "base64").toString("utf-8");
-    const parsed = JSON.parse(decoded);
-    return typeof parsed.userId === "number" ? parsed.userId : null;
+    // Token format: "userId:timestamp:hash"
+    const userId = parseInt(decoded.split(":")[0], 10);
+    return Number.isFinite(userId) ? userId : null;
   } catch {
     return null;
   }
@@ -40,9 +40,10 @@ function serializeProduct(p: typeof productsTable.$inferSelect) {
   };
 }
 
-async function buildCart(sessionId: string) {
+async function buildCart(sessionId: string, callerUserId?: number | null) {
   const items = await db.select().from(cartItemsTable).where(eq(cartItemsTable.sessionId, sessionId));
   const [couponRow] = await db.select().from(cartCouponsTable).where(eq(cartCouponsTable.sessionId, sessionId));
+  const [loyaltyRow] = await db.select().from(cartLoyaltyTable).where(eq(cartLoyaltyTable.sessionId, sessionId));
 
   const productIds = items.map(i => i.productId);
   let products: typeof productsTable.$inferSelect[] = [];
@@ -119,12 +120,40 @@ async function buildCart(sessionId: string) {
     }
   }
 
-  const shipping = couponCode && couponScope !== null
-    // For free_shipping coupons the discount already covers shipping; keep shipping in total so discount cancels it
-    ? baseShipping
-    : baseShipping;
+  const shipping = baseShipping;
 
-  const total = Math.max(0, subtotal - couponDiscount + shipping);
+  // ── Loyalty points ──────────────────────────────────────────────────────────
+  let loyaltyPointsUsed = 0;
+  let loyaltyDiscount = 0;
+  let userAvailablePoints = 0;
+  let shekelPerPoint = 0.01;
+  let minRedemptionPoints = 100;
+
+  const effectiveUserId = loyaltyRow?.userId ?? callerUserId ?? null;
+  if (effectiveUserId) {
+    const [rules] = await db.select().from(loyaltyRulesTable);
+    shekelPerPoint = rules ? parseFloat(rules.shekelPerPoint) : 0.01;
+    minRedemptionPoints = rules?.minRedemptionPoints ?? 100;
+    const maxRedemptionPercent = rules ? parseFloat(rules.maxRedemptionPercent) : 20;
+
+    const [user] = await db.select({ loyaltyPoints: usersTable.loyaltyPoints })
+      .from(usersTable).where(eq(usersTable.id, effectiveUserId));
+
+    if (user) {
+      userAvailablePoints = user.loyaltyPoints;
+
+      if (loyaltyRow) {
+        const requestedPoints = Math.min(loyaltyRow.pointsToUse, user.loyaltyPoints);
+        const maxDiscountFromPercent = (subtotal - couponDiscount) * (maxRedemptionPercent / 100);
+        const maxPoints = Math.floor(maxDiscountFromPercent / shekelPerPoint);
+        const clampedPoints = Math.min(requestedPoints, maxPoints);
+        loyaltyPointsUsed = clampedPoints;
+        loyaltyDiscount = Math.round(clampedPoints * shekelPerPoint * 100) / 100;
+      }
+    }
+  }
+
+  const total = Math.max(0, subtotal - couponDiscount - loyaltyDiscount + shipping);
 
   return {
     items: cartItems,
@@ -136,15 +165,19 @@ async function buildCart(sessionId: string) {
     couponDiscount,
     couponScope,
     couponType,
-    loyaltyPointsUsed: 0,
-    loyaltyDiscount: 0,
+    loyaltyPointsUsed,
+    loyaltyDiscount,
+    userAvailablePoints,
+    shekelPerPoint,
+    minRedemptionPoints,
     itemCount: cartItems.reduce((sum, i) => sum + i.quantity, 0),
   };
 }
 
 router.get("/cart", async (req, res): Promise<void> => {
   const sessionId = getSessionId(req as Parameters<typeof getSessionId>[0]);
-  const cart = await buildCart(sessionId);
+  const userId = getUserId(req as Parameters<typeof getUserId>[0]);
+  const cart = await buildCart(sessionId, userId);
   res.json(cart);
 });
 
@@ -276,6 +309,59 @@ router.delete("/cart/clear", async (req, res): Promise<void> => {
   const sessionId = getSessionId(req as Parameters<typeof getSessionId>[0]);
   await db.delete(cartItemsTable).where(eq(cartItemsTable.sessionId, sessionId));
   await db.delete(cartCouponsTable).where(eq(cartCouponsTable.sessionId, sessionId));
+  await db.delete(cartLoyaltyTable).where(eq(cartLoyaltyTable.sessionId, sessionId));
+  const cart = await buildCart(sessionId);
+  res.json(cart);
+});
+
+// ── Loyalty points redemption ────────────────────────────────────────────────
+router.post("/cart/loyalty", async (req, res): Promise<void> => {
+  const sessionId = getSessionId(req as Parameters<typeof getSessionId>[0]);
+  const userId = getUserId(req as Parameters<typeof getUserId>[0]);
+
+  if (!userId) {
+    res.status(401).json({ error: "יש להתחבר כדי לממש נקודות" });
+    return;
+  }
+
+  const points = Number(req.body?.points);
+  if (!Number.isInteger(points) || points < 1) {
+    res.status(400).json({ error: "מספר נקודות לא תקין" });
+    return;
+  }
+
+  const [rules] = await db.select().from(loyaltyRulesTable);
+  const minRedemptionPoints = rules?.minRedemptionPoints ?? 100;
+
+  if (points < minRedemptionPoints) {
+    res.status(400).json({ error: `מינימום ${minRedemptionPoints} נקודות למימוש` });
+    return;
+  }
+
+  const [user] = await db.select({ loyaltyPoints: usersTable.loyaltyPoints })
+    .from(usersTable).where(eq(usersTable.id, userId));
+
+  if (!user) {
+    res.status(404).json({ error: "משתמש לא נמצא" });
+    return;
+  }
+
+  if (points > user.loyaltyPoints) {
+    res.status(400).json({ error: `יתרת הנקודות שלך: ${user.loyaltyPoints}` });
+    return;
+  }
+
+  await db.insert(cartLoyaltyTable)
+    .values({ sessionId, userId, pointsToUse: points })
+    .onConflictDoUpdate({ target: cartLoyaltyTable.sessionId, set: { pointsToUse: points, userId } });
+
+  const cart = await buildCart(sessionId);
+  res.json(cart);
+});
+
+router.delete("/cart/loyalty", async (req, res): Promise<void> => {
+  const sessionId = getSessionId(req as Parameters<typeof getSessionId>[0]);
+  await db.delete(cartLoyaltyTable).where(eq(cartLoyaltyTable.sessionId, sessionId));
   const cart = await buildCart(sessionId);
   res.json(cart);
 });
