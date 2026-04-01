@@ -58,6 +58,16 @@ router.post("/suppliers", async (req, res): Promise<void> => {
   res.status(201).json(serializeSupplier(supplier));
 });
 
+router.patch("/suppliers/:id/status", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "מזהה לא תקין" }); return; }
+  const { isActive } = req.body;
+  if (typeof isActive !== "boolean") { res.status(400).json({ error: "isActive חייב להיות boolean" }); return; }
+  const [supplier] = await db.update(suppliersTable).set({ isActive }).where(eq(suppliersTable.id, id)).returning();
+  if (!supplier) { res.status(404).json({ error: "ספק לא נמצא" }); return; }
+  res.json(serializeSupplier(supplier));
+});
+
 router.put("/suppliers/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "מזהה לא תקין" }); return; }

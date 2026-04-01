@@ -95,7 +95,10 @@ router.get("/products", async (req, res): Promise<void> => {
   const limit = parseInt(String(req.query.limit ?? "20"), 10);
   const offset = (page - 1) * limit;
 
-  const conditions = [eq(productsTable.isActive, true)];
+  const conditions = [
+    eq(productsTable.isActive, true),
+    sql`(${productsTable.supplierId} IS NULL OR EXISTS (SELECT 1 FROM suppliers WHERE suppliers.id = ${productsTable.supplierId} AND suppliers.is_active = true))`,
+  ];
 
   if (categoryId) {
     const catId = parseInt(String(categoryId), 10);

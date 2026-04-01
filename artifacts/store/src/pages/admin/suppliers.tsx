@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { AdminLayout } from "@/components/admin-layout";
-import { useSuppliers, useDeleteSupplier, Supplier } from "@/hooks/use-suppliers";
+import { useSuppliers, useDeleteSupplier, useToggleSupplierStatus, Supplier } from "@/hooks/use-suppliers";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link, useLocation } from "wouter";
-import { Plus, Eye, Edit, Trash2, Phone, Mail, MapPin, Building2 } from "lucide-react";
+import { Plus, Eye, Edit, Trash2, Phone, Mail, MapPin, Building2, PowerOff, Power } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -19,6 +19,16 @@ import {
 function SupplierCard({ supplier, onDelete }: { supplier: Supplier; onDelete: (id: number) => void }) {
   const [showDetail, setShowDetail] = useState(false);
   const [, navigate] = useLocation();
+  const toggleStatus = useToggleSupplierStatus();
+
+  const handleToggleStatus = async () => {
+    try {
+      await toggleStatus.mutateAsync({ id: supplier.id, isActive: !supplier.isActive });
+      toast({ title: supplier.isActive ? "הספק הושבת בהצלחה" : "הספק הופעל בהצלחה" });
+    } catch {
+      toast({ title: "שגיאה בשינוי סטטוס הספק", variant: "destructive" });
+    }
+  };
 
   return (
     <>
@@ -55,6 +65,18 @@ function SupplierCard({ supplier, onDelete }: { supplier: Supplier; onDelete: (i
               </Button>
               <Button size="sm" variant="outline" onClick={() => navigate(`/admin/suppliers/${supplier.id}/edit`)}>
                 <Edit className="h-4 w-4 ml-1" />ערוך
+              </Button>
+              <Button
+                size="sm"
+                variant={supplier.isActive ? "outline" : "secondary"}
+                className={supplier.isActive ? "text-orange-600 border-orange-300 hover:bg-orange-50" : "text-green-700 border-green-300 hover:bg-green-50"}
+                onClick={handleToggleStatus}
+                disabled={toggleStatus.isPending}
+              >
+                {supplier.isActive
+                  ? <><PowerOff className="h-4 w-4 ml-1" />השבת</>
+                  : <><Power className="h-4 w-4 ml-1" />הפעל</>
+                }
               </Button>
               <Button size="sm" variant="outline" className="text-destructive hover:bg-destructive hover:text-white" onClick={() => onDelete(supplier.id)}>
                 <Trash2 className="h-4 w-4 ml-1" />מחק

@@ -1,13 +1,13 @@
 import { useParams, useLocation, Link } from "wouter";
 import { AdminLayout } from "@/components/admin-layout";
-import { useSupplier, useSupplierProducts } from "@/hooks/use-suppliers";
+import { useSupplier, useSupplierProducts, useToggleSupplierStatus } from "@/hooks/use-suppliers";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatPrice } from "@/lib/utils";
-import { Edit, Phone, Mail, Globe, MapPin, FileText, User, Hash, CheckCircle, XCircle, Plus } from "lucide-react";
+import { Edit, Phone, Mail, Globe, MapPin, FileText, User, Hash, CheckCircle, XCircle, Plus, Power, PowerOff } from "lucide-react";
 
 function InfoRow({ label, value, ltr }: { label: string; value?: string | null; ltr?: boolean }) {
   if (!value) return null;
@@ -26,6 +26,16 @@ export default function AdminSupplierDetail() {
 
   const { data: supplier, isLoading: loadingSupplier } = useSupplier(supplierId);
   const { data: products, isLoading: loadingProducts } = useSupplierProducts(supplierId);
+  const toggleStatus = useToggleSupplierStatus();
+
+  const handleToggleStatus = async () => {
+    if (!supplier) return;
+    try {
+      await toggleStatus.mutateAsync({ id: supplierId, isActive: !supplier.isActive });
+    } catch {
+      /* toast handled by caller if needed */
+    }
+  };
 
   if (loadingSupplier) return <AdminLayout><div className="p-8">טוען...</div></AdminLayout>;
   if (!supplier) return <AdminLayout><div className="p-8 text-muted-foreground">ספק לא נמצא</div></AdminLayout>;
@@ -48,6 +58,17 @@ export default function AdminSupplierDetail() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => navigate("/admin/suppliers")}>חזור לרשימה</Button>
+          <Button
+            variant={supplier.isActive ? "outline" : "secondary"}
+            className={supplier.isActive ? "text-orange-600 border-orange-300 hover:bg-orange-50" : "text-green-700 border-green-300 hover:bg-green-50"}
+            onClick={handleToggleStatus}
+            disabled={toggleStatus.isPending}
+          >
+            {supplier.isActive
+              ? <><PowerOff className="ml-2 h-4 w-4" />השבת ספק</>
+              : <><Power className="ml-2 h-4 w-4" />הפעל ספק</>
+            }
+          </Button>
           <Button onClick={() => navigate(`/admin/suppliers/${supplierId}/edit`)}>
             <Edit className="ml-2 h-4 w-4" />ערוך ספק
           </Button>

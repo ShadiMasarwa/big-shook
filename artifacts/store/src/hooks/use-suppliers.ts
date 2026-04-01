@@ -93,6 +93,18 @@ export function useUpdateSupplier() {
   });
 }
 
+export function useToggleSupplierStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) =>
+      authFetch(`/api/suppliers/${id}/status`, { method: "PATCH", body: JSON.stringify({ isActive }) }),
+    onSuccess: (_r, v) => {
+      qc.invalidateQueries({ queryKey: SUPPLIERS_KEY });
+      qc.invalidateQueries({ queryKey: supplierKey(v.id) });
+    },
+  });
+}
+
 export function useDeleteSupplier() {
   const qc = useQueryClient();
   return useMutation({
