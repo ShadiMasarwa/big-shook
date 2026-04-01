@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { sql, eq } from "drizzle-orm";
+import { sql, eq, gte } from "drizzle-orm";
 import { db, ordersTable, usersTable, productsTable, couponsTable, inventoryTable, loyaltyTransactionsTable } from "@workspace/db";
 
 const router: IRouter = Router();
@@ -14,27 +14,72 @@ function serializeProduct(p: typeof productsTable.$inferSelect) {
 }
 
 router.get("/admin/summary", async (_req, res): Promise<void> => {
-  const today = new Date();
+  const now = new Date();
+
+  const today = new Date(now);
   today.setHours(0, 0, 0, 0);
+
+  const weekAgo = new Date(now);
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  weekAgo.setHours(0, 0, 0, 0);
+
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
   const [todayRevRow] = await db.select({ revenue: sql<number>`coalesce(sum(total::numeric), 0)` }).from(ordersTable).where(sql`created_at >= ${today}`);
   const [todayOrdRow] = await db.select({ count: sql<number>`count(*)::int` }).from(ordersTable).where(sql`created_at >= ${today}`);
+
+  const [weekRevRow] = await db.select({ revenue: sql<number>`coalesce(sum(total::numeric), 0)` }).from(ordersTable).where(gte(ordersTable.createdAt, weekAgo));
+  const [weekOrdRow] = await db.select({ count: sql<number>`count(*)::int` }).from(ordersTable).where(gte(ordersTable.createdAt, weekAgo));
+
+  const [monthRevRow] = await db.select({ revenue: sql<number>`coalesce(sum(total::numeric), 0)` }).from(ordersTable).where(gte(ordersTable.createdAt, monthStart));
+  const [monthOrdRow] = await db.select({ count: sql<number>`count(*)::int` }).from(ordersTable).where(gte(ordersTable.createdAt, monthStart));
+
   const [totalProductsRow] = await db.select({ count: sql<number>`count(*)::int` }).from(productsTable).where(eq(productsTable.isActive, true));
   const [totalCustomersRow] = await db.select({ count: sql<number>`count(*)::int` }).from(usersTable);
   const [pendingOrdersRow] = await db.select({ count: sql<number>`count(*)::int` }).from(ordersTable).where(eq(ordersTable.status, "pending"));
   const [lowStockRow] = await db.select({ count: sql<number>`count(*)::int` }).from(inventoryTable).where(sql`quantity <= low_stock_threshold`);
-  const [activeCouponsRow] = await db.select({ count: sql<number>`count(*)::int` }).from(couponsTable).where(eq(couponsTable.isActive, true));
-  const [loyaltyRow] = await db.select({ total: sql<number>`coalesce(sum(points), 0)` }).from(loyaltyTransactionsTable).where(eq(loyaltyTransactionsTable.type, "earned"));
+
+  const activeCouponsList = await db
+    .select({
+      id: couponsTable.id,
+      code: couponsTable.code,
+      type: couponsTable.type,
+      value: couponsTable.value,
+      usedCount: couponsTable.usedCount,
+      usageLimit: couponsTable.usageLimit,
+      expiresAt: couponsTable.expiresAt,
+    })
+    .from(couponsTable)
+    .where(eq(couponsTable.isActive, true))
+    .orderBy(couponsTable.code);
+
+  const [earnedRow] = await db.select({ total: sql<number>`coalesce(sum(points), 0)` }).from(loyaltyTransactionsTable).where(eq(loyaltyTransactionsTable.type, "earned"));
+  const [redeemedRow] = await db.select({ total: sql<number>`coalesce(sum(points), 0)` }).from(loyaltyTransactionsTable).where(eq(loyaltyTransactionsTable.type, "redeemed"));
 
   res.json({
     todayRevenue: parseFloat(String(todayRevRow.revenue)) || 0,
     todayOrders: todayOrdRow.count || 0,
+    weekRevenue: parseFloat(String(weekRevRow.revenue)) || 0,
+    weekOrders: weekOrdRow.count || 0,
+    monthRevenue: parseFloat(String(monthRevRow.revenue)) || 0,
+    monthOrders: monthOrdRow.count || 0,
     totalProducts: totalProductsRow.count,
     totalCustomers: totalCustomersRow.count,
     pendingOrders: pendingOrdersRow.count,
     lowStockProducts: lowStockRow.count,
-    activeCoupons: activeCouponsRow.count,
-    totalLoyaltyPoints: loyaltyRow.total || 0,
+    activeCoupons: activeCouponsList.length,
+    activeCouponsList: activeCouponsList.map(c => ({
+      id: c.id,
+      code: c.code,
+      type: c.type,
+      value: parseFloat(String(c.value)),
+      usageCount: c.usedCount ?? 0,
+      usageLimit: c.usageLimit ?? null,
+      expiresAt: c.expiresAt?.toISOString() ?? null,
+    })),
+    totalLoyaltyPoints: (earnedRow.total || 0) - (redeemedRow.total || 0),
+    totalLoyaltyPointsEarned: earnedRow.total || 0,
+    totalLoyaltyPointsRedeemed: redeemedRow.total || 0,
   });
 });
 
