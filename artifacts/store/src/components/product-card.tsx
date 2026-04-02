@@ -3,8 +3,7 @@ import { Link } from "wouter";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/hooks/use-cart";
-import { useCompare } from "@/hooks/use-compare";
-import { ShoppingCart, Heart, ArrowRightLeft } from "lucide-react";
+import { ShoppingCart, Heart } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { useAddToWishlist } from "@workspace/api-client-react";
 import { toast } from "@/components/ui/use-toast";
@@ -15,7 +14,6 @@ interface ProductCardProps {
 
 export function ProductCard({ product }: ProductCardProps) {
   const { addToCart } = useCart();
-  const { addToCompare } = useCompare();
   const addToWishlist = useAddToWishlist();
 
   const handleAddToCart = () => {
@@ -41,9 +39,6 @@ export function ProductCard({ product }: ProductCardProps) {
         <div className="absolute top-2 right-2 flex flex-col gap-2">
           <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full shadow-sm" onClick={handleAddToWishlist} data-testid={`btn-wishlist-${product.id}`}>
             <Heart className="h-4 w-4" />
-          </Button>
-          <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full shadow-sm" onClick={() => addToCompare(product)} data-testid={`btn-compare-${product.id}`}>
-            <ArrowRightLeft className="h-4 w-4" />
           </Button>
         </div>
       </div>
