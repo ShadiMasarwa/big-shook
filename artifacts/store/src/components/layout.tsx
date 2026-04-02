@@ -7,11 +7,12 @@ import { ShoppingCart, User, Heart, Search, Menu, Package, Star, X, LogOut } fro
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { useListCategories } from "@workspace/api-client-react";
+import { useListCategories, useGetWishlist } from "@workspace/api-client-react";
 
 export function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   const { cart } = useCart();
+  const { data: wishlist } = useGetWishlist();
   const [location, navigate] = useLocation();
   const [searchValue, setSearchValue] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -102,6 +103,11 @@ export function Layout({ children }: { children: ReactNode }) {
             <Link href="/wishlist">
               <Button variant="ghost" size="icon" className="relative" data-testid="link-wishlist">
                 <Heart className="h-5 w-5" />
+                {wishlist && wishlist.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                    {wishlist.length}
+                  </span>
+                )}
               </Button>
             </Link>
 
