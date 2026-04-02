@@ -25,7 +25,7 @@ export default function Wishlist() {
   const removeMutation = useRemoveFromWishlist();
 
   const handleRemove = async (productId: number) => {
-    await removeMutation.mutateAsync({ data: { productId } });
+    await removeMutation.mutateAsync({ productId });
     queryClient.invalidateQueries({ queryKey: getGetWishlistQueryKey() });
   };
 
