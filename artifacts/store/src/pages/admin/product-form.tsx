@@ -18,9 +18,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "@/components/ui/use-toast";
-import { X, Plus, ImageIcon } from "lucide-react";
+import { X, Plus, ImageIcon, Video, GripVertical } from "lucide-react";
 import { MediaPickerModal } from "@/components/media-picker";
 
 export default function AdminProductForm() {
@@ -55,8 +55,11 @@ export default function AdminProductForm() {
     isActive: true,
     isFeatured: false,
     images: [] as string[],
+    videos: [] as string[],
   });
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
+  const [videoPickerOpen, setVideoPickerOpen] = useState(false);
+  const dragIndexRef = useRef<number | null>(null);
 
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
@@ -81,6 +84,7 @@ export default function AdminProductForm() {
         isActive: product.isActive,
         isFeatured: product.isFeatured,
         images: product.images || [],
+        videos: (product as any).videos || [],
       });
       setTags(product.tags || []);
       const specsObj = product.specs as Record<string, string> || {};
@@ -149,6 +153,7 @@ export default function AdminProductForm() {
       isActive: formData.isActive,
       isFeatured: formData.isFeatured,
       images: formData.images,
+      videos: formData.videos,
       tags,
       specs: specsObj,
     };
@@ -277,17 +282,91 @@ export default function AdminProductForm() {
                 לחץ כדי להוסיף תמונות מהמדיה
               </button>
             ) : (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">גרור כדי לשנות סדר · התמונה הראשונה היא התמונה הראשית</p>
+                <div className="flex flex-wrap gap-3">
+                  {formData.images.map((url, i) => (
+                    <div
+                      key={url + i}
+                      draggable
+                      onDragStart={() => { dragIndexRef.current = i; }}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const from = dragIndexRef.current;
+                        if (from === null || from === i) return;
+                        setFormData(f => {
+                          const imgs = [...f.images];
+                          const [moved] = imgs.splice(from, 1);
+                          imgs.splice(i, 0, moved);
+                          return { ...f, images: imgs };
+                        });
+                        dragIndexRef.current = null;
+                      }}
+                      onDragEnd={() => { dragIndexRef.current = null; }}
+                      className="relative group w-24 h-24 rounded-lg overflow-hidden border border-border bg-muted cursor-grab active:cursor-grabbing select-none"
+                    >
+                      <img src={url} alt="" className="w-full h-full object-cover pointer-events-none" onError={e => (e.currentTarget.style.display = 'none')} />
+                      <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-white drop-shadow">
+                        <GripVertical className="h-4 w-4" />
+                      </div>
+                      {i === 0 && (
+                        <span className="absolute bottom-0 inset-x-0 bg-primary text-primary-foreground text-[10px] text-center py-0.5 font-medium">ראשית</span>
+                      )}
+                      <button
+                        type="button"
+                        className="absolute top-1 left-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => setFormData(f => ({ ...f, images: f.images.filter((_, j) => j !== i) }))}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="w-24 h-24 rounded-lg border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 transition-colors flex flex-col items-center justify-center text-muted-foreground text-xs gap-1"
+                    onClick={() => setMediaPickerOpen(true)}
+                  >
+                    <Plus className="h-5 w-5" />
+                    הוסף
+                  </button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>סרטונים</CardTitle>
+            <Button type="button" variant="outline" size="sm" onClick={() => setVideoPickerOpen(true)}>
+              <Video className="ml-2 h-4 w-4" /> הוסף סרטון מהמדיה
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {formData.videos.length === 0 ? (
+              <button
+                type="button"
+                className="w-full border-2 border-dashed border-muted-foreground/30 rounded-xl py-8 text-sm text-muted-foreground hover:border-primary/50 transition-colors"
+                onClick={() => setVideoPickerOpen(true)}
+              >
+                <Video className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                לחץ כדי להוסיף סרטונים מהמדיה
+              </button>
+            ) : (
               <div className="flex flex-wrap gap-3">
-                {formData.images.map((url, i) => (
-                  <div key={i} className="relative group w-24 h-24 rounded-lg overflow-hidden border border-border bg-muted">
-                    <img src={url} alt="" className="w-full h-full object-cover" onError={e => (e.currentTarget.style.display = 'none')} />
-                    {i === 0 && (
-                      <span className="absolute bottom-0 inset-x-0 bg-primary text-primary-foreground text-[10px] text-center py-0.5 font-medium">ראשית</span>
-                    )}
+                {formData.videos.map((url, i) => (
+                  <div key={url + i} className="relative group w-32 h-24 rounded-lg overflow-hidden border border-border bg-muted">
+                    <video src={url} className="w-full h-full object-cover pointer-events-none" muted preload="metadata" />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none">
+                      <div className="bg-black/50 rounded-full p-1.5">
+                        <Video className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
                     <button
                       type="button"
                       className="absolute top-1 left-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => setFormData(f => ({ ...f, images: f.images.filter((_, j) => j !== i) }))}
+                      onClick={() => setFormData(f => ({ ...f, videos: f.videos.filter((_, j) => j !== i) }))}
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -295,8 +374,8 @@ export default function AdminProductForm() {
                 ))}
                 <button
                   type="button"
-                  className="w-24 h-24 rounded-lg border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 transition-colors flex flex-col items-center justify-center text-muted-foreground text-xs gap-1"
-                  onClick={() => setMediaPickerOpen(true)}
+                  className="w-32 h-24 rounded-lg border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 transition-colors flex flex-col items-center justify-center text-muted-foreground text-xs gap-1"
+                  onClick={() => setVideoPickerOpen(true)}
                 >
                   <Plus className="h-5 w-5" />
                   הוסף
@@ -311,6 +390,14 @@ export default function AdminProductForm() {
           onOpenChange={setMediaPickerOpen}
           onSelect={(url) => setFormData(f => ({ ...f, images: [...f.images, url] }))}
           title="הוסף תמונה למוצר"
+          filter="image"
+        />
+        <MediaPickerModal
+          open={videoPickerOpen}
+          onOpenChange={setVideoPickerOpen}
+          onSelect={(url) => setFormData(f => ({ ...f, videos: [...f.videos, url] }))}
+          title="הוסף סרטון למוצר"
+          filter="video"
         />
 
         <Card>

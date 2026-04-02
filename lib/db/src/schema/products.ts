@@ -25,6 +25,7 @@ export const productsTable = pgTable("products", {
   brandId: integer("brand_id"),
   supplierId: integer("supplier_id"),
   images: text("images").array().notNull().default([]),
+  videos: text("videos").array().notNull().default([]),
   tags: text("tags").array().notNull().default([]),
   specs: jsonb("specs").notNull().default({}),
   stockQuantity: integer("stock_quantity").notNull().default(0),

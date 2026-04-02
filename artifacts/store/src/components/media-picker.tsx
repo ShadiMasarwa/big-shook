@@ -9,16 +9,17 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
 import {
   Trash2,
   Upload,
   ImageIcon,
+  Video,
   Check,
   X,
   Search,
+  Play,
 } from "lucide-react";
 
 interface MediaItem {
@@ -41,6 +42,10 @@ function formatSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function isVideo(item: MediaItem) {
+  return item.mimeType.startsWith("video/");
+}
+
 const MEDIA_QUERY_KEY = ["media"];
 
 function useMedia() {
@@ -59,13 +64,15 @@ interface MediaPickerProps {
   onOpenChange: (open: boolean) => void;
   onSelect: (url: string) => void;
   title?: string;
+  filter?: "image" | "video";
 }
 
 export function MediaPickerModal({
   open,
   onOpenChange,
   onSelect,
-  title = "בחר תמונה מהמדיה",
+  title,
+  filter,
 }: MediaPickerProps) {
   const queryClient = useQueryClient();
   const { data: items = [], isLoading } = useMedia();
@@ -74,9 +81,11 @@ export function MediaPickerModal({
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const defaultTitle = filter === "video" ? "בחר סרטון מהמדיה" : "בחר תמונה מהמדיה";
+
   const { uploadFile, isUploading, progress } = useUpload({
-    onSuccess: async (response) => {
-      toast({ title: "קובץ הועלה בהצלחה" });
+    onSuccess: async () => {
+      toast({ title: filter === "video" ? "סרטון הועלה בהצלחה" : "קובץ הועלה בהצלחה" });
     },
     onError: () => {
       toast({ title: "שגיאה בהעלאה", variant: "destructive" });
@@ -90,16 +99,26 @@ export function MediaPickerModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: MEDIA_QUERY_KEY });
-      if (selected && (selected as any).id === selected?.id) setSelected(null);
-      toast({ title: "תמונה נמחקה" });
+      setSelected(null);
+      toast({ title: "קובץ נמחק" });
     },
     onError: () => toast({ title: "שגיאה במחיקה", variant: "destructive" }),
   });
 
   const handleUpload = useCallback(
     async (file: File) => {
-      if (!file.type.startsWith("image/")) {
+      const isImg = file.type.startsWith("image/");
+      const isVid = file.type.startsWith("video/");
+      if (!isImg && !isVid) {
+        toast({ title: "יש להעלות קובץ תמונה או סרטון בלבד", variant: "destructive" });
+        return;
+      }
+      if (filter === "image" && !isImg) {
         toast({ title: "יש להעלות קובץ תמונה בלבד", variant: "destructive" });
+        return;
+      }
+      if (filter === "video" && !isVid) {
+        toast({ title: "יש להעלות קובץ סרטון בלבד", variant: "destructive" });
         return;
       }
       const response = await uploadFile(file);
@@ -119,7 +138,7 @@ export function MediaPickerModal({
         queryClient.invalidateQueries({ queryKey: MEDIA_QUERY_KEY });
       }
     },
-    [uploadFile, queryClient]
+    [uploadFile, queryClient, filter]
   );
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -135,12 +154,15 @@ export function MediaPickerModal({
     for (const file of files) await handleUpload(file);
   };
 
-  const filteredItems = items.filter(
-    (item) =>
-      !search ||
+  const filteredItems = items.filter((item) => {
+    if (filter === "image" && isVideo(item)) return false;
+    if (filter === "video" && !isVideo(item)) return false;
+    if (!search) return true;
+    return (
       item.originalName.toLowerCase().includes(search.toLowerCase()) ||
       (item.altText || "").toLowerCase().includes(search.toLowerCase())
-  );
+    );
+  });
 
   const handleConfirm = () => {
     if (!selected) return;
@@ -149,20 +171,39 @@ export function MediaPickerModal({
     setSelected(null);
   };
 
+  const acceptAttr =
+    filter === "image" ? "image/*" :
+    filter === "video" ? "video/*" :
+    "image/*,video/*";
+
+  const uploadHint =
+    filter === "image" ? "PNG, JPG, GIF, WebP — עד 10MB" :
+    filter === "video" ? "MP4, WebM, MOV — עד 200MB" :
+    "תמונות ו-PNG, JPG, סרטוני MP4, WebM — עד 200MB";
+
+  const uploadLabel =
+    filter === "video" ? "גרור סרטון לכאן או לחץ להעלאה" :
+    "גרור תמונה לכאן או לחץ להעלאה";
+
+  const emptyLabel =
+    filter === "video"
+      ? (search ? "לא נמצאו סרטונים מתאימים" : "אין סרטונים בספריה. העלה סרטון ראשון!")
+      : (search ? "לא נמצאו קבצים מתאימים" : "אין קבצים בספריה. העלה קובץ ראשון!");
+
+  const footerCount = `${filteredItems.length} ${filter === "video" ? "סרטונים" : filter === "image" ? "תמונות" : "קבצים"} בספריה`;
+
   return (
     <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) setSelected(null); }}>
       <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col gap-0 p-0">
         <DialogHeader className="px-6 pt-5 pb-4 border-b border-border">
-          <DialogTitle className="text-xl">{title}</DialogTitle>
+          <DialogTitle className="text-xl">{title || defaultTitle}</DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Upload zone */}
           <div
             className={`mx-6 mt-4 border-2 border-dashed rounded-xl transition-colors cursor-pointer ${
-              isDragging
-                ? "border-primary bg-primary/5"
-                : "border-muted-foreground/30 hover:border-primary/50"
+              isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/30 hover:border-primary/50"
             } ${isUploading ? "opacity-60 pointer-events-none" : ""}`}
             onClick={() => fileInputRef.current?.click()}
             onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
@@ -170,7 +211,10 @@ export function MediaPickerModal({
             onDrop={handleDrop}
           >
             <div className="flex flex-col items-center justify-center py-5 gap-2">
-              <Upload className="h-7 w-7 text-muted-foreground" />
+              {filter === "video"
+                ? <Video className="h-7 w-7 text-muted-foreground" />
+                : <Upload className="h-7 w-7 text-muted-foreground" />
+              }
               {isUploading ? (
                 <div className="text-sm text-center">
                   <p className="font-medium">מעלה... {progress}%</p>
@@ -180,15 +224,15 @@ export function MediaPickerModal({
                 </div>
               ) : (
                 <>
-                  <p className="text-sm font-medium">גרור תמונה לכאן או לחץ להעלאה</p>
-                  <p className="text-xs text-muted-foreground">PNG, JPG, GIF, WebP — עד 10MB</p>
+                  <p className="text-sm font-medium">{uploadLabel}</p>
+                  <p className="text-xs text-muted-foreground">{uploadHint}</p>
                 </>
               )}
             </div>
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept={acceptAttr}
               multiple
               className="hidden"
               onChange={handleFileChange}
@@ -218,33 +262,49 @@ export function MediaPickerModal({
               </div>
             ) : filteredItems.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
-                <ImageIcon className="h-12 w-12" />
-                <p>{search ? "לא נמצאו תמונות מתאימות" : "אין תמונות בספריה. העלה תמונה ראשונה!"}</p>
+                {filter === "video" ? <Video className="h-12 w-12" /> : <ImageIcon className="h-12 w-12" />}
+                <p>{emptyLabel}</p>
               </div>
             ) : (
               <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
                 {filteredItems.map((item) => {
                   const isSelected = selected?.id === item.id;
+                  const itemIsVideo = isVideo(item);
                   return (
                     <div
                       key={item.id}
-                      className={`group relative aspect-square rounded-lg border-2 cursor-pointer overflow-hidden transition-all ${
+                      className={`group relative aspect-square rounded-lg border-2 cursor-pointer overflow-hidden transition-all bg-muted ${
                         isSelected
                           ? "border-primary ring-2 ring-primary/30"
                           : "border-transparent hover:border-muted-foreground/40"
                       }`}
                       onClick={() => setSelected(isSelected ? null : item)}
                     >
-                      <img
-                        src={mediaUrl(item)}
-                        alt={item.altText || item.originalName}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src =
-                            "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%23f0f0f0' width='100' height='100'/%3E%3Ctext x='50' y='55' text-anchor='middle' fill='%23999' font-size='12'%3E?%3C/text%3E%3C/svg%3E";
-                        }}
-                      />
-                      {/* Selected overlay */}
+                      {itemIsVideo ? (
+                        <>
+                          <video
+                            src={mediaUrl(item)}
+                            className="w-full h-full object-cover"
+                            muted
+                            preload="metadata"
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                            <div className="bg-black/50 rounded-full p-1.5">
+                              <Play className="h-4 w-4 text-white fill-white" />
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <img
+                          src={mediaUrl(item)}
+                          alt={item.altText || item.originalName}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src =
+                              "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%23f0f0f0' width='100' height='100'/%3E%3Ctext x='50' y='55' text-anchor='middle' fill='%23999' font-size='12'%3E?%3C/text%3E%3C/svg%3E";
+                          }}
+                        />
+                      )}
                       {isSelected && (
                         <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
                           <div className="bg-primary rounded-full p-1">
@@ -252,7 +312,6 @@ export function MediaPickerModal({
                           </div>
                         </div>
                       )}
-                      {/* Delete button */}
                       <button
                         className="absolute top-1 left-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10"
                         onClick={(e) => {
@@ -263,7 +322,6 @@ export function MediaPickerModal({
                       >
                         <X className="h-3 w-3" />
                       </button>
-                      {/* Filename tooltip */}
                       <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[10px] px-1 py-0.5 truncate opacity-0 group-hover:opacity-100 transition-opacity">
                         {item.originalName}
                       </div>
@@ -280,14 +338,14 @@ export function MediaPickerModal({
           <div className="text-sm text-muted-foreground">
             {selected
               ? `נבחר: ${selected.originalName} (${formatSize(selected.size)})`
-              : `${filteredItems.length} תמונות בספריה`}
+              : footerCount}
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => { onOpenChange(false); setSelected(null); }}>
               ביטול
             </Button>
             <Button disabled={!selected} onClick={handleConfirm}>
-              בחר תמונה
+              {filter === "video" ? "בחר סרטון" : "בחר קובץ"}
             </Button>
           </div>
         </div>
@@ -341,7 +399,7 @@ export function MediaPickerButton({
           />
         </div>
       </div>
-      <MediaPickerModal open={open} onOpenChange={setOpen} onSelect={onChange} />
+      <MediaPickerModal open={open} onOpenChange={setOpen} onSelect={onChange} filter="image" />
     </div>
   );
 }
