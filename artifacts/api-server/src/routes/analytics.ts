@@ -4,16 +4,19 @@ import { db, ordersTable, orderItemsTable, usersTable, productsTable, couponsTab
 
 const router: IRouter = Router();
 
-router.get("/analytics/dashboard", async (req, res): Promise<void> => {
-  const period = req.query.period as string ?? "month";
+function getStartDate(period: string): Date {
   const now = new Date();
-  let startDate: Date;
   switch (period) {
-    case "day": startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate()); break;
-    case "week": startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); break;
-    case "year": startDate = new Date(now.getFullYear(), 0, 1); break;
-    default: startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    case "current-month": return new Date(now.getFullYear(), now.getMonth(), 1);
+    case "3months": return new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+    case "year": return new Date(now.getFullYear(), now.getMonth() - 11, 1);
+    default: return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   }
+}
+
+router.get("/analytics/dashboard", async (req, res): Promise<void> => {
+  const period = (req.query.period as string) ?? "current-month";
+  const startDate = getStartDate(period);
 
   const [totalRevenueRow] = await db.select({ revenue: sql<number>`coalesce(sum(total::numeric), 0)` }).from(ordersTable).where(gte(ordersTable.createdAt, startDate));
   const [totalOrdersRow] = await db.select({ count: sql<number>`count(*)::int` }).from(ordersTable).where(gte(ordersTable.createdAt, startDate));
@@ -45,15 +48,24 @@ router.get("/analytics/dashboard", async (req, res): Promise<void> => {
 });
 
 router.get("/analytics/revenue", async (req, res): Promise<void> => {
-  const period = req.query.period as string ?? "month";
+  const period = (req.query.period as string) ?? "current-month";
   const now = new Date();
   const result: { date: string; revenue: number; orders: number }[] = [];
 
-  if (period === "week") {
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+  if (period === "year") {
+    for (let i = 11; i >= 0; i--) {
+      const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+      const [row] = await db.select({
+        revenue: sql<number>`coalesce(sum(total::numeric), 0)`,
+        orders: sql<number>`count(*)::int`,
+      }).from(ordersTable).where(and(gte(ordersTable.createdAt, start), sql`${ordersTable.createdAt} < ${end}`));
+      result.push({ date: start.toISOString().split("T")[0], revenue: parseFloat(String(row.revenue)) || 0, orders: row.orders || 0 });
+    }
+  } else if (period === "3months") {
+    for (let i = 12; i >= 0; i--) {
+      const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i * 7);
+      const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
       const [row] = await db.select({
         revenue: sql<number>`coalesce(sum(total::numeric), 0)`,
         orders: sql<number>`count(*)::int`,
@@ -61,11 +73,18 @@ router.get("/analytics/revenue", async (req, res): Promise<void> => {
       result.push({ date: start.toISOString().split("T")[0], revenue: parseFloat(String(row.revenue)) || 0, orders: row.orders || 0 });
     }
   } else {
-    const days = period === "year" ? 12 : 30;
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+    let startBase: Date;
+    let daysToShow: number;
+    if (period === "current-month") {
+      startBase = new Date(now.getFullYear(), now.getMonth(), 1);
+      daysToShow = now.getDate();
+    } else {
+      startBase = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29);
+      daysToShow = 30;
+    }
+    for (let i = 0; i < daysToShow; i++) {
+      const start = new Date(startBase.getFullYear(), startBase.getMonth(), startBase.getDate() + i);
+      const end = new Date(startBase.getFullYear(), startBase.getMonth(), startBase.getDate() + i + 1);
       const [row] = await db.select({
         revenue: sql<number>`coalesce(sum(total::numeric), 0)`,
         orders: sql<number>`count(*)::int`,
@@ -73,6 +92,7 @@ router.get("/analytics/revenue", async (req, res): Promise<void> => {
       result.push({ date: start.toISOString().split("T")[0], revenue: parseFloat(String(row.revenue)) || 0, orders: row.orders || 0 });
     }
   }
+
   res.json(result);
 });
 
