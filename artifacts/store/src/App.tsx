@@ -28,6 +28,7 @@ import AdminCoupons from "@/pages/admin/coupons";
 import AdminLoyalty from "@/pages/admin/loyalty";
 import AdminAnalytics from "@/pages/admin/analytics";
 import AdminUsers from "@/pages/admin/users";
+import AdminUserDetail from "@/pages/admin/user-detail";
 import AdminImport from "@/pages/admin/import";
 import AdminSuppliers from "@/pages/admin/suppliers";
 import AdminSupplierForm from "@/pages/admin/supplier-form";
@@ -62,6 +63,7 @@ function Router() {
       <Route path="/admin/loyalty" component={AdminLoyalty} />
       <Route path="/admin/analytics" component={AdminAnalytics} />
       <Route path="/admin/customers" component={AdminUsers} />
+      <Route path="/admin/customers/:id" component={AdminUserDetail} />
       <Route path="/admin/users" component={AdminUsers} />
       <Route path="/admin/import" component={AdminImport} />
       <Route path="/admin/suppliers" component={AdminSuppliers} />

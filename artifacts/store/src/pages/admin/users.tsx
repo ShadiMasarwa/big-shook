@@ -1,3 +1,4 @@
+import { Link } from "wouter";
 import { AdminLayout } from "@/components/admin-layout";
 import { useListUsers } from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -45,7 +46,11 @@ export default function AdminUsers() {
             ) : (
               data.users.map(user => (
                 <TableRow key={user.id}>
-                  <TableCell className="font-medium">{user.firstName} {user.lastName}</TableCell>
+                  <TableCell className="font-medium">
+                    <Link href={`/admin/customers/${user.id}`} className="hover:text-primary hover:underline transition-colors">
+                      {user.firstName} {user.lastName}
+                    </Link>
+                  </TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell className="text-center">
                     <Badge variant="outline" className="uppercase font-bold tracking-wider text-xs">
