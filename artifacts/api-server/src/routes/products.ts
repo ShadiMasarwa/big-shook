@@ -139,7 +139,7 @@ router.get("/products", async (req, res): Promise<void> => {
     default: orderBy = desc(productsTable.createdAt);
   }
 
-  const whereClause = and(...conditions);
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
   const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(productsTable).where(whereClause);
   const products = await db.select().from(productsTable).where(whereClause).orderBy(orderBy).limit(limit).offset(offset);
 
