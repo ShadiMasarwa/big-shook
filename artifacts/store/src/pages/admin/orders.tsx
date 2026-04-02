@@ -252,7 +252,7 @@ function OrderItemsRow({ orderId, items, onItemStatusChange }: {
   return (
     <>
     <TableRow className="bg-muted/30 hover:bg-muted/40">
-      <TableCell colSpan={7} className="p-0">
+      <TableCell colSpan={8} className="p-0">
         <div className="px-4 py-3 border-t border-border">
           <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">פריטי הזמנה</p>
           <table className="w-full text-sm">
@@ -380,6 +380,7 @@ export default function AdminOrders() {
             <TableRow>
               <TableHead className="text-right w-40">מספר הזמנה</TableHead>
               <TableHead className="text-right">תאריך</TableHead>
+              <TableHead className="text-right">שעה</TableHead>
               <TableHead className="text-right">לקוח</TableHead>
               <TableHead className="text-center">הנחות</TableHead>
               <TableHead className="text-center">סה"כ</TableHead>
@@ -391,14 +392,14 @@ export default function AdminOrders() {
             {isLoading ? (
               [...Array(5)].map((_, i) => (
                 <TableRow key={i}>
-                  {[...Array(7)].map((_, j) => (
+                  {[...Array(8)].map((_, j) => (
                     <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
                   ))}
                 </TableRow>
               ))
             ) : data?.orders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">אין הזמנות</TableCell>
+                <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">אין הזמנות</TableCell>
               </TableRow>
             ) : (
               data?.orders.flatMap(order => {
@@ -429,7 +430,10 @@ export default function AdminOrders() {
                       </button>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {new Date(order.createdAt).toLocaleString("he-IL")}
+                      {new Date(order.createdAt).toLocaleDateString("he-IL")}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(order.createdAt).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
                     </TableCell>
                     <TableCell className="text-sm">
                       {(order as any).customerName ?? (order.userId ? `לקוח #${order.userId}` : 'אורח')}
@@ -481,7 +485,7 @@ export default function AdminOrders() {
                     />
                   ) : isExpanded ? (
                     <TableRow key={`empty-${order.id}`} className="bg-muted/20">
-                      <TableCell colSpan={7} className="text-center py-4 text-muted-foreground text-sm">
+                      <TableCell colSpan={8} className="text-center py-4 text-muted-foreground text-sm">
                         אין פריטים בהזמנה זו
                       </TableCell>
                     </TableRow>
