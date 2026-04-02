@@ -190,7 +190,7 @@ export default function AdminUserDetail() {
                           <TableCell className="text-center text-amber-600 font-medium">
                             {order.loyaltyPointsEarned > 0 ? `+${order.loyaltyPointsEarned}` : "—"}
                           </TableCell>
-                          <TableCell className="text-left font-bold">{formatPrice(order.totalAmount)}</TableCell>
+                          <TableCell className="text-left font-bold">{formatPrice(order.total)}</TableCell>
                         </TableRow>
                       );
                     })
