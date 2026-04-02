@@ -96,6 +96,7 @@ function OtpInput({
           }}
           type="text"
           inputMode="numeric"
+          dir="ltr"
           maxLength={1}
           value={value[i] ?? ""}
           onChange={(e) => handleChange(i, e.target.value)}
@@ -613,14 +614,13 @@ export default function Auth() {
                       </p>
                     </div>
                   )}
+                    <OtpInput value={otpValue} onChange={setOtpValue} />
 
-                  <OtpInput value={otpValue} onChange={setOtpValue} />
-
-                  {otpError && (
-                    <p className="text-sm text-destructive text-center">
-                      {otpError}
-                    </p>
-                  )}
+                    {otpError && (
+                      <p className="text-sm text-destructive text-center">
+                        {otpError}
+                      </p>
+                    )}
 
                   <div className="flex items-center justify-center gap-2 text-sm">
                     <span className="text-muted-foreground">פג תוקף בעוד:</span>
