@@ -667,6 +667,26 @@ export type ListProductsParams = {
    * @nullable
    */
   tags?: string | null;
+  /**
+   * @nullable
+   */
+  admin?: boolean | null;
+  /**
+   * @nullable
+   */
+  supplierId?: number | null;
+  /**
+   * @nullable
+   */
+  sku?: string | null;
+  /**
+   * @nullable
+   */
+  outOfStock?: boolean | null;
+  /**
+   * @nullable
+   */
+  isActive?: boolean | null;
 };
 
 export type ListProductsSort =

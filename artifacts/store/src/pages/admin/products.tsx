@@ -1,21 +1,66 @@
 import { AdminLayout } from "@/components/admin-layout";
-import { useListProducts, useDeleteProduct, getListProductsQueryKey } from "@workspace/api-client-react";
+import { useListProducts, useDeleteProduct, getListProductsQueryKey, useListCategories } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "wouter";
-import { Plus, Edit, Trash2, CheckCircle, XCircle } from "lucide-react";
+import { Plus, Edit, Trash2, CheckCircle, XCircle, Search, X } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSuppliers } from "@/hooks/use-suppliers";
+import { useState, useCallback } from "react";
+import { useDebouncedCallback } from "use-debounce";
+
+const EMPTY = "";
 
 export default function AdminProducts() {
   const queryClient = useQueryClient();
-  const { data, isLoading } = useListProducts({ limit: 50 });
+
+  const [nameSearch, setNameSearch] = useState(EMPTY);
+  const [skuSearch, setSkuSearch] = useState(EMPTY);
+  const [categoryId, setCategoryId] = useState(EMPTY);
+  const [supplierId, setSupplierId] = useState(EMPTY);
+  const [activeStatus, setActiveStatus] = useState(EMPTY);
+  const [stockStatus, setStockStatus] = useState(EMPTY);
+
+  const [debouncedName, setDebouncedName] = useState(EMPTY);
+  const [debouncedSku, setDebouncedSku] = useState(EMPTY);
+
+  const debounceNameSearch = useDebouncedCallback((v: string) => setDebouncedName(v), 350);
+  const debounceSkuSearch = useDebouncedCallback((v: string) => setDebouncedSku(v), 350);
+
+  const params = {
+    admin: true,
+    limit: 200,
+    ...(debouncedName ? { search: debouncedName } : {}),
+    ...(debouncedSku ? { sku: debouncedSku } : {}),
+    ...(categoryId ? { categoryId: parseInt(categoryId) } : {}),
+    ...(supplierId ? { supplierId: parseInt(supplierId) } : {}),
+    ...(activeStatus !== EMPTY ? { isActive: activeStatus === "true" } : {}),
+    ...(stockStatus === "out" ? { outOfStock: true } : stockStatus === "in" ? { inStock: true } : {}),
+  };
+
+  const { data, isLoading } = useListProducts(params);
   const deleteProduct = useDeleteProduct();
   const { data: suppliers } = useSuppliers();
+  const { data: categories } = useListCategories();
   const supplierMap = Object.fromEntries((suppliers ?? []).map(s => [s.id, s]));
+
+  const hasFilters = nameSearch || skuSearch || categoryId || supplierId || activeStatus || stockStatus;
+
+  const clearFilters = useCallback(() => {
+    setNameSearch(EMPTY);
+    setSkuSearch(EMPTY);
+    setCategoryId(EMPTY);
+    setSupplierId(EMPTY);
+    setActiveStatus(EMPTY);
+    setStockStatus(EMPTY);
+    setDebouncedName(EMPTY);
+    setDebouncedSku(EMPTY);
+  }, []);
 
   const handleDelete = async (id: number) => {
     if (window.confirm("האם אתה בטוח שברצונך למחוק מוצר זה?")) {
@@ -36,6 +81,96 @@ export default function AdminProducts() {
         <Button asChild>
           <Link href="/admin/products/new"><Plus className="ml-2 h-4 w-4"/> מוצר חדש</Link>
         </Button>
+      </div>
+
+      <div className="bg-card border border-border rounded-xl p-4 mb-4 flex flex-wrap gap-3 items-end">
+        <div className="flex flex-col gap-1 min-w-[180px] flex-1">
+          <label className="text-xs text-muted-foreground font-medium">חיפוש לפי שם</label>
+          <div className="relative">
+            <Search className="absolute right-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              className="pr-8"
+              placeholder="שם מוצר..."
+              value={nameSearch}
+              onChange={e => { setNameSearch(e.target.value); debounceNameSearch(e.target.value); }}
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-1 min-w-[150px]">
+          <label className="text-xs text-muted-foreground font-medium">מק"ט</label>
+          <div className="relative">
+            <Search className="absolute right-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              className="pr-8"
+              placeholder='מק"ט...'
+              value={skuSearch}
+              onChange={e => { setSkuSearch(e.target.value); debounceSkuSearch(e.target.value); }}
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-1 min-w-[150px]">
+          <label className="text-xs text-muted-foreground font-medium">קטגוריה</label>
+          <Select value={categoryId} onValueChange={setCategoryId}>
+            <SelectTrigger><SelectValue placeholder="כל הקטגוריות" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={EMPTY}>כל הקטגוריות</SelectItem>
+              {(categories ?? []).map(c => (
+                <SelectItem key={c.id} value={String(c.id)}>{c.nameHe}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-1 min-w-[150px]">
+          <label className="text-xs text-muted-foreground font-medium">ספק</label>
+          <Select value={supplierId} onValueChange={setSupplierId}>
+            <SelectTrigger><SelectValue placeholder="כל הספקים" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={EMPTY}>כל הספקים</SelectItem>
+              {(suppliers ?? []).map(s => (
+                <SelectItem key={s.id} value={String(s.id)}>{s.companyName}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-1 min-w-[130px]">
+          <label className="text-xs text-muted-foreground font-medium">סטטוס</label>
+          <Select value={activeStatus} onValueChange={setActiveStatus}>
+            <SelectTrigger><SelectValue placeholder="הכל" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={EMPTY}>הכל</SelectItem>
+              <SelectItem value="true">פעיל</SelectItem>
+              <SelectItem value="false">לא פעיל</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-1 min-w-[130px]">
+          <label className="text-xs text-muted-foreground font-medium">מלאי</label>
+          <Select value={stockStatus} onValueChange={setStockStatus}>
+            <SelectTrigger><SelectValue placeholder="הכל" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={EMPTY}>הכל</SelectItem>
+              <SelectItem value="in">במלאי</SelectItem>
+              <SelectItem value="out">אזל מהמלאי</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {hasFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="self-end gap-1 text-muted-foreground">
+            <X className="h-4 w-4" /> נקה סינון
+          </Button>
+        )}
+      </div>
+
+      <div className="text-sm text-muted-foreground mb-2 px-1">
+        {!isLoading && (
+          <span>{data?.total ?? 0} מוצרים{hasFilters ? " (מסונן)" : ""}</span>
+        )}
       </div>
 
       <div className="bg-card border border-border rounded-xl overflow-hidden">
@@ -61,17 +196,20 @@ export default function AdminProducts() {
                   <TableCell><Skeleton className="h-4 w-16 mx-auto" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-16 mx-auto" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-12 mx-auto" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-20 mx-auto" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-8 mx-auto" /></TableCell>
                   <TableCell><Skeleton className="h-8 w-20" /></TableCell>
                 </TableRow>
               ))
             ) : data?.products.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">אין מוצרים. הוסף את המוצר הראשון שלך!</TableCell>
+                <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
+                  {hasFilters ? "לא נמצאו מוצרים התואמים לחיפוש" : "אין מוצרים. הוסף את המוצר הראשון שלך!"}
+                </TableCell>
               </TableRow>
             ) : (
               data?.products.map((product) => (
-                <TableRow key={product.id}>
+                <TableRow key={product.id} className={!product.isActive ? "opacity-50" : ""}>
                   <TableCell>
                     <div className="w-12 h-12 bg-white rounded border border-border flex items-center justify-center overflow-hidden">
                       {product.images && product.images[0] ? (
@@ -82,9 +220,13 @@ export default function AdminProducts() {
                     </div>
                   </TableCell>
                   <TableCell className="font-medium">{product.nameHe}</TableCell>
-                  <TableCell className="text-center">{product.sku || '-'}</TableCell>
+                  <TableCell className="text-center text-sm font-mono">{product.sku || '—'}</TableCell>
                   <TableCell className="text-center">{formatPrice(product.price)}</TableCell>
-                  <TableCell className="text-center font-bold">{product.stockQuantity}</TableCell>
+                  <TableCell className="text-center">
+                    <span className={product.stockQuantity === 0 ? "text-destructive font-bold" : "font-bold"}>
+                      {product.stockQuantity}
+                    </span>
+                  </TableCell>
                   <TableCell className="text-center">
                     {(product as any).supplierId && supplierMap[(product as any).supplierId] ? (
                       <Link

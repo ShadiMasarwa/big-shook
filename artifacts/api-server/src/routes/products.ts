@@ -90,15 +90,22 @@ router.get("/products/:id", async (req, res): Promise<void> => {
 });
 
 router.get("/products", async (req, res): Promise<void> => {
-  const { categoryId, brandId, search, minPrice, maxPrice, inStock, sort, tags } = req.query;
+  const { categoryId, brandId, search, minPrice, maxPrice, inStock, sort, tags, admin, supplierId, sku, outOfStock, isActive } = req.query;
   const page = parseInt(String(req.query.page ?? "1"), 10);
   const limit = parseInt(String(req.query.limit ?? "20"), 10);
   const offset = (page - 1) * limit;
+  const isAdmin = admin === "true";
 
-  const conditions = [
-    eq(productsTable.isActive, true),
-    sql`(${productsTable.supplierId} IS NULL OR EXISTS (SELECT 1 FROM suppliers WHERE suppliers.id = ${productsTable.supplierId} AND suppliers.is_active = true))`,
-  ];
+  const conditions: any[] = [];
+
+  if (!isAdmin) {
+    conditions.push(eq(productsTable.isActive, true));
+    conditions.push(sql`(${productsTable.supplierId} IS NULL OR EXISTS (SELECT 1 FROM suppliers WHERE suppliers.id = ${productsTable.supplierId} AND suppliers.is_active = true))`);
+  }
+
+  if (isAdmin && isActive !== undefined && isActive !== "") {
+    conditions.push(eq(productsTable.isActive, isActive === "true"));
+  }
 
   if (categoryId) {
     const catId = parseInt(String(categoryId), 10);
@@ -108,10 +115,20 @@ router.get("/products", async (req, res): Promise<void> => {
     const bId = parseInt(String(brandId), 10);
     if (!isNaN(bId)) conditions.push(eq(productsTable.brandId, bId));
   }
-  if (search) conditions.push(ilike(productsTable.nameHe, `%${search}%`));
+  if (supplierId) {
+    const sId = parseInt(String(supplierId), 10);
+    if (!isNaN(sId)) conditions.push(eq(productsTable.supplierId, sId));
+  }
+  if (search) {
+    conditions.push(ilike(productsTable.nameHe, `%${search}%`));
+  }
+  if (sku) {
+    conditions.push(ilike(productsTable.sku, `%${sku}%`));
+  }
   if (minPrice && !isNaN(parseFloat(String(minPrice)))) conditions.push(gte(productsTable.price, String(minPrice)));
   if (maxPrice && !isNaN(parseFloat(String(maxPrice)))) conditions.push(lte(productsTable.price, String(maxPrice)));
   if (inStock === "true") conditions.push(gt(productsTable.stockQuantity, 0));
+  if (outOfStock === "true") conditions.push(eq(productsTable.stockQuantity, 0));
 
   let orderBy;
   switch (sort) {
