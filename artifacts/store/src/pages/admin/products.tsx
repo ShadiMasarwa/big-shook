@@ -14,20 +14,20 @@ import { useSuppliers } from "@/hooks/use-suppliers";
 import { useState, useCallback } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
-const EMPTY = "";
+const ALL = "all";
 
 export default function AdminProducts() {
   const queryClient = useQueryClient();
 
-  const [nameSearch, setNameSearch] = useState(EMPTY);
-  const [skuSearch, setSkuSearch] = useState(EMPTY);
-  const [categoryId, setCategoryId] = useState(EMPTY);
-  const [supplierId, setSupplierId] = useState(EMPTY);
-  const [activeStatus, setActiveStatus] = useState(EMPTY);
-  const [stockStatus, setStockStatus] = useState(EMPTY);
+  const [nameSearch, setNameSearch] = useState("");
+  const [skuSearch, setSkuSearch] = useState("");
+  const [categoryId, setCategoryId] = useState(ALL);
+  const [supplierId, setSupplierId] = useState(ALL);
+  const [activeStatus, setActiveStatus] = useState(ALL);
+  const [stockStatus, setStockStatus] = useState(ALL);
 
-  const [debouncedName, setDebouncedName] = useState(EMPTY);
-  const [debouncedSku, setDebouncedSku] = useState(EMPTY);
+  const [debouncedName, setDebouncedName] = useState("");
+  const [debouncedSku, setDebouncedSku] = useState("");
 
   const debounceNameSearch = useDebouncedCallback((v: string) => setDebouncedName(v), 350);
   const debounceSkuSearch = useDebouncedCallback((v: string) => setDebouncedSku(v), 350);
@@ -37,9 +37,9 @@ export default function AdminProducts() {
     limit: 200,
     ...(debouncedName ? { search: debouncedName } : {}),
     ...(debouncedSku ? { sku: debouncedSku } : {}),
-    ...(categoryId ? { categoryId: parseInt(categoryId) } : {}),
-    ...(supplierId ? { supplierId: parseInt(supplierId) } : {}),
-    ...(activeStatus !== EMPTY ? { isActive: activeStatus === "true" } : {}),
+    ...(categoryId !== ALL ? { categoryId: parseInt(categoryId) } : {}),
+    ...(supplierId !== ALL ? { supplierId: parseInt(supplierId) } : {}),
+    ...(activeStatus !== ALL ? { isActive: activeStatus === "true" } : {}),
     ...(stockStatus === "out" ? { outOfStock: true } : stockStatus === "in" ? { inStock: true } : {}),
   };
 
@@ -49,17 +49,17 @@ export default function AdminProducts() {
   const { data: categories } = useListCategories();
   const supplierMap = Object.fromEntries((suppliers ?? []).map(s => [s.id, s]));
 
-  const hasFilters = nameSearch || skuSearch || categoryId || supplierId || activeStatus || stockStatus;
+  const hasFilters = nameSearch || skuSearch || categoryId !== ALL || supplierId !== ALL || activeStatus !== ALL || stockStatus !== ALL;
 
   const clearFilters = useCallback(() => {
-    setNameSearch(EMPTY);
-    setSkuSearch(EMPTY);
-    setCategoryId(EMPTY);
-    setSupplierId(EMPTY);
-    setActiveStatus(EMPTY);
-    setStockStatus(EMPTY);
-    setDebouncedName(EMPTY);
-    setDebouncedSku(EMPTY);
+    setNameSearch("");
+    setSkuSearch("");
+    setCategoryId(ALL);
+    setSupplierId(ALL);
+    setActiveStatus(ALL);
+    setStockStatus(ALL);
+    setDebouncedName("");
+    setDebouncedSku("");
   }, []);
 
   const handleDelete = async (id: number) => {
@@ -115,7 +115,7 @@ export default function AdminProducts() {
           <Select value={categoryId} onValueChange={setCategoryId}>
             <SelectTrigger><SelectValue placeholder="כל הקטגוריות" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value={EMPTY}>כל הקטגוריות</SelectItem>
+              <SelectItem value={ALL}>כל הקטגוריות</SelectItem>
               {(categories ?? []).map(c => (
                 <SelectItem key={c.id} value={String(c.id)}>{c.nameHe}</SelectItem>
               ))}
@@ -128,7 +128,7 @@ export default function AdminProducts() {
           <Select value={supplierId} onValueChange={setSupplierId}>
             <SelectTrigger><SelectValue placeholder="כל הספקים" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value={EMPTY}>כל הספקים</SelectItem>
+              <SelectItem value={ALL}>כל הספקים</SelectItem>
               {(suppliers ?? []).map(s => (
                 <SelectItem key={s.id} value={String(s.id)}>{s.companyName}</SelectItem>
               ))}
@@ -141,7 +141,7 @@ export default function AdminProducts() {
           <Select value={activeStatus} onValueChange={setActiveStatus}>
             <SelectTrigger><SelectValue placeholder="הכל" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value={EMPTY}>הכל</SelectItem>
+              <SelectItem value={ALL}>הכל</SelectItem>
               <SelectItem value="true">פעיל</SelectItem>
               <SelectItem value="false">לא פעיל</SelectItem>
             </SelectContent>
@@ -153,7 +153,7 @@ export default function AdminProducts() {
           <Select value={stockStatus} onValueChange={setStockStatus}>
             <SelectTrigger><SelectValue placeholder="הכל" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value={EMPTY}>הכל</SelectItem>
+              <SelectItem value={ALL}>הכל</SelectItem>
               <SelectItem value="in">במלאי</SelectItem>
               <SelectItem value="out">אזל מהמלאי</SelectItem>
             </SelectContent>
