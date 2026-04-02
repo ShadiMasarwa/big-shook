@@ -3,7 +3,7 @@ import { useLocation, useSearch } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/layout";
 import { ProductCard } from "@/components/product-card";
-import { useListProducts, useListCategories } from "@workspace/api-client-react";
+import { useListProducts } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -51,7 +51,10 @@ export default function Catalog() {
     search: search || undefined,
   });
 
-  const { data: categories } = useListCategories();
+  const { data: categories } = useQuery({
+    queryKey: ["/api/categories", "onlyWithProducts"],
+    queryFn: () => fetch("/api/categories?onlyWithProducts=true").then(r => r.json()),
+  });
 
   const brandsParams = new URLSearchParams();
   if (categoryId) brandsParams.set("categoryId", String(categoryId));

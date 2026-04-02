@@ -1,17 +1,33 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
-import { db, categoriesTable } from "@workspace/db";
+import { eq, and, sql } from "drizzle-orm";
+import { db, categoriesTable, productsTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
 router.get("/categories", async (req, res): Promise<void> => {
   const parentIdParam = req.query.parentId;
+  const onlyWithProducts = req.query.onlyWithProducts === "true";
+
+  const hasProductsCondition = sql`EXISTS (
+    SELECT 1 FROM ${productsTable}
+    WHERE ${productsTable.categoryId} = ${categoriesTable.id}
+      AND ${productsTable.isActive} = true
+      AND ${productsTable.stockQuantity} > 0
+  )`;
+
   let categories;
   if (parentIdParam !== undefined && parentIdParam !== null) {
     const parentId = parseInt(String(parentIdParam), 10);
-    categories = await db.select().from(categoriesTable).where(eq(categoriesTable.parentId, parentId));
+    const condition = onlyWithProducts
+      ? and(eq(categoriesTable.parentId, parentId), hasProductsCondition)
+      : eq(categoriesTable.parentId, parentId);
+    categories = await db.select().from(categoriesTable).where(condition);
   } else {
-    categories = await db.select().from(categoriesTable).orderBy(categoriesTable.sortOrder);
+    categories = await db
+      .select()
+      .from(categoriesTable)
+      .where(onlyWithProducts ? hasProductsCondition : undefined)
+      .orderBy(categoriesTable.sortOrder);
   }
   res.json(categories.map(serializeCategory));
 });
