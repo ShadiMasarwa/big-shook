@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShoppingCart, Heart, ArrowRightLeft, Check, Star, ChevronRight, ChevronLeft } from "lucide-react";
+import { ShoppingCart, Heart, ArrowRightLeft, Check, Star, ChevronRight, ChevronLeft, Play } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
 import { ProductCard } from "@/components/product-card";
@@ -66,10 +66,15 @@ export default function ProductDetail() {
   }, [product?.id]);
 
   const images = product?.images ?? [];
-  const totalImages = images.length;
+  const videos = (product as any)?.videos ?? [] as string[];
+  const mediaItems: { type: "image" | "video"; url: string }[] = [
+    ...images.map((url: string) => ({ type: "image" as const, url })),
+    ...videos.map((url: string) => ({ type: "video" as const, url })),
+  ];
+  const totalItems = mediaItems.length;
 
   const goTo = (idx: number, dir?: number) => {
-    const next = (idx + totalImages) % totalImages;
+    const next = (idx + totalItems) % totalItems;
     setDirection(dir ?? (next > activeIndex ? -1 : 1));
     setActiveIndex(next);
     thumbsRef.current?.children[next]?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
@@ -147,7 +152,7 @@ export default function ProductDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-16">
           {/* Images */}
           <div className="flex flex-col gap-4">
-            {/* Main image with animation */}
+            {/* Main viewer */}
             <div className="relative aspect-square bg-white rounded-2xl border border-border overflow-hidden group">
               <AnimatePresence initial={false} custom={direction} mode="popLayout">
                 <motion.div
@@ -160,9 +165,17 @@ export default function ProductDetail() {
                   transition={{ type: "spring", stiffness: 380, damping: 32 }}
                   className="absolute inset-0 flex items-center justify-center p-6"
                 >
-                  {images[activeIndex] ? (
+                  {mediaItems[activeIndex]?.type === "video" ? (
+                    <video
+                      key={mediaItems[activeIndex].url}
+                      src={mediaItems[activeIndex].url}
+                      controls
+                      className="max-w-full max-h-full rounded-lg"
+                      style={{ maxHeight: "100%", maxWidth: "100%" }}
+                    />
+                  ) : mediaItems[activeIndex]?.url ? (
                     <img
-                      src={images[activeIndex]}
+                      src={mediaItems[activeIndex].url}
                       alt={`${product.nameHe} ${activeIndex + 1}`}
                       className="max-w-full max-h-full object-contain"
                     />
@@ -172,44 +185,43 @@ export default function ProductDetail() {
                 </motion.div>
               </AnimatePresence>
 
-              {/* Arrow navigation — only show when >1 image */}
-              {totalImages > 1 && (
+              {/* Arrow navigation — only when >1 item */}
+              {totalItems > 1 && (
                 <>
                   <button
                     onClick={goNext}
                     className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/80 border border-border shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
-                    aria-label="תמונה הבאה"
+                    aria-label="הבא"
                   >
                     <ChevronLeft className="h-5 w-5" />
                   </button>
                   <button
                     onClick={goPrev}
                     className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/80 border border-border shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
-                    aria-label="תמונה הקודמת"
+                    aria-label="הקודם"
                   >
                     <ChevronRight className="h-5 w-5" />
                   </button>
-                  {/* Counter badge */}
                   <div dir="ltr" className="absolute bottom-3 left-3 z-10 bg-black/50 text-white text-xs font-medium px-2 py-0.5 rounded-full">
-                    {activeIndex + 1} / {totalImages}
+                    {activeIndex + 1} / {totalItems}
                   </div>
                 </>
               )}
             </div>
 
             {/* Thumbnail strip */}
-            {totalImages > 1 && (
+            {totalItems > 1 && (
               <div ref={thumbsRef} className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                {images.map((img, idx) => (
+                {mediaItems.map((item, idx) => (
                   <button
                     key={idx}
                     onClick={() => goTo(idx)}
-                    className={`relative aspect-square w-20 shrink-0 rounded-lg border-2 bg-white flex items-center justify-center p-1.5 transition-all duration-200 ${
+                    className={`relative aspect-square w-20 shrink-0 rounded-lg border-2 bg-white flex items-center justify-center p-1.5 transition-all duration-200 overflow-hidden ${
                       activeIndex === idx
                         ? "border-primary shadow-md scale-105"
                         : "border-border hover:border-primary/50 opacity-70 hover:opacity-100"
                     }`}
-                    aria-label={`תמונה ${idx + 1}`}
+                    aria-label={item.type === "video" ? `סרטון ${idx + 1}` : `תמונה ${idx + 1}`}
                   >
                     {activeIndex === idx && (
                       <motion.span
@@ -218,11 +230,27 @@ export default function ProductDetail() {
                         transition={{ type: "spring", stiffness: 500, damping: 35 }}
                       />
                     )}
-                    <img
-                      src={img}
-                      alt={`${product.nameHe} ${idx + 1}`}
-                      className="max-w-full max-h-full object-contain"
-                    />
+                    {item.type === "video" ? (
+                      <>
+                        <video
+                          src={item.url}
+                          className="w-full h-full object-cover pointer-events-none"
+                          muted
+                          preload="metadata"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                          <div className="bg-black/50 rounded-full p-1">
+                            <Play className="h-3 w-3 text-white fill-white" />
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <img
+                        src={item.url}
+                        alt={`${product.nameHe} ${idx + 1}`}
+                        className="max-w-full max-h-full object-contain"
+                      />
+                    )}
                   </button>
                 ))}
               </div>
