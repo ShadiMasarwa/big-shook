@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { useCart } from "@/hooks/use-cart";
 import { ShoppingCart, Heart } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
-import { useAddToWishlist } from "@workspace/api-client-react";
+import { useAddToWishlist, getGetWishlistQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/ui/use-toast";
 
 interface ProductCardProps {
@@ -15,6 +16,7 @@ interface ProductCardProps {
 export function ProductCard({ product }: ProductCardProps) {
   const { addToCart } = useCart();
   const addToWishlist = useAddToWishlist();
+  const queryClient = useQueryClient();
 
   const handleAddToCart = () => {
     addToCart({ productId: product.id, quantity: 1 })
@@ -24,7 +26,10 @@ export function ProductCard({ product }: ProductCardProps) {
 
   const handleAddToWishlist = () => {
     addToWishlist.mutateAsync({ data: { productId: product.id } })
-      .then(() => toast({ title: "נוסף למועדפים בהצלחה!" }))
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: getGetWishlistQueryKey() });
+        toast({ title: "נוסף למועדפים בהצלחה!" });
+      })
       .catch(() => toast({ title: "שגיאה בהוספה למועדפים", variant: "destructive" }));
   };
 

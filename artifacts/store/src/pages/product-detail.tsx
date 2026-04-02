@@ -7,8 +7,10 @@ import {
   getGetProductBySlugQueryKey,
   useGetRelatedProducts,
   useAddToWishlist,
-  useTrackProductView
+  useTrackProductView,
+  getGetWishlistQueryKey
 } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCart } from "@/hooks/use-cart";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -47,6 +49,7 @@ export default function ProductDetail() {
     query: { enabled: !!productId }
   });
   
+  const queryClient = useQueryClient();
   const { addToCart } = useCart();
   const addToWishlistMutation = useAddToWishlist();
   const trackView = useTrackProductView();
@@ -95,6 +98,7 @@ export default function ProductDetail() {
     if (!product) return;
     try {
       await addToWishlistMutation.mutateAsync({ data: { productId: product.id } });
+      queryClient.invalidateQueries({ queryKey: getGetWishlistQueryKey() });
       toast({ title: "המוצר נוסף למועדפים" });
     } catch (e) {
       toast({ title: "שגיאה בהוספה למועדפים", variant: "destructive" });
