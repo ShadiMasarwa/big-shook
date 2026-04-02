@@ -167,7 +167,7 @@ export default function OrderDetail() {
 
 // Simple internal table components
 function Table({ children }: { children: React.ReactNode }) { return <div className="w-full text-sm">{children}</div>; }
-function TableHeader({ children }: { children: React.ReactNode }) { return <div className="bg-muted/50 border-b border-border flex p-3">{children}</div>; }
+function TableHeader({ children }: { children: React.ReactNode }) { return <div className="bg-muted/50">{children}</div>; }
 function TableHead({ children, className = "" }: { children: React.ReactNode, className?: string }) { return <div className={`flex-1 font-bold text-muted-foreground ${className}`}>{children}</div>; }
 function TableBody({ children }: { children: React.ReactNode }) { return <div>{children}</div>; }
 function TableRow({ children }: { children: React.ReactNode }) { return <div className="flex p-3 border-b border-border last:border-0 items-center">{children}</div>; }
