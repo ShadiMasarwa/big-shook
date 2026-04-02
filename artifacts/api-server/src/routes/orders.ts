@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { db, ordersTable, orderItemsTable, cartItemsTable, cartCouponsTable, productsTable, usersTable, loyaltyTransactionsTable } from "@workspace/db";
-import { getSessionId } from "./cart.js";
+import { getSessionId, getUserId } from "./cart.js";
 
 const router: IRouter = Router();
 
@@ -71,6 +71,7 @@ router.get("/orders", async (req, res): Promise<void> => {
 
 router.post("/orders", async (req, res): Promise<void> => {
   const sessionId = getSessionId(req as Parameters<typeof getSessionId>[0]);
+  const userId = getUserId(req as Parameters<typeof getUserId>[0]);
   const { shippingAddress, notes, loyaltyPointsToUse } = req.body;
   if (!shippingAddress) {
     res.status(400).json({ error: "כתובת משלוח נדרשת" });
@@ -107,7 +108,7 @@ router.post("/orders", async (req, res): Promise<void> => {
   const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
 
   const [order] = await db.insert(ordersTable).values({
-    orderNumber, userId: cartItems[0].userId ?? null, sessionId,
+    orderNumber, userId: userId ?? cartItems[0].userId ?? null, sessionId,
     subtotal: String(subtotal), discount: "0", shipping: String(shipping),
     tax: "0", total: String(total),
     couponCode, couponDiscount: String(couponDiscount),

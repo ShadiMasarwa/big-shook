@@ -183,6 +183,7 @@ router.get("/cart", async (req, res): Promise<void> => {
 
 router.post("/cart/items", async (req, res): Promise<void> => {
   const sessionId = getSessionId(req as Parameters<typeof getSessionId>[0]);
+  const userId = getUserId(req as Parameters<typeof getUserId>[0]);
   const { productId, quantity } = req.body;
   if (!productId || !quantity) {
     res.status(400).json({ error: "productId and quantity are required" });
@@ -199,9 +200,11 @@ router.post("/cart/items", async (req, res): Promise<void> => {
   const effectivePrice = product.salePrice ?? product.price;
 
   if (existing) {
-    await db.update(cartItemsTable).set({ quantity: existing.quantity + quantity }).where(eq(cartItemsTable.id, existing.id));
+    await db.update(cartItemsTable)
+      .set({ quantity: existing.quantity + quantity, ...(userId ? { userId } : {}) })
+      .where(eq(cartItemsTable.id, existing.id));
   } else {
-    await db.insert(cartItemsTable).values({ sessionId, productId, quantity, price: effectivePrice });
+    await db.insert(cartItemsTable).values({ sessionId, productId, quantity, price: effectivePrice, ...(userId ? { userId } : {}) });
   }
   const cart = await buildCart(sessionId);
   res.json(cart);
@@ -366,5 +369,5 @@ router.delete("/cart/loyalty", async (req, res): Promise<void> => {
   res.json(cart);
 });
 
-export { buildCart, getSessionId };
+export { buildCart, getSessionId, getUserId };
 export default router;
