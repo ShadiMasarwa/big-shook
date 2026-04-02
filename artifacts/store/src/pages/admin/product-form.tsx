@@ -19,7 +19,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState, useEffect } from "react";
 import { toast } from "@/components/ui/use-toast";
-import { X, Plus } from "lucide-react";
+import { X, Plus, ImageIcon } from "lucide-react";
+import { MediaPickerModal } from "@/components/media-picker";
 
 export default function AdminProductForm() {
   const { id } = useParams();
@@ -52,8 +53,9 @@ export default function AdminProductForm() {
     supplierId: "",
     isActive: true,
     isFeatured: false,
-    images: "",
+    images: [] as string[],
   });
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
 
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
@@ -77,7 +79,7 @@ export default function AdminProductForm() {
         supplierId: (product as any).supplierId?.toString() || "",
         isActive: product.isActive,
         isFeatured: product.isFeatured,
-        images: product.images.join("\n"),
+        images: product.images || [],
       });
       setTags(product.tags || []);
       const specsObj = product.specs as Record<string, string> || {};
@@ -132,7 +134,7 @@ export default function AdminProductForm() {
       supplierId: formData.supplierId ? Number(formData.supplierId) : null,
       isActive: formData.isActive,
       isFeatured: formData.isFeatured,
-      images: formData.images.split("\n").map(s => s.trim()).filter(Boolean),
+      images: formData.images,
       tags,
       specs: specsObj,
     };
@@ -237,21 +239,58 @@ export default function AdminProductForm() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>תמונות</CardTitle></CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>תמונות</CardTitle>
+            <Button type="button" variant="outline" size="sm" onClick={() => setMediaPickerOpen(true)}>
+              <ImageIcon className="ml-2 h-4 w-4" /> הוסף תמונה מהמדיה
+            </Button>
+          </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              <Label>קישורים לתמונות (כל תמונה בשורה נפרדת)</Label>
-              <Textarea className="h-28 font-mono text-sm" dir="ltr" placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg" value={formData.images} onChange={e => setFormData({...formData, images: e.target.value})} />
-              {formData.images && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {formData.images.split("\n").filter(Boolean).map((url, i) => (
-                    <img key={i} src={url.trim()} alt="" className="h-16 w-16 object-contain rounded border border-border bg-white" onError={e => (e.currentTarget.style.display = 'none')} />
-                  ))}
-                </div>
-              )}
-            </div>
+            {formData.images.length === 0 ? (
+              <button
+                type="button"
+                className="w-full border-2 border-dashed border-muted-foreground/30 rounded-xl py-8 text-sm text-muted-foreground hover:border-primary/50 transition-colors"
+                onClick={() => setMediaPickerOpen(true)}
+              >
+                <ImageIcon className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                לחץ כדי להוסיף תמונות מהמדיה
+              </button>
+            ) : (
+              <div className="flex flex-wrap gap-3">
+                {formData.images.map((url, i) => (
+                  <div key={i} className="relative group w-24 h-24 rounded-lg overflow-hidden border border-border bg-muted">
+                    <img src={url} alt="" className="w-full h-full object-cover" onError={e => (e.currentTarget.style.display = 'none')} />
+                    {i === 0 && (
+                      <span className="absolute bottom-0 inset-x-0 bg-primary text-primary-foreground text-[10px] text-center py-0.5 font-medium">ראשית</span>
+                    )}
+                    <button
+                      type="button"
+                      className="absolute top-1 left-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => setFormData(f => ({ ...f, images: f.images.filter((_, j) => j !== i) }))}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  className="w-24 h-24 rounded-lg border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 transition-colors flex flex-col items-center justify-center text-muted-foreground text-xs gap-1"
+                  onClick={() => setMediaPickerOpen(true)}
+                >
+                  <Plus className="h-5 w-5" />
+                  הוסף
+                </button>
+              </div>
+            )}
           </CardContent>
         </Card>
+
+        <MediaPickerModal
+          open={mediaPickerOpen}
+          onOpenChange={setMediaPickerOpen}
+          onSelect={(url) => setFormData(f => ({ ...f, images: [...f.images, url] }))}
+          title="הוסף תמונה למוצר"
+        />
 
         <Card>
           <CardHeader><CardTitle>תגיות</CardTitle></CardHeader>

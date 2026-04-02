@@ -41,6 +41,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/use-toast";
 import { Plus, Edit, Trash2, ChevronLeft } from "lucide-react";
+import { MediaPickerButton } from "@/components/media-picker";
 
 const EMPTY_FORM = {
   nameHe: "",
@@ -323,12 +324,11 @@ export default function AdminCategories() {
             </div>
 
             <div className="space-y-2">
-              <Label>כתובת תמונה (URL)</Label>
-              <Input
+              <Label>תמונה</Label>
+              <MediaPickerButton
                 value={form.imageUrl}
-                onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))}
-                placeholder="https://..."
-                dir="ltr"
+                onChange={(url) => setForm((f) => ({ ...f, imageUrl: url }))}
+                label="בחר תמונה מהמדיה"
               />
             </div>
 

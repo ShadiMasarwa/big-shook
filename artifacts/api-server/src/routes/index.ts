@@ -16,6 +16,8 @@ import inventoryRouter from "./inventory.js";
 import analyticsRouter from "./analytics.js";
 import adminRouter from "./admin.js";
 import suppliersRouter from "./suppliers.js";
+import storageRouter from "./storage.js";
+import mediaRouter from "./media.js";
 
 const router: IRouter = Router();
 
@@ -36,5 +38,7 @@ router.use(inventoryRouter);
 router.use(analyticsRouter);
 router.use(adminRouter);
 router.use(suppliersRouter);
+router.use(storageRouter);
+router.use(mediaRouter);
 
 export default router;

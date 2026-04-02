@@ -11,3 +11,4 @@ export * from "./inventory";
 export * from "./wishlist";
 export * from "./recentlyViewed";
 export * from "./comparison";
+export * from "./media";
