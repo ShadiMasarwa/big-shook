@@ -87,6 +87,19 @@ export default function AdminProductForm() {
     }
   }, [product, isEditing]);
 
+  // Re-sync supplierId (and other relation fields) once reference data loads,
+  // in case it arrived after the product data and the Select showed blank.
+  useEffect(() => {
+    if (product && isEditing && suppliers?.length) {
+      setFormData(prev => ({
+        ...prev,
+        supplierId: (product as any).supplierId?.toString() || prev.supplierId,
+        categoryId: product.categoryId?.toString() || prev.categoryId,
+        brandId: product.brandId?.toString() || prev.brandId,
+      }));
+    }
+  }, [suppliers]);
+
   const addTag = () => {
     const t = tagInput.trim();
     if (t && !tags.includes(t)) {
@@ -203,9 +216,10 @@ export default function AdminProductForm() {
               </div>
               <div className="space-y-2">
                 <Label>ספק</Label>
-                <Select value={formData.supplierId} onValueChange={v => setFormData({...formData, supplierId: v})}>
+                <Select value={formData.supplierId || "__none__"} onValueChange={v => setFormData({...formData, supplierId: v === "__none__" ? "" : v})}>
                   <SelectTrigger><SelectValue placeholder="בחר ספק" /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="__none__">ללא ספק</SelectItem>
                     {suppliers?.map(s => <SelectItem key={s.id} value={s.id.toString()}>{s.companyName}</SelectItem>)}
                   </SelectContent>
                 </Select>
