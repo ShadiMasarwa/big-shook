@@ -88,8 +88,8 @@ router.post("/orders", async (req, res): Promise<void> => {
   const cartItems = await db.select().from(cartItemsTable).where(eq(cartItemsTable.sessionId, sessionId));
 
   const { subtotal, shipping, total, couponCode, couponDiscount, loyaltyPointsUsed, loyaltyDiscount } = cart;
-  // Points earned are based on the subtotal (before discounts), not the final total
-  const loyaltyPointsEarned = Math.floor(subtotal);
+  // Points earned are based on the final amount paid (after all discounts)
+  const loyaltyPointsEarned = Math.floor(total);
 
   const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
 
