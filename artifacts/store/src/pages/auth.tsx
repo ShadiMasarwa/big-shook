@@ -236,7 +236,7 @@ export default function Auth() {
   return (
     <Layout>
       <div className="min-h-[calc(100vh-400px)] flex items-center justify-center py-16 px-4">
-        <div className="w-full max-w-md bg-card border border-border shadow-lg rounded-2xl p-8">
+        <div className="w-full max-w-md bg-card border border-border shadow-lg rounded-2xl p-8" dir="rtl">
           <div className="flex justify-center mb-8">
             <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary">
               <Package className="h-8 w-8" />
@@ -259,8 +259,8 @@ export default function Auth() {
                 <div className="space-y-2">
                   <Label>סיסמה</Label>
                   <div className="relative">
-                    <Input type={loginShowPwd ? "text" : "password"} required value={loginPassword} onChange={e => setLoginPassword(e.target.value)} className="pl-10" dir="ltr" />
-                    <button type="button" onClick={() => setLoginShowPwd(v => !v)} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                    <Input type={loginShowPwd ? "text" : "password"} required value={loginPassword} onChange={e => setLoginPassword(e.target.value)} className="pr-10" dir="ltr" />
+                    <button type="button" onClick={() => setLoginShowPwd(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                       {loginShowPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
@@ -316,11 +316,11 @@ export default function Auth() {
                         required
                         value={regPassword}
                         onChange={e => { setRegPassword(e.target.value); setPwdTouched(true); }}
-                        className="pl-10"
+                        className="pr-10"
                         dir="ltr"
                         placeholder="Aa1!••••"
                       />
-                      <button type="button" onClick={() => setShowPwd(v => !v)} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                      <button type="button" onClick={() => setShowPwd(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                         {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
@@ -335,11 +335,11 @@ export default function Auth() {
                         required
                         value={regConfirm}
                         onChange={e => setRegConfirm(e.target.value)}
-                        className={`pl-10 ${regConfirm && regConfirm !== regPassword ? "border-destructive" : ""}`}
+                        className={`pr-10 ${regConfirm && regConfirm !== regPassword ? "border-destructive" : ""}`}
                         dir="ltr"
                         placeholder="הזן סיסמה שנית"
                       />
-                      <button type="button" onClick={() => setShowConfirm(v => !v)} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                      <button type="button" onClick={() => setShowConfirm(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                         {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
