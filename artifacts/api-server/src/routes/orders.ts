@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { db, ordersTable, orderItemsTable, cartItemsTable, cartCouponsTable, productsTable, usersTable, loyaltyTransactionsTable } from "@workspace/db";
-import { getSessionId, getUserId } from "./cart.js";
+import { getSessionId, getUserId, buildCart } from "./cart.js";
 
 const router: IRouter = Router();
 
@@ -78,75 +78,87 @@ router.post("/orders", async (req, res): Promise<void> => {
     return;
   }
 
-  const cartItems = await db.select().from(cartItemsTable).where(eq(cartItemsTable.sessionId, sessionId));
-  if (cartItems.length === 0) {
+  // Use buildCart to get the authoritative totals (coupon + loyalty already calculated)
+  const cart = await buildCart(sessionId, userId);
+  if (cart.items.length === 0) {
     res.status(400).json({ error: "עגלת הקניות ריקה" });
     return;
   }
 
-  const productIds = cartItems.map(i => i.productId);
-  const products = await db.select().from(productsTable).where(
-    sql`${productsTable.id} = ANY(ARRAY[${sql.join(productIds.map(id => sql`${id}`), sql`, `)}]::int[])`
-  );
-  const productMap = new Map(products.map(p => [p.id, p]));
+  const cartItems = await db.select().from(cartItemsTable).where(eq(cartItemsTable.sessionId, sessionId));
 
-  const subtotal = cartItems.reduce((sum, item) => {
-    const p = productMap.get(item.productId);
-    if (!p) return sum;
-    const price = parseFloat(p.salePrice ?? p.price);
-    return sum + price * item.quantity;
-  }, 0);
-
-  const [couponRow] = await db.select().from(cartCouponsTable).where(eq(cartCouponsTable.sessionId, sessionId));
-  let couponDiscount = 0;
-  let couponCode: string | null = null;
-
-  const shipping = subtotal > 200 ? 0 : 29.9;
-  const tax = 0;
-  const total = Math.max(0, subtotal - couponDiscount + shipping + tax);
+  const { subtotal, shipping, total, couponCode, couponDiscount, loyaltyPointsUsed, loyaltyDiscount } = cart;
+  // Points earned are based on the subtotal (before discounts), not the final total
+  const loyaltyPointsEarned = Math.floor(subtotal);
 
   const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
 
   const [order] = await db.insert(ordersTable).values({
-    orderNumber, userId: userId ?? cartItems[0].userId ?? null, sessionId,
-    subtotal: String(subtotal), discount: "0", shipping: String(shipping),
-    tax: "0", total: String(total),
-    couponCode, couponDiscount: String(couponDiscount),
-    loyaltyPointsUsed: loyaltyPointsToUse ?? 0, loyaltyPointsEarned: Math.floor(subtotal),
+    orderNumber, userId: userId ?? cartItems[0]?.userId ?? null, sessionId,
+    subtotal: String(subtotal),
+    discount: String(loyaltyDiscount),
+    shipping: String(shipping),
+    tax: "0",
+    total: String(total),
+    couponCode: couponCode ?? null,
+    couponDiscount: String(couponDiscount),
+    loyaltyPointsUsed, loyaltyPointsEarned,
     shippingAddress: shippingAddress ?? {}, notes: notes ?? null,
   }).returning();
 
-  const orderItems = await Promise.all(cartItems.map(async (item) => {
+  // Insert order items
+  const productIds = cartItems.map(i => i.productId);
+  const products = productIds.length > 0
+    ? await db.select().from(productsTable).where(
+        sql`${productsTable.id} = ANY(ARRAY[${sql.join(productIds.map(id => sql`${id}`), sql`, `)}]::int[])`
+      )
+    : [];
+  const productMap = new Map(products.map(p => [p.id, p]));
+
+  await Promise.all(cartItems.map(async (item) => {
     const p = productMap.get(item.productId);
-    if (!p) return null;
+    if (!p) return;
     const price = parseFloat(p.salePrice ?? p.price);
-    const [oi] = await db.insert(orderItemsTable).values({
+    await db.insert(orderItemsTable).values({
       orderId: order.id, productId: item.productId,
       productName: p.nameHe, productSku: p.sku ?? null,
       quantity: item.quantity, price: String(price),
       subtotal: String(price * item.quantity),
       itemStatus: "pending",
-    }).returning();
-    return oi;
+    });
   }));
 
+  // Update product sales counts
   await Promise.all(cartItems.map(item => {
     const p = productMap.get(item.productId);
     if (!p) return Promise.resolve();
     return db.update(productsTable).set({ salesCount: p.salesCount + item.quantity }).where(eq(productsTable.id, item.productId));
   }));
 
+  // Clear cart
   await db.delete(cartItemsTable).where(eq(cartItemsTable.sessionId, sessionId));
   await db.delete(cartCouponsTable).where(eq(cartCouponsTable.sessionId, sessionId));
 
+  // Loyalty: record earned, deduct used, update user balance
   if (order.userId) {
-    await db.insert(loyaltyTransactionsTable).values({
-      userId: order.userId, points: order.loyaltyPointsEarned,
-      type: "earned", reason: `הזמנה #${orderNumber}`, orderId: order.id,
-    });
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, order.userId));
     if (user) {
-      const newPoints = user.loyaltyPoints + order.loyaltyPointsEarned;
+      // Record points earned
+      if (loyaltyPointsEarned > 0) {
+        await db.insert(loyaltyTransactionsTable).values({
+          userId: order.userId, points: loyaltyPointsEarned,
+          type: "earned", reason: `הזמנה #${orderNumber}`, orderId: order.id,
+        });
+      }
+      // Record points redeemed (as negative)
+      if (loyaltyPointsUsed > 0) {
+        await db.insert(loyaltyTransactionsTable).values({
+          userId: order.userId, points: -loyaltyPointsUsed,
+          type: "redeemed", reason: `מימוש נקודות בהזמנה #${orderNumber}`, orderId: order.id,
+        });
+      }
+      const netPoints = user.loyaltyPoints + loyaltyPointsEarned - loyaltyPointsUsed;
+      const newPoints = Math.max(0, netPoints);
       const newSpent = parseFloat(user.totalSpent) + total;
       const tier = newPoints >= 5000 ? "vip" : newPoints >= 2000 ? "gold" : newPoints >= 500 ? "silver" : "bronze";
       await db.update(usersTable).set({
