@@ -10,12 +10,11 @@ import {
   useTrackProductView
 } from "@workspace/api-client-react";
 import { useCart } from "@/hooks/use-cart";
-import { useCompare } from "@/hooks/use-compare";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShoppingCart, Heart, ArrowRightLeft, Check, Star, ChevronRight, ChevronLeft, Play } from "lucide-react";
+import { ShoppingCart, Heart, Check, Star, ChevronRight, ChevronLeft, Play } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
 import { ProductCard } from "@/components/product-card";
@@ -49,7 +48,6 @@ export default function ProductDetail() {
   });
   
   const { addToCart } = useCart();
-  const { addToCompare } = useCompare();
   const addToWishlistMutation = useAddToWishlist();
   const trackView = useTrackProductView();
   
@@ -326,9 +324,6 @@ export default function ProductDetail() {
             <div className="flex items-center gap-4">
               <Button variant="outline" className="flex-1" onClick={handleAddToWishlist}>
                 <Heart className="ml-2 h-4 w-4" /> שמור למועדפים
-              </Button>
-              <Button variant="outline" className="flex-1" onClick={() => addToCompare(product)}>
-                <ArrowRightLeft className="ml-2 h-4 w-4" /> הוסף להשוואה
               </Button>
             </div>
             
