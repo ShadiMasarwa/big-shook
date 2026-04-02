@@ -7,7 +7,6 @@ import { CartProvider } from "@/hooks/use-cart";
 import { CompareProvider } from "@/hooks/use-compare";
 import NotFound from "@/pages/not-found";
 
-import Home from "@/pages/home";
 import Catalog from "@/pages/catalog";
 import ProductDetail from "@/pages/product-detail";
 import Cart from "@/pages/cart";
@@ -40,7 +39,7 @@ const queryClient = new QueryClient();
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Home} />
+      <Route path="/" component={Catalog} />
       <Route path="/catalog" component={Catalog} />
       <Route path="/product/:id" component={ProductDetail} />
       <Route path="/product/slug/:slug" component={ProductDetail} />
