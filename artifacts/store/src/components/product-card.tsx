@@ -31,11 +31,13 @@ export function ProductCard({ product }: ProductCardProps) {
   return (
     <Card className="flex flex-col h-full overflow-hidden hover-elevate transition-all duration-300 border-border" data-testid={`card-product-${product.id}`}>
       <div className="relative aspect-square overflow-hidden bg-muted">
-        {product.images && product.images.length > 0 ? (
-          <img src={product.images[0]} alt={product.nameHe} className="object-cover w-full h-full" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-muted-foreground">אין תמונה</div>
-        )}
+        <Link href={`/product/${product.id}`} className="block w-full h-full">
+          {product.images && product.images.length > 0 ? (
+            <img src={product.images[0]} alt={product.nameHe} className="object-cover w-full h-full" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-muted-foreground">אין תמונה</div>
+          )}
+        </Link>
         <div className="absolute top-2 right-2 flex flex-col gap-2">
           <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full shadow-sm" onClick={handleAddToWishlist} data-testid={`btn-wishlist-${product.id}`}>
             <Heart className="h-4 w-4" />
