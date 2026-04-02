@@ -430,7 +430,9 @@ export default function AdminOrders() {
                     <TableCell className="text-sm text-muted-foreground">
                       {new Date(order.createdAt).toLocaleString("he-IL")}
                     </TableCell>
-                    <TableCell className="text-sm">{order.userId ? `לקוח ${order.userId}` : 'אורח'}</TableCell>
+                    <TableCell className="text-sm">
+                      {(order as any).customerName ?? (order.userId ? `לקוח #${order.userId}` : 'אורח')}
+                    </TableCell>
                     <TableCell className="text-center font-bold">{formatPrice(order.total)}</TableCell>
                     <TableCell className="text-center"><StatusBadge status={order.status} /></TableCell>
                     <TableCell className="text-left">

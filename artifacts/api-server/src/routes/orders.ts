@@ -22,7 +22,7 @@ async function fetchItemsWithProductData(orderId: number) {
   }));
 }
 
-function serializeOrder(order: typeof ordersTable.$inferSelect, items: any[]) {
+function serializeOrder(order: typeof ordersTable.$inferSelect, items: any[], customerName?: string | null) {
   return {
     ...order,
     subtotal: parseFloat(order.subtotal),
@@ -33,6 +33,7 @@ function serializeOrder(order: typeof ordersTable.$inferSelect, items: any[]) {
     couponDiscount: parseFloat(order.couponDiscount),
     createdAt: order.createdAt.toISOString(),
     updatedAt: order.updatedAt.toISOString(),
+    customerName: customerName ?? null,
     items,
   };
 }
@@ -48,11 +49,21 @@ router.get("/orders", async (req, res): Promise<void> => {
 
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
   const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(ordersTable).where(whereClause);
-  const orders = await db.select().from(ordersTable).where(whereClause).orderBy(desc(ordersTable.createdAt)).limit(limit).offset(offset);
+  const rows = await db
+    .select({ order: ordersTable, firstName: usersTable.firstName, lastName: usersTable.lastName })
+    .from(ordersTable)
+    .leftJoin(usersTable, eq(ordersTable.userId, usersTable.id))
+    .where(whereClause)
+    .orderBy(desc(ordersTable.createdAt))
+    .limit(limit)
+    .offset(offset);
 
-  const result = await Promise.all(orders.map(async (order) => {
-    const items = await fetchItemsWithProductData(order.id);
-    return serializeOrder(order, items);
+  const result = await Promise.all(rows.map(async (row) => {
+    const items = await fetchItemsWithProductData(row.order.id);
+    const customerName = (row.firstName || row.lastName)
+      ? `${row.firstName ?? ""} ${row.lastName ?? ""}`.trim()
+      : null;
+    return serializeOrder(row.order, items, customerName);
   }));
 
   res.json({ orders: result, total: count, page, limit, totalPages: Math.ceil(count / limit) });
@@ -151,13 +162,20 @@ router.post("/orders", async (req, res): Promise<void> => {
 router.get("/orders/:id", async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
-  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, id));
-  if (!order) {
+  const [row] = await db
+    .select({ order: ordersTable, firstName: usersTable.firstName, lastName: usersTable.lastName })
+    .from(ordersTable)
+    .leftJoin(usersTable, eq(ordersTable.userId, usersTable.id))
+    .where(eq(ordersTable.id, id));
+  if (!row) {
     res.status(404).json({ error: "הזמנה לא נמצאה" });
     return;
   }
   const items = await fetchItemsWithProductData(id);
-  res.json(serializeOrder(order, items));
+  const customerName = (row.firstName || row.lastName)
+    ? `${row.firstName ?? ""} ${row.lastName ?? ""}`.trim()
+    : null;
+  res.json(serializeOrder(row.order, items, customerName));
 });
 
 router.patch("/orders/:id/status", async (req, res): Promise<void> => {
