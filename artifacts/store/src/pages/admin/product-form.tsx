@@ -16,6 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState, useEffect } from "react";
 import { toast } from "@/components/ui/use-toast";
@@ -198,31 +199,37 @@ export default function AdminProductForm() {
               </div>
               <div className="space-y-2">
                 <Label>קטגוריה</Label>
-                <Select value={formData.categoryId} onValueChange={v => setFormData({...formData, categoryId: v})}>
-                  <SelectTrigger><SelectValue placeholder="בחר קטגוריה" /></SelectTrigger>
-                  <SelectContent>
-                    {categories?.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.nameHe}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                {!categories ? <Skeleton className="h-9 w-full" /> : (
+                  <Select key={`cat-${formData.categoryId}`} value={formData.categoryId} onValueChange={v => setFormData({...formData, categoryId: v})}>
+                    <SelectTrigger><SelectValue placeholder="בחר קטגוריה" /></SelectTrigger>
+                    <SelectContent>
+                      {categories.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.nameHe}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>מותג</Label>
-                <Select value={formData.brandId} onValueChange={v => setFormData({...formData, brandId: v})}>
-                  <SelectTrigger><SelectValue placeholder="בחר מותג" /></SelectTrigger>
-                  <SelectContent>
-                    {brands?.map(b => <SelectItem key={b.id} value={b.id.toString()}>{b.nameHe}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                {!brands ? <Skeleton className="h-9 w-full" /> : (
+                  <Select key={`brand-${formData.brandId}`} value={formData.brandId} onValueChange={v => setFormData({...formData, brandId: v})}>
+                    <SelectTrigger><SelectValue placeholder="בחר מותג" /></SelectTrigger>
+                    <SelectContent>
+                      {brands.map(b => <SelectItem key={b.id} value={b.id.toString()}>{b.nameHe}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>ספק</Label>
-                <Select value={formData.supplierId || "__none__"} onValueChange={v => setFormData({...formData, supplierId: v === "__none__" ? "" : v})}>
-                  <SelectTrigger><SelectValue placeholder="בחר ספק" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">ללא ספק</SelectItem>
-                    {suppliers?.map(s => <SelectItem key={s.id} value={s.id.toString()}>{s.companyName}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                {!suppliers ? <Skeleton className="h-9 w-full" /> : (
+                  <Select key={`sup-${formData.supplierId}`} value={formData.supplierId || "__none__"} onValueChange={v => setFormData({...formData, supplierId: v === "__none__" ? "" : v})}>
+                    <SelectTrigger><SelectValue placeholder="בחר ספק" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">ללא ספק</SelectItem>
+                      {suppliers.map(s => <SelectItem key={s.id} value={s.id.toString()}>{s.companyName}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label>תיאור המוצר</Label>
