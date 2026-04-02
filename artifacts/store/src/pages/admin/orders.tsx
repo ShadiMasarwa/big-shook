@@ -436,6 +436,7 @@ export default function AdminOrders() {
                     <TableCell className="text-center font-bold">{formatPrice(order.total)}</TableCell>
                     <TableCell className="text-center"><StatusBadge status={order.status} /></TableCell>
                     <TableCell className="text-left">
+                      <div className="flex justify-end">
                       <Select value={order.status} onValueChange={(v) => handleStatusChange(order.id, v)}>
                         <SelectTrigger className="w-[130px] h-8">
                           <SelectValue />
@@ -446,6 +447,7 @@ export default function AdminOrders() {
                           ))}
                         </SelectContent>
                       </Select>
+                      </div>
                     </TableCell>
                   </TableRow>,
 
