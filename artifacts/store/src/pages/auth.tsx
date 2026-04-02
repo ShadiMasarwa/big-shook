@@ -87,25 +87,24 @@ function OtpInput({
   };
 
   return (
-    <div className="flex gap-2 justify-center" dir="rtl">
-      {Array.from({ length: 6 }, (_, i) => (
-        <input
-          key={i}
-          ref={(el) => {
-            refs.current[i] = el;
-          }}
-          type="text"
-          inputMode="numeric"
-          dir="ltr"
-          maxLength={1}
-          value={value[i] ?? ""}
-          onChange={(e) => handleChange(i, e.target.value)}
-          onKeyDown={(e) => handleKey(i, e)}
-          onPaste={handlePaste}
-          className="w-12 h-14 text-center text-2xl font-bold border-2 border-border rounded-xl bg-background
-                     focus:border-primary focus:outline-none transition-colors"
-        />
-      ))}
+    <div className="flex justify-center">
+      <div className="relative" style={{ width: 318, height: 56 }}>
+        {Array.from({ length: 6 }, (_, i) => (
+          <input
+            key={i}
+            ref={(el) => { refs.current[i] = el; }}
+            type="text"
+            inputMode="numeric"
+            maxLength={1}
+            value={value[i] ?? ""}
+            onChange={(e) => handleChange(i, e.target.value)}
+            onKeyDown={(e) => handleKey(i, e)}
+            onPaste={handlePaste}
+            style={{ position: "absolute", left: i * 54, top: 0, width: 48, height: 56 }}
+            className="text-center text-2xl font-bold border-2 border-border rounded-xl bg-background focus:border-primary focus:outline-none transition-colors"
+          />
+        ))}
+      </div>
     </div>
   );
 }
