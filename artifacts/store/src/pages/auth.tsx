@@ -7,16 +7,45 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useLocation } from "wouter";
-import { Package, Eye, EyeOff, Check, X, Loader2, Mail, Gift } from "lucide-react";
+import {
+  Package,
+  Eye,
+  EyeOff,
+  Check,
+  X,
+  Loader2,
+  Mail,
+  Gift,
+} from "lucide-react";
 
 // ── Password validation ───────────────────────────────────────────────────────
 const PWD_RULES = [
-  { id: "len",     label: "לפחות 8 תווים",            test: (p: string) => p.length >= 8 },
-  { id: "upper",   label: "אות גדולה באנגלית (A-Z)",  test: (p: string) => /[A-Z]/.test(p) },
-  { id: "lower",   label: "אות קטנה באנגלית (a-z)",  test: (p: string) => /[a-z]/.test(p) },
-  { id: "digit",   label: "לפחות ספרה אחת (0-9)",     test: (p: string) => /[0-9]/.test(p) },
-  { id: "special", label: "תו מיוחד (!@#$%...)",      test: (p: string) => /[^A-Za-z0-9]/.test(p) },
-  { id: "eng",     label: "אנגלית בלבד (ללא עברית)",  test: (p: string) => !/[\u0590-\u05FF]/.test(p) },
+  { id: "len", label: "לפחות 8 תווים", test: (p: string) => p.length >= 8 },
+  {
+    id: "upper",
+    label: "אות גדולה באנגלית (A-Z)",
+    test: (p: string) => /[A-Z]/.test(p),
+  },
+  {
+    id: "lower",
+    label: "אות קטנה באנגלית (a-z)",
+    test: (p: string) => /[a-z]/.test(p),
+  },
+  {
+    id: "digit",
+    label: "לפחות ספרה אחת (0-9)",
+    test: (p: string) => /[0-9]/.test(p),
+  },
+  {
+    id: "special",
+    label: "תו מיוחד (!@#$%...)",
+    test: (p: string) => /[^A-Za-z0-9]/.test(p),
+  },
+  {
+    id: "eng",
+    label: "אנגלית בלבד (ללא עברית)",
+    test: (p: string) => !/[\u0590-\u05FF]/.test(p),
+  },
 ];
 
 function isValidEmail(e: string) {
@@ -24,15 +53,22 @@ function isValidEmail(e: string) {
 }
 
 function allPwdValid(p: string) {
-  return PWD_RULES.every(r => r.test(p));
+  return PWD_RULES.every((r) => r.test(p));
 }
 
 // ── OTP Input ────────────────────────────────────────────────────────────────
-function OtpInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function OtpInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
   const refs = useRef<(HTMLInputElement | null)[]>([]);
 
   const handleKey = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Backspace" && !value[i] && i > 0) refs.current[i - 1]?.focus();
+    if (e.key === "Backspace" && !value[i] && i > 0)
+      refs.current[i - 1]?.focus();
   };
 
   const handleChange = (i: number, ch: string) => {
@@ -51,17 +87,19 @@ function OtpInput({ value, onChange }: { value: string; onChange: (v: string) =>
   };
 
   return (
-    <div className="flex gap-2 justify-center" dir="ltr">
+    <div className="flex gap-2 justify-center" dir="rtl">
       {Array.from({ length: 6 }, (_, i) => (
         <input
           key={i}
-          ref={el => { refs.current[i] = el; }}
+          ref={(el) => {
+            refs.current[i] = el;
+          }}
           type="text"
           inputMode="numeric"
           maxLength={1}
           value={value[i] ?? ""}
-          onChange={e => handleChange(i, e.target.value)}
-          onKeyDown={e => handleKey(i, e)}
+          onChange={(e) => handleChange(i, e.target.value)}
+          onKeyDown={(e) => handleKey(i, e)}
           onPaste={handlePaste}
           className="w-12 h-14 text-center text-2xl font-bold border-2 border-border rounded-xl bg-background
                      focus:border-primary focus:outline-none transition-colors"
@@ -72,17 +110,41 @@ function OtpInput({ value, onChange }: { value: string; onChange: (v: string) =>
 }
 
 // ── Countdown ─────────────────────────────────────────────────────────────────
-function Countdown({ seconds, onExpire }: { seconds: number; onExpire: () => void }) {
+function Countdown({
+  seconds,
+  onExpire,
+}: {
+  seconds: number;
+  onExpire: () => void;
+}) {
   const [left, setLeft] = useState(seconds);
   useEffect(() => {
     setLeft(seconds);
-    const id = setInterval(() => setLeft(l => { if (l <= 1) { clearInterval(id); onExpire(); return 0; } return l - 1; }), 1000);
+    const id = setInterval(
+      () =>
+        setLeft((l) => {
+          if (l <= 1) {
+            clearInterval(id);
+            onExpire();
+            return 0;
+          }
+          return l - 1;
+        }),
+      1000,
+    );
     return () => clearInterval(id);
   }, [seconds]);
-  const m = Math.floor(left / 60), s = left % 60;
-  return <span className={left < 30 ? "text-destructive font-bold" : "text-muted-foreground"}>
-    {String(m).padStart(2, "0")}:{String(s).padStart(2, "0")}
-  </span>;
+  const m = Math.floor(left / 60),
+    s = left % 60;
+  return (
+    <span
+      className={
+        left < 30 ? "text-destructive font-bold" : "text-muted-foreground"
+      }
+    >
+      {String(m).padStart(2, "0")}:{String(s).padStart(2, "0")}
+    </span>
+  );
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -125,7 +187,10 @@ export default function Auth() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [successName, setSuccessName] = useState("");
 
-  if (user) { setLocation(user.role === "admin" ? "/admin" : "/"); return null; }
+  if (user) {
+    setLocation(user.role === "admin" ? "/admin" : "/");
+    return null;
+  }
 
   // ── Login submit ────────────────────────────────────────────────────────────
   const handleLogin = async (e: React.FormEvent) => {
@@ -134,30 +199,43 @@ export default function Auth() {
     setLoginLoading(true);
     try {
       const res = await fetch("/api/auth/login", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: loginEmail, password: loginPassword }),
       });
       const data = await res.json();
-      if (!res.ok) { setLoginError(data.error ?? "שגיאה בהתחברות"); return; }
+      if (!res.ok) {
+        setLoginError(data.error ?? "שגיאה בהתחברות");
+        return;
+      }
       localStorage.setItem("token", data.token);
       setLocation(data.user?.role === "admin" ? "/admin" : "/");
       window.location.reload();
-    } catch { setLoginError("שגיאה בהתחברות. נסה שנית."); }
-    finally { setLoginLoading(false); }
+    } catch {
+      setLoginError("שגיאה בהתחברות. נסה שנית.");
+    } finally {
+      setLoginLoading(false);
+    }
   };
 
   // ── Email blur check ────────────────────────────────────────────────────────
   const checkEmail = async () => {
     if (!regEmail) return;
-    if (!isValidEmail(regEmail)) { setRegEmailError("כתובת אימייל לא תקינה"); return; }
+    if (!isValidEmail(regEmail)) {
+      setRegEmailError("כתובת אימייל לא תקינה");
+      return;
+    }
     try {
       const res = await fetch("/api/auth/check-email", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: regEmail }),
       });
       const data = await res.json();
       setRegEmailError(data.available ? "" : "כתובת האימייל כבר קיימת במערכת");
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   };
 
   // ── Register step 1 submit ──────────────────────────────────────────────────
@@ -165,16 +243,32 @@ export default function Auth() {
     e.preventDefault();
     setRegError("");
 
-    if (!isValidEmail(regEmail)) { setRegEmailError("כתובת אימייל לא תקינה"); return; }
+    if (!isValidEmail(regEmail)) {
+      setRegEmailError("כתובת אימייל לא תקינה");
+      return;
+    }
     if (regEmailError) return;
-    if (!allPwdValid(regPassword)) { setRegError("הסיסמה אינה עומדת בדרישות"); return; }
-    if (regPassword !== regConfirm) { setRegError("הסיסמאות אינן תואמות"); return; }
+    if (!allPwdValid(regPassword)) {
+      setRegError("הסיסמה אינה עומדת בדרישות");
+      return;
+    }
+    if (regPassword !== regConfirm) {
+      setRegError("הסיסמאות אינן תואמות");
+      return;
+    }
 
     setRegLoading(true);
     try {
       const res = await fetch("/api/auth/send-otp", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: regEmail, password: regPassword, firstName: regFirstName, lastName: regLastName, phone: regPhone }),
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: regEmail,
+          password: regPassword,
+          firstName: regFirstName,
+          lastName: regLastName,
+          phone: regPhone,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -185,30 +279,43 @@ export default function Auth() {
       setDevOtp(data.devOtp ?? null);
       setOtpValue("");
       setOtpExpired(false);
-      setOtpKey(k => k + 1);
+      setOtpKey((k) => k + 1);
       setRegStep("otp");
-    } catch { setRegError("שגיאה בשליחת קוד. נסה שנית."); }
-    finally { setRegLoading(false); }
+    } catch {
+      setRegError("שגיאה בשליחת קוד. נסה שנית.");
+    } finally {
+      setRegLoading(false);
+    }
   };
 
   // ── OTP verify ──────────────────────────────────────────────────────────────
   const handleVerifyOtp = async () => {
-    if (otpValue.length < 6) { setOtpError("יש להזין קוד בן 6 ספרות"); return; }
+    if (otpValue.length < 6) {
+      setOtpError("יש להזין קוד בן 6 ספרות");
+      return;
+    }
     setOtpError("");
     setOtpLoading(true);
     try {
       const res = await fetch("/api/auth/verify-otp", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: regEmail, otp: otpValue }),
       });
       const data = await res.json();
-      if (!res.ok) { setOtpError(data.error ?? "קוד שגוי"); return; }
+      if (!res.ok) {
+        setOtpError(data.error ?? "קוד שגוי");
+        return;
+      }
       localStorage.setItem("token", data.token);
       setSuccessName(data.user.firstName);
       setRegStep("done");
       setShowSuccess(true);
-    } catch { setOtpError("שגיאה באימות. נסה שנית."); }
-    finally { setOtpLoading(false); }
+    } catch {
+      setOtpError("שגיאה באימות. נסה שנית.");
+    } finally {
+      setOtpLoading(false);
+    }
   };
 
   const handleResendOtp = () => {
@@ -221,11 +328,18 @@ export default function Auth() {
   // ── Password rules display ──────────────────────────────────────────────────
   const pwdRulesList = pwdTouched && (
     <div className="grid grid-cols-2 gap-1 mt-2">
-      {PWD_RULES.map(r => {
+      {PWD_RULES.map((r) => {
         const ok = r.test(regPassword);
         return (
-          <div key={r.id} className={`flex items-center gap-1 text-xs ${ok ? "text-green-600" : "text-muted-foreground"}`}>
-            {ok ? <Check className="h-3 w-3 shrink-0" /> : <X className="h-3 w-3 shrink-0" />}
+          <div
+            key={r.id}
+            className={`flex items-center gap-1 text-xs ${ok ? "text-green-600" : "text-muted-foreground"}`}
+          >
+            {ok ? (
+              <Check className="h-3 w-3 shrink-0" />
+            ) : (
+              <X className="h-3 w-3 shrink-0" />
+            )}
             {r.label}
           </div>
         );
@@ -236,76 +350,161 @@ export default function Auth() {
   return (
     <Layout>
       <div className="min-h-[calc(100vh-400px)] flex items-center justify-center py-16 px-4">
-        <div className="w-full max-w-md bg-card border border-border shadow-lg rounded-2xl p-8" dir="rtl">
+        <div
+          className="w-full max-w-md bg-card border border-border shadow-lg rounded-2xl p-8"
+          dir="rtl"
+        >
           <div className="flex justify-center mb-8">
             <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary">
               <Package className="h-8 w-8" />
             </div>
           </div>
 
-          <Tabs value={activeTab} onValueChange={v => { setActiveTab(v); setRegStep("form"); setRegError(""); }} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-8 h-12 bg-muted p-1">
-              <TabsTrigger value="login" className="text-base rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">התחברות</TabsTrigger>
-              <TabsTrigger value="register" className="text-base rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">הרשמה</TabsTrigger>
+          <Tabs
+            value={activeTab}
+            onValueChange={(v) => {
+              setActiveTab(v);
+              setRegStep("form");
+              setRegError("");
+            }}
+            className="w-full"
+            dir="rtl"
+          >
+            <TabsList
+              className="grid w-full grid-cols-2 mb-8 h-12 bg-muted p-1"
+              dir="rtl"
+            >
+              <TabsTrigger
+                value="login"
+                className="text-base rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm"
+              >
+                התחברות
+              </TabsTrigger>
+              <TabsTrigger
+                value="register"
+                className="text-base rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm"
+              >
+                הרשמה
+              </TabsTrigger>
             </TabsList>
 
             {/* ── LOGIN ── */}
             <TabsContent value="login">
-              <form onSubmit={handleLogin} className="space-y-4">
+              <form onSubmit={handleLogin} className="space-y-4" dir="rtl">
                 <div className="space-y-2">
                   <Label>אימייל</Label>
-                  <Input type="email" required value={loginEmail} onChange={e => setLoginEmail(e.target.value)} placeholder="you@example.com" dir="ltr" />
+                  <Input
+                    type="email"
+                    required
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    dir="ltr"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>סיסמה</Label>
                   <div className="relative">
-                    <Input type={loginShowPwd ? "text" : "password"} required value={loginPassword} onChange={e => setLoginPassword(e.target.value)} className="pr-10" dir="ltr" />
-                    <button type="button" onClick={() => setLoginShowPwd(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                      {loginShowPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    <Input
+                      type={loginShowPwd ? "text" : "password"}
+                      required
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      className="pr-10"
+                      dir="ltr"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setLoginShowPwd((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {loginShowPwd ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
                     </button>
                   </div>
                 </div>
-                {loginError && <p className="text-sm text-destructive">{loginError}</p>}
-                <Button type="submit" className="w-full h-12 text-lg font-bold mt-4" disabled={loginLoading}>
-                  {loginLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "התחבר"}
+                {loginError && (
+                  <p className="text-sm text-destructive">{loginError}</p>
+                )}
+                <Button
+                  type="submit"
+                  className="w-full h-12 text-lg font-bold mt-4"
+                  disabled={loginLoading}
+                >
+                  {loginLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    "התחבר"
+                  )}
                 </Button>
               </form>
             </TabsContent>
 
             {/* ── REGISTER ── */}
             <TabsContent value="register">
-
               {/* STEP 1: Form */}
               {regStep === "form" && (
-                <form onSubmit={handleSendOtp} className="space-y-4">
+                <form onSubmit={handleSendOtp} className="space-y-4" dir="rtl">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>שם פרטי *</Label>
-                      <Input required value={regFirstName} onChange={e => setRegFirstName(e.target.value)} placeholder="ישראל" />
+                      <Input
+                        required
+                        value={regFirstName}
+                        onChange={(e) => setRegFirstName(e.target.value)}
+                        placeholder="ישראל"
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>שם משפחה *</Label>
-                      <Input required value={regLastName} onChange={e => setRegLastName(e.target.value)} placeholder="ישראלי" />
+                      <Input
+                        required
+                        value={regLastName}
+                        onChange={(e) => setRegLastName(e.target.value)}
+                        placeholder="ישראלי"
+                      />
                     </div>
                   </div>
 
                   <div className="space-y-2">
                     <Label>אימייל *</Label>
                     <Input
-                      type="email" required
+                      type="email"
+                      required
                       value={regEmail}
-                      onChange={e => { setRegEmail(e.target.value); setRegEmailError(""); }}
+                      onChange={(e) => {
+                        setRegEmail(e.target.value);
+                        setRegEmailError("");
+                      }}
                       onBlur={checkEmail}
                       placeholder="you@example.com"
                       dir="ltr"
-                      className={regEmailError ? "border-destructive focus-visible:ring-destructive" : ""}
+                      className={
+                        regEmailError
+                          ? "border-destructive focus-visible:ring-destructive"
+                          : ""
+                      }
                     />
-                    {regEmailError && <p className="text-xs text-destructive">{regEmailError}</p>}
+                    {regEmailError && (
+                      <p className="text-xs text-destructive">
+                        {regEmailError}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
                     <Label>טלפון *</Label>
-                    <Input type="tel" required value={regPhone} onChange={e => setRegPhone(e.target.value)} placeholder="050-0000000" dir="ltr" />
+                    <Input
+                      type="tel"
+                      required
+                      value={regPhone}
+                      onChange={(e) => setRegPhone(e.target.value)}
+                      placeholder="050-0000000"
+                      dir="ltr"
+                    />
                   </div>
 
                   <div className="space-y-2">
@@ -315,13 +514,24 @@ export default function Auth() {
                         type={showPwd ? "text" : "password"}
                         required
                         value={regPassword}
-                        onChange={e => { setRegPassword(e.target.value); setPwdTouched(true); }}
+                        onChange={(e) => {
+                          setRegPassword(e.target.value);
+                          setPwdTouched(true);
+                        }}
                         className="pr-10"
                         dir="ltr"
                         placeholder="Aa1!••••"
                       />
-                      <button type="button" onClick={() => setShowPwd(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                        {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      <button
+                        type="button"
+                        onClick={() => setShowPwd((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showPwd ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
                       </button>
                     </div>
                     {pwdRulesList}
@@ -334,24 +544,44 @@ export default function Auth() {
                         type={showConfirm ? "text" : "password"}
                         required
                         value={regConfirm}
-                        onChange={e => setRegConfirm(e.target.value)}
+                        onChange={(e) => setRegConfirm(e.target.value)}
                         className={`pr-10 ${regConfirm && regConfirm !== regPassword ? "border-destructive" : ""}`}
                         dir="ltr"
                         placeholder="הזן סיסמה שנית"
                       />
-                      <button type="button" onClick={() => setShowConfirm(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                        {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirm((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showConfirm ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
                       </button>
                     </div>
                     {regConfirm && regConfirm !== regPassword && (
-                      <p className="text-xs text-destructive">הסיסמאות אינן תואמות</p>
+                      <p className="text-xs text-destructive">
+                        הסיסמאות אינן תואמות
+                      </p>
                     )}
                   </div>
 
-                  {regError && <p className="text-sm text-destructive">{regError}</p>}
+                  {regError && (
+                    <p className="text-sm text-destructive">{regError}</p>
+                  )}
 
-                  <Button type="submit" className="w-full h-12 text-lg font-bold mt-4" disabled={regLoading}>
-                    {regLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "שלח קוד אימות לאימייל"}
+                  <Button
+                    type="submit"
+                    className="w-full h-12 text-lg font-bold mt-4"
+                    disabled={regLoading}
+                  >
+                    {regLoading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      "שלח קוד אימות לאימייל"
+                    )}
                   </Button>
                 </form>
               )}
@@ -365,28 +595,46 @@ export default function Auth() {
                     </div>
                     <h3 className="text-lg font-bold">בדוק את האימייל שלך</h3>
                     <p className="text-sm text-muted-foreground">
-                      שלחנו קוד בן 6 ספרות לכתובת<br />
-                      <span className="font-medium text-foreground" dir="ltr">{regEmail}</span>
+                      שלחנו קוד בן 6 ספרות לכתובת
+                      <br />
+                      <span className="font-medium text-foreground" dir="ltr">
+                        {regEmail}
+                      </span>
                     </p>
                   </div>
 
                   {devOtp && (
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
-                      <p className="text-xs text-amber-700 font-medium">מצב פיתוח — קוד האימות:</p>
-                      <p className="text-2xl font-bold text-amber-800 tracking-widest mt-1">{devOtp}</p>
+                      <p className="text-xs text-amber-700 font-medium">
+                        מצב פיתוח — קוד האימות:
+                      </p>
+                      <p className="text-2xl font-bold text-amber-800 tracking-widest mt-1">
+                        {devOtp}
+                      </p>
                     </div>
                   )}
 
                   <OtpInput value={otpValue} onChange={setOtpValue} />
 
-                  {otpError && <p className="text-sm text-destructive text-center">{otpError}</p>}
+                  {otpError && (
+                    <p className="text-sm text-destructive text-center">
+                      {otpError}
+                    </p>
+                  )}
 
                   <div className="flex items-center justify-center gap-2 text-sm">
                     <span className="text-muted-foreground">פג תוקף בעוד:</span>
-                    {!otpExpired
-                      ? <Countdown key={otpKey} seconds={300} onExpire={() => setOtpExpired(true)} />
-                      : <span className="text-destructive font-bold">פג תוקף</span>
-                    }
+                    {!otpExpired ? (
+                      <Countdown
+                        key={otpKey}
+                        seconds={300}
+                        onExpire={() => setOtpExpired(true)}
+                      />
+                    ) : (
+                      <span className="text-destructive font-bold">
+                        פג תוקף
+                      </span>
+                    )}
                   </div>
 
                   <Button
@@ -394,7 +642,11 @@ export default function Auth() {
                     className="w-full h-12 text-lg font-bold"
                     disabled={otpLoading || otpValue.length < 6 || otpExpired}
                   >
-                    {otpLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "אמת ורשום"}
+                    {otpLoading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      "אמת ורשום"
+                    )}
                   </Button>
 
                   <div className="text-center space-y-2">
@@ -407,7 +659,11 @@ export default function Auth() {
                       {regLoading ? "שולח..." : "שלח קוד מחדש"}
                     </button>
                     <br />
-                    <button type="button" onClick={() => setRegStep("form")} className="text-sm text-muted-foreground hover:underline">
+                    <button
+                      type="button"
+                      onClick={() => setRegStep("form")}
+                      className="text-sm text-muted-foreground hover:underline"
+                    >
                       חזרה לטופס
                     </button>
                   </div>
@@ -427,11 +683,21 @@ export default function Auth() {
               <Gift className="h-10 w-10 text-primary" />
             </div>
           </div>
-          <h2 className="text-2xl font-black mb-2">ברוך הבא, {successName}! 🎉</h2>
-          <p className="text-muted-foreground mb-6">ההרשמה הושלמה בהצלחה.<br />מוכן לגלות עסקאות מדהימות?</p>
+          <h2 className="text-2xl font-black mb-2">
+            ברוך הבא, {successName}! 🎉
+          </h2>
+          <p className="text-muted-foreground mb-6">
+            ההרשמה הושלמה בהצלחה.
+            <br />
+            מוכן לגלות עסקאות מדהימות?
+          </p>
           <Button
             className="w-full h-12 text-lg font-bold"
-            onClick={() => { setShowSuccess(false); setLocation("/"); window.location.reload(); }}
+            onClick={() => {
+              setShowSuccess(false);
+              setLocation("/");
+              window.location.reload();
+            }}
           >
             התחל לחסוך! 🛒
           </Button>

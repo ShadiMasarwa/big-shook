@@ -109,14 +109,14 @@ export function Layout({ children }: { children: ReactNode }) {
             <div className="hidden md:flex items-center gap-1 text-sm mr-4">
               {user ? (
                 <div className="flex items-center gap-2">
-                  <div className="flex flex-col text-left">
+                  <Link href="/profile" className="flex flex-col text-left hover:text-primary transition-colors">
                     <span className="font-medium">שלום, {user.firstName}</span>
                     {user.loyaltyTier && (
                       <span className="text-xs text-amber-500 font-bold flex items-center justify-end gap-1">
                         <Star className="h-3 w-3" /> {user.loyaltyTier}
                       </span>
                     )}
-                  </div>
+                  </Link>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -314,8 +314,14 @@ export function Layout({ children }: { children: ReactNode }) {
               <ul className="space-y-1">
                 {user ? (
                   <>
-                    <li className="px-3 py-2 text-sm font-medium">
-                      שלום, {user.firstName}
+                    <li>
+                      <Link
+                        href="/profile"
+                        onClick={handleCategoryClick}
+                        className="flex items-center py-2 px-3 rounded-md hover:bg-muted text-sm font-medium"
+                      >
+                        שלום, {user.firstName} — הפרופיל שלי
+                      </Link>
                     </li>
                     <li>
                       <Link

@@ -9,6 +9,7 @@ interface AuthContextType {
   login: ReturnType<typeof useLoginUser>["mutateAsync"];
   register: ReturnType<typeof useRegisterUser>["mutateAsync"];
   logout: () => Promise<void>;
+  refreshUser: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -67,6 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       register,
       logout,
+      refreshUser: refetch,
     }}>
       {children}
     </AuthContext.Provider>
