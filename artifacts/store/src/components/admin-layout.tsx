@@ -13,7 +13,8 @@ import {
   LineChart,
   Download,
   Truck,
-  Layers
+  Layers,
+  Award
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -23,6 +24,7 @@ const navItems = [
   { href: "/admin/orders", label: "הזמנות", icon: ShoppingCart },
   { href: "/admin/products", label: "מוצרים", icon: Package },
   { href: "/admin/categories", label: "קטגוריות", icon: Layers },
+  { href: "/admin/brands", label: "מותגים", icon: Award },
   { href: "/admin/suppliers", label: "ספקים", icon: Truck },
   { href: "/admin/inventory", label: "מלאי", icon: Tags },
   { href: "/admin/customers", label: "לקוחות", icon: Users },

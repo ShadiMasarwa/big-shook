@@ -55,6 +55,27 @@ router.post("/brands", async (req, res): Promise<void> => {
   res.status(201).json(serializeBrand(brand));
 });
 
+router.put("/brands/:id", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const { nameHe, nameEn, slug, logoUrl, description, isActive } = req.body;
+  if (!nameHe || !slug) { res.status(400).json({ error: "nameHe and slug are required" }); return; }
+  const [brand] = await db.update(brandsTable).set({
+    nameHe, nameEn: nameEn ?? null, slug,
+    logoUrl: logoUrl ?? null, description: description ?? null,
+    isActive: isActive ?? true,
+  }).where(eq(brandsTable.id, id)).returning();
+  if (!brand) { res.status(404).json({ error: "Brand not found" }); return; }
+  res.json(serializeBrand(brand));
+});
+
+router.delete("/brands/:id", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  await db.delete(brandsTable).where(eq(brandsTable.id, id));
+  res.status(204).end();
+});
+
 function serializeBrand(b: typeof brandsTable.$inferSelect) {
   return {
     ...b,
