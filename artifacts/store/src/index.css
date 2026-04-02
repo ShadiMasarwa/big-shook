@@ -272,3 +272,47 @@
     inset: -1px;
   }
 }
+
+.sale-badge {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 10;
+  pointer-events: none;
+  background: orange;
+  color: white;
+  height: 2.5rem;
+  width: 2.5rem;
+  text-align: center;
+  line-height: 2.5rem;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  transform: rotate(-20deg);
+  animation: sale-beat 1s ease infinite alternate;
+}
+
+.sale-badge::before,
+.sale-badge::after {
+  content: "";
+  position: absolute;
+  background: inherit;
+  height: inherit;
+  width: inherit;
+  top: 0;
+  left: 0;
+  z-index: -1;
+}
+
+.sale-badge::before {
+  transform: rotate(30deg);
+}
+
+.sale-badge::after {
+  transform: rotate(60deg);
+}
+
+@keyframes sale-beat {
+  from { transform: rotate(-20deg) scale(1); }
+  to   { transform: rotate(-20deg) scale(1.1); }
+}

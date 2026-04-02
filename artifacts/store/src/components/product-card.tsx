@@ -39,14 +39,7 @@ export function ProductCard({ product }: ProductCardProps) {
           )}
         </Link>
         {product.salePrice && (
-          <div className="absolute top-0 left-0 w-[76px] h-[76px] overflow-hidden pointer-events-none z-10">
-            <div
-              className="absolute bg-red-500 text-white font-bold text-[11px] tracking-wider text-center shadow-md"
-              style={{ top: '18px', left: '-20px', width: '88px', transform: 'rotate(-45deg)', padding: '4px 0' }}
-            >
-              מבצע
-            </div>
-          </div>
+          <div className="sale-badge">מבצע</div>
         )}
         <div className="absolute top-2 right-2 flex flex-col gap-2">
           <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full shadow-sm" onClick={handleAddToWishlist} data-testid={`btn-wishlist-${product.id}`}>
