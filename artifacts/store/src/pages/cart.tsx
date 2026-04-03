@@ -1,9 +1,10 @@
 import { Layout } from "@/components/layout";
 import { useCart } from "@/hooks/use-cart";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { formatPrice } from "@/lib/utils";
-import { Trash2, ShoppingCart, ArrowLeft, Tag, Info, Star } from "lucide-react";
+import { Trash2, ShoppingCart, ArrowLeft, Tag, Info, Star, Gift, Percent, Zap, BadgeCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { useApplyCouponToCart, useRemoveCouponFromCart, getGetCartQueryKey } from "@workspace/api-client-react";
@@ -12,6 +13,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 export default function Cart() {
   const { cart, isLoading, updateItem, removeItem, clearCart } = useCart();
+  const { user, isLoading: authLoading } = useAuth();
   const [couponCode, setCouponCode] = useState("");
   const [loyaltyInput, setLoyaltyInput] = useState("");
   const [loyaltyPending, setLoyaltyPending] = useState(false);
@@ -110,10 +112,71 @@ export default function Cart() {
     if (e.key === "Enter") handleApplyCoupon();
   };
 
-  if (isLoading) {
+  if (isLoading || authLoading) {
     return (
       <Layout>
         <div className="container mx-auto px-4 py-16 text-center">טוען עגלה...</div>
+      </Layout>
+    );
+  }
+
+  if (!user) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-16 max-w-lg flex flex-col items-center text-center">
+          <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+            <ShoppingCart className="h-9 w-9 text-primary" />
+          </div>
+          <h1 className="text-3xl font-black mb-2">כניסה לחנות</h1>
+          <p className="text-muted-foreground mb-8">
+            כדי לסיים את הקנייה יש להתחבר או להירשם.<br />
+            הצטרפות חינמית ומספקת המון יתרונות:
+          </p>
+
+          <div className="w-full bg-muted rounded-xl p-5 mb-8 text-right space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+              </div>
+              <div>
+                <div className="font-semibold text-sm">מועדון נקודות</div>
+                <div className="text-xs text-muted-foreground">צבור נקודות על כל קנייה ומממשם להנחות</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                <Percent className="h-4 w-4 text-green-600" />
+              </div>
+              <div>
+                <div className="font-semibold text-sm">הנחות בלעדיות</div>
+                <div className="text-xs text-muted-foreground">קופונים וסייל מיוחדים לחברי המועדון בלבד</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                <Zap className="h-4 w-4 text-blue-600" />
+              </div>
+              <div>
+                <div className="font-semibold text-sm">קנייה מהירה</div>
+                <div className="text-xs text-muted-foreground">שמור כתובת משלוח ופרטים לקנייה חלקה בפעם הבאה</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
+                <BadgeCheck className="h-4 w-4 text-purple-600" />
+              </div>
+              <div>
+                <div className="font-semibold text-sm">מעקב הזמנות</div>
+                <div className="text-xs text-muted-foreground">עקוב אחר כל הזמנה עד שתגיע אליך</div>
+              </div>
+            </div>
+          </div>
+
+          <Button size="lg" className="w-full font-bold text-lg h-14" asChild>
+            <Link href="/auth?redirect=/cart">התחברות / הרשמה</Link>
+          </Button>
+          <p className="text-xs text-muted-foreground mt-4">הצטרפות חינמית לחלוטין · ללא דמי מנוי</p>
+        </div>
       </Layout>
     );
   }

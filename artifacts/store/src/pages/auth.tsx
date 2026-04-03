@@ -153,6 +153,15 @@ export default function Auth() {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("login");
 
+  // Read ?redirect= param so we can bounce back after login/register
+  const redirectTo = (() => {
+    try {
+      const r = new URLSearchParams(window.location.search).get("redirect") ?? "";
+      // Only allow relative paths that start with /
+      return r.startsWith("/") && !r.startsWith("//") ? r : "/";
+    } catch { return "/"; }
+  })();
+
   // Login
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -188,7 +197,7 @@ export default function Auth() {
   const [successName, setSuccessName] = useState("");
 
   if (user) {
-    setLocation(user.role === "admin" ? "/admin" : "/");
+    setLocation(user.role === "admin" ? "/admin" : redirectTo);
     return null;
   }
 
@@ -209,7 +218,7 @@ export default function Auth() {
         return;
       }
       localStorage.setItem("token", data.token);
-      setLocation(data.user?.role === "admin" ? "/admin" : "/");
+      setLocation(data.user?.role === "admin" ? "/admin" : redirectTo);
       window.location.reload();
     } catch {
       setLoginError("שגיאה בהתחברות. נסה שנית.");
@@ -694,7 +703,7 @@ export default function Auth() {
             className="w-full h-12 text-lg font-bold"
             onClick={() => {
               setShowSuccess(false);
-              setLocation("/");
+              setLocation(redirectTo);
               window.location.reload();
             }}
           >
