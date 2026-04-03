@@ -109,7 +109,10 @@ export function Layout({ children }: { children: ReactNode }) {
             <div className="hidden md:flex items-center gap-1 text-sm mr-4">
               {user ? (
                 <div className="flex items-center gap-2">
-                  <Link href="/profile" className="flex flex-col text-left hover:text-primary transition-colors">
+                  <Link
+                    href="/profile"
+                    className="flex flex-col text-left hover:text-primary transition-colors"
+                  >
                     <span className="font-medium">שלום, {user.firstName}</span>
                     {user.loyaltyTier && (
                       <span className="text-xs text-amber-500 font-bold flex items-center justify-end gap-1">
@@ -230,7 +233,7 @@ export function Layout({ children }: { children: ReactNode }) {
           <SheetHeader className="px-4 py-4 border-b">
             <SheetTitle className="flex items-center gap-2 text-primary">
               <Package className="h-6 w-6" />
-              טק-סטור
+              ביג-שוווק
             </SheetTitle>
           </SheetHeader>
 
@@ -378,10 +381,9 @@ export function Layout({ children }: { children: ReactNode }) {
       <footer className="bg-muted py-12 border-t border-border mt-auto">
         <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
-            <h3 className="font-bold text-lg mb-4">טק-סטור</h3>
+            <h3 className="font-bold text-lg mb-4">ביג-שוווק</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              החנות המובילה בישראל למוצרי חשמל, מחשבים וטכנולוגיה. איכות ללא
-              פשרות ושירות מעל הכל.
+              כל המוצרים במחירי מבצע וללא תחרות
             </p>
           </div>
           <div>

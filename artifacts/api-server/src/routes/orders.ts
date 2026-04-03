@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
-import { db, ordersTable, orderItemsTable, cartItemsTable, cartCouponsTable, productsTable, usersTable, loyaltyTransactionsTable } from "@workspace/db";
+import { db, ordersTable, orderItemsTable, cartItemsTable, cartCouponsTable, productsTable, usersTable, loyaltyTransactionsTable, couponsTable, couponUsagesTable } from "@workspace/db";
 import { getSessionId, getUserId, buildCart } from "./cart.js";
 
 const router: IRouter = Router();
@@ -165,6 +165,21 @@ router.post("/orders", async (req, res): Promise<void> => {
         loyaltyPoints: newPoints, loyaltyTier: tier,
         totalSpent: String(newSpent), ordersCount: user.ordersCount + 1,
       }).where(eq(usersTable.id, order.userId));
+    }
+  }
+
+  // Record coupon usage — increment global usedCount and log per-user usage
+  if (couponCode) {
+    const [coupon] = await db.select().from(couponsTable).where(eq(couponsTable.code, couponCode));
+    if (coupon) {
+      await db.update(couponsTable)
+        .set({ usedCount: coupon.usedCount + 1 })
+        .where(eq(couponsTable.id, coupon.id));
+      await db.insert(couponUsagesTable).values({
+        couponId: coupon.id,
+        userId: order.userId ?? null,
+        orderId: order.id,
+      });
     }
   }
 
