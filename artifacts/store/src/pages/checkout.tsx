@@ -8,8 +8,17 @@ import { Label } from "@/components/ui/label";
 import { useCreateOrder } from "@workspace/api-client-react";
 import { toast } from "@/components/ui/use-toast";
 import { formatPrice } from "@/lib/utils";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, TrendingUp } from "lucide-react";
 import { Link, useLocation } from "wouter";
+
+interface TierUpgrade { from: string; to: string }
+
+const TIER_INFO: Record<string, { label: string; icon: string; color: string; bg: string; border: string }> = {
+  bronze: { label: "ברונזה", icon: "🥉", color: "text-orange-700", bg: "bg-orange-50",  border: "border-orange-200" },
+  silver: { label: "כסף",    icon: "🥈", color: "text-slate-600",  bg: "bg-slate-50",   border: "border-slate-200" },
+  gold:   { label: "זהב",    icon: "🥇", color: "text-amber-600",  bg: "bg-amber-50",   border: "border-amber-200" },
+  vip:    { label: "VIP",    icon: "💎", color: "text-purple-700", bg: "bg-purple-50",  border: "border-purple-200" },
+};
 
 export default function Checkout() {
   const { cart, clearCart } = useCart();
@@ -20,6 +29,7 @@ export default function Checkout() {
   const [step, setStep] = useState(1);
   const [isSuccess, setIsSuccess] = useState(false);
   const [orderNumber, setOrderNumber] = useState("");
+  const [tierUpgrade, setTierUpgrade] = useState<TierUpgrade | null>(null);
 
   const [shipping, setShipping] = useState({
     firstName: user?.firstName || "",
@@ -45,6 +55,7 @@ export default function Checkout() {
         }
       });
       setOrderNumber(order.orderNumber);
+      setTierUpgrade((order as any).tierUpgrade ?? null);
       await clearCart();
       setIsSuccess(true);
     } catch (e) {
@@ -53,9 +64,13 @@ export default function Checkout() {
   };
 
   if (isSuccess) {
+    const newTierInfo = tierUpgrade ? TIER_INFO[tierUpgrade.to] : null;
+    const oldTierInfo = tierUpgrade ? TIER_INFO[tierUpgrade.from] : null;
+
     return (
       <Layout>
-        <div className="container mx-auto px-4 py-24 text-center max-w-md flex flex-col items-center">
+        <div className="container mx-auto px-4 py-20 max-w-lg flex flex-col items-center text-center" dir="rtl">
+          {/* Success icon */}
           <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6">
             <CheckCircle2 className="h-12 w-12 text-green-600" />
           </div>
@@ -63,6 +78,46 @@ export default function Checkout() {
           <p className="text-lg text-muted-foreground mb-6">
             הזמנה מספר <span className="font-bold text-foreground">#{orderNumber}</span> התקבלה בהצלחה ותטופל בהקדם.
           </p>
+
+          {/* Tier upgrade banner */}
+          {tierUpgrade && newTierInfo && oldTierInfo && (
+            <div className={`w-full rounded-2xl border-2 ${newTierInfo.border} ${newTierInfo.bg} p-6 mb-6`}>
+              <div className="flex items-center justify-center gap-2 mb-3">
+                <TrendingUp className={`h-5 w-5 ${newTierInfo.color}`} />
+                <span className={`font-black text-lg ${newTierInfo.color}`}>עלית דרגה!</span>
+              </div>
+
+              {/* Tier transition */}
+              <div className="flex items-center justify-center gap-4 mb-4">
+                <div className="flex flex-col items-center gap-1 opacity-60">
+                  <span className="text-3xl">{oldTierInfo.icon}</span>
+                  <span className={`text-sm font-bold ${TIER_INFO[tierUpgrade.from]?.color}`}>{oldTierInfo.label}</span>
+                </div>
+                <div className={`flex-1 h-0.5 ${newTierInfo.border.replace("border-", "bg-")} relative`}>
+                  <div className={`absolute inset-y-0 left-0 right-0 ${newTierInfo.border.replace("border-", "bg-")}`} />
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-lg">→</span>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-4xl drop-shadow-sm">{newTierInfo.icon}</span>
+                  <span className={`text-sm font-black ${newTierInfo.color}`}>{newTierInfo.label}</span>
+                </div>
+              </div>
+
+              <p className={`text-sm font-medium ${newTierInfo.color}`}>
+                כעת אתה חבר בדרגת <span className="font-black">{newTierInfo.label}</span> — נהנה מהטבות משופרות!
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className={`mt-3 border ${newTierInfo.border} ${newTierInfo.color} hover:${newTierInfo.bg}`}
+                asChild
+              >
+                <Link href="/loyalty">גלה את ההטבות שלך</Link>
+              </Button>
+            </div>
+          )}
+
+          {/* Action buttons */}
           <div className="flex gap-4 w-full">
             <Button asChild className="flex-1">
               <Link href="/orders">ההזמנות שלי</Link>

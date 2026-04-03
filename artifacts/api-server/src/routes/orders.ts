@@ -140,7 +140,8 @@ router.post("/orders", async (req, res): Promise<void> => {
   await db.delete(cartItemsTable).where(eq(cartItemsTable.sessionId, sessionId));
   await db.delete(cartCouponsTable).where(eq(cartCouponsTable.sessionId, sessionId));
 
-  // Loyalty: record earned, deduct used, update user balance
+  // Loyalty: record earned, deduct used, update user balance; detect tier upgrade
+  let tierUpgrade: { from: string; to: string } | null = null;
   if (order.userId) {
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, order.userId));
     if (user) {
@@ -161,9 +162,11 @@ router.post("/orders", async (req, res): Promise<void> => {
       const netPoints = user.loyaltyPoints + loyaltyPointsEarned - loyaltyPointsUsed;
       const newPoints = Math.max(0, netPoints);
       const newSpent = parseFloat(user.totalSpent) + total;
-      const tier = await getTierBySpent(newSpent);
+      const oldTier = await getTierBySpent(parseFloat(user.totalSpent));
+      const newTier = await getTierBySpent(newSpent);
+      tierUpgrade = oldTier !== newTier ? { from: oldTier, to: newTier } : null;
       await db.update(usersTable).set({
-        loyaltyPoints: newPoints, loyaltyTier: tier,
+        loyaltyPoints: newPoints, loyaltyTier: newTier,
         totalSpent: String(newSpent), ordersCount: user.ordersCount + 1,
       }).where(eq(usersTable.id, order.userId));
     }
@@ -182,7 +185,7 @@ router.post("/orders", async (req, res): Promise<void> => {
   }
 
   const serializedItems = await fetchItemsWithProductData(order.id);
-  res.status(201).json(serializeOrder(order, serializedItems));
+  res.status(201).json({ ...serializeOrder(order, serializedItems), tierUpgrade });
 });
 
 router.get("/orders/:id", async (req, res): Promise<void> => {
