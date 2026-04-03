@@ -136,6 +136,7 @@ export default function Cart() {
   const appliedCoupons: Array<{ code: string; discount: number; type: string; scope: string }> = (cart as any).appliedCoupons ?? [];
   const userAvailablePoints: number = (cart as any).userAvailablePoints ?? 0;
   const maxRedeemablePoints: number = (cart as any).maxRedeemablePoints ?? 0;
+  const maxRedemptionPercent: number = (cart as any).maxRedemptionPercent ?? 20;
   const loyaltyPointsUsed: number = (cart as any).loyaltyPointsUsed ?? 0;
   const loyaltyDiscount: number = (cart as any).loyaltyDiscount ?? 0;
   const shekelPerPoint: number = (cart as any).shekelPerPoint ?? 0.01;
@@ -319,7 +320,7 @@ export default function Cart() {
                 {/* Max limit info */}
                 <div className="text-xs text-amber-700 bg-amber-100 rounded px-2 py-1.5 mb-3">
                   ניתן לממש עד <strong>{maxRedeemablePoints.toLocaleString("he-IL")}</strong> נק׳ בהזמנה זו
-                  <span className="text-muted-foreground"> (עד 20% מסכום ההזמנה) = </span>
+                  <span className="text-muted-foreground"> (עד {maxRedemptionPercent}% מסכום ההזמנה) = </span>
                   <strong>₪{(maxRedeemablePoints * shekelPerPoint).toFixed(2)}</strong>
                 </div>
 

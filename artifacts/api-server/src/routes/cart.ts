@@ -128,6 +128,7 @@ async function buildCart(sessionId: string, callerUserId?: number | null) {
   let loyaltyDiscount = 0;
   let userAvailablePoints = 0;
   let maxRedeemablePoints = 0;
+  let maxRedemptionPercent = 20;
   let shekelPerPoint = 0.01;
   let minRedemptionPoints = 100;
 
@@ -135,7 +136,7 @@ async function buildCart(sessionId: string, callerUserId?: number | null) {
   if (effectiveUserId) {
     const [rules] = await db.select().from(loyaltyRulesTable);
     minRedemptionPoints = rules?.minRedemptionPoints ?? 100;
-    const maxRedemptionPercent = rules ? parseFloat(rules.maxRedemptionPercent) : 20;
+    maxRedemptionPercent = rules ? parseFloat(rules.maxRedemptionPercent) : 20;
 
     const [user] = await db.select({ loyaltyPoints: usersTable.loyaltyPoints, loyaltyTier: usersTable.loyaltyTier })
       .from(usersTable).where(eq(usersTable.id, effectiveUserId));
@@ -175,6 +176,7 @@ async function buildCart(sessionId: string, callerUserId?: number | null) {
     loyaltyDiscount,
     userAvailablePoints,
     maxRedeemablePoints,
+    maxRedemptionPercent,
     shekelPerPoint,
     minRedemptionPoints,
     itemCount: cartItems.reduce((sum, i) => sum + i.quantity, 0),
