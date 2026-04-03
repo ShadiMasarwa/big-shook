@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and, sql } from "drizzle-orm";
 import { db, cartItemsTable, cartCouponsTable, cartLoyaltyTable, productsTable, couponsTable, couponUsagesTable, loyaltyRulesTable, usersTable } from "@workspace/db";
+import { getShekelPerPointForTier } from "./loyalty.js";
 
 const router: IRouter = Router();
 
@@ -132,15 +133,16 @@ async function buildCart(sessionId: string, callerUserId?: number | null) {
   const effectiveUserId = loyaltyRow?.userId ?? callerUserId ?? null;
   if (effectiveUserId) {
     const [rules] = await db.select().from(loyaltyRulesTable);
-    shekelPerPoint = rules ? parseFloat(rules.shekelPerPoint) : 0.01;
     minRedemptionPoints = rules?.minRedemptionPoints ?? 100;
     const maxRedemptionPercent = rules ? parseFloat(rules.maxRedemptionPercent) : 20;
 
-    const [user] = await db.select({ loyaltyPoints: usersTable.loyaltyPoints })
+    const [user] = await db.select({ loyaltyPoints: usersTable.loyaltyPoints, loyaltyTier: usersTable.loyaltyTier })
       .from(usersTable).where(eq(usersTable.id, effectiveUserId));
 
     if (user) {
       userAvailablePoints = user.loyaltyPoints;
+      // Use the per-tier exchange rate for this user's tier
+      shekelPerPoint = await getShekelPerPointForTier(user.loyaltyTier ?? "bronze");
 
       if (loyaltyRow) {
         const requestedPoints = Math.min(loyaltyRow.pointsToUse, user.loyaltyPoints);

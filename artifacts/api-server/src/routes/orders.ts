@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { db, ordersTable, orderItemsTable, cartItemsTable, cartCouponsTable, productsTable, usersTable, loyaltyTransactionsTable, couponsTable, couponUsagesTable } from "@workspace/db";
 import { getSessionId, getUserId, buildCart } from "./cart.js";
+import { getTierBySpent } from "./loyalty.js";
 
 const router: IRouter = Router();
 
@@ -160,7 +161,7 @@ router.post("/orders", async (req, res): Promise<void> => {
       const netPoints = user.loyaltyPoints + loyaltyPointsEarned - loyaltyPointsUsed;
       const newPoints = Math.max(0, netPoints);
       const newSpent = parseFloat(user.totalSpent) + total;
-      const tier = newPoints >= 5000 ? "vip" : newPoints >= 2000 ? "gold" : newPoints >= 500 ? "silver" : "bronze";
+      const tier = await getTierBySpent(newSpent);
       await db.update(usersTable).set({
         loyaltyPoints: newPoints, loyaltyTier: tier,
         totalSpent: String(newSpent), ordersCount: user.ordersCount + 1,

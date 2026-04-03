@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, ilike, or, sql } from "drizzle-orm";
 import { db, usersTable, loyaltyTransactionsTable } from "@workspace/db";
+import { getTierBySpent } from "./loyalty.js";
 import { serializeUser } from "./auth.js";
 
 const router: IRouter = Router();
@@ -80,19 +81,12 @@ router.patch("/users/:id/loyalty", async (req, res): Promise<void> => {
     return;
   }
   const newPoints = user.loyaltyPoints + points;
-  const tier = calcTier(newPoints);
+  const tier = await getTierBySpent(parseFloat(user.totalSpent));
   await db.insert(loyaltyTransactionsTable).values({
     userId: id, points, type: "adjusted", reason, orderId: null,
   });
   const [updated] = await db.update(usersTable).set({ loyaltyPoints: newPoints, loyaltyTier: tier }).where(eq(usersTable.id, id)).returning();
   res.json(serializeUser(updated));
-});
-
-function calcTier(points: number): "bronze" | "silver" | "gold" | "vip" {
-  if (points >= 5000) return "vip";
-  if (points >= 2000) return "gold";
-  if (points >= 500) return "silver";
-  return "bronze";
-}
+})
 
 export default router;
