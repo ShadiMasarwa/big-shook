@@ -207,12 +207,13 @@ router.post("/cart/items", async (req, res): Promise<void> => {
   } else {
     await db.insert(cartItemsTable).values({ sessionId, productId, quantity, price: effectivePrice, ...(userId ? { userId } : {}) });
   }
-  const cart = await buildCart(sessionId);
+  const cart = await buildCart(sessionId, userId);
   res.json(cart);
 });
 
 router.patch("/cart/items/:productId", async (req, res): Promise<void> => {
   const sessionId = getSessionId(req as Parameters<typeof getSessionId>[0]);
+  const userId = getUserId(req as Parameters<typeof getUserId>[0]);
   const raw = Array.isArray(req.params.productId) ? req.params.productId[0] : req.params.productId;
   const productId = parseInt(raw, 10);
   const { quantity } = req.body;
@@ -221,16 +222,29 @@ router.patch("/cart/items/:productId", async (req, res): Promise<void> => {
   } else {
     await db.update(cartItemsTable).set({ quantity }).where(and(eq(cartItemsTable.sessionId, sessionId), eq(cartItemsTable.productId, productId)));
   }
-  const cart = await buildCart(sessionId);
+  // If cart is now empty, reset coupons and loyalty so they don't linger
+  const remaining = await db.select().from(cartItemsTable).where(eq(cartItemsTable.sessionId, sessionId));
+  if (remaining.length === 0) {
+    await db.delete(cartCouponsTable).where(eq(cartCouponsTable.sessionId, sessionId));
+    await db.delete(cartLoyaltyTable).where(eq(cartLoyaltyTable.sessionId, sessionId));
+  }
+  const cart = await buildCart(sessionId, userId);
   res.json(cart);
 });
 
 router.delete("/cart/items/:productId", async (req, res): Promise<void> => {
   const sessionId = getSessionId(req as Parameters<typeof getSessionId>[0]);
+  const userId = getUserId(req as Parameters<typeof getUserId>[0]);
   const raw = Array.isArray(req.params.productId) ? req.params.productId[0] : req.params.productId;
   const productId = parseInt(raw, 10);
   await db.delete(cartItemsTable).where(and(eq(cartItemsTable.sessionId, sessionId), eq(cartItemsTable.productId, productId)));
-  const cart = await buildCart(sessionId);
+  // If cart is now empty, reset coupons and loyalty
+  const remaining = await db.select().from(cartItemsTable).where(eq(cartItemsTable.sessionId, sessionId));
+  if (remaining.length === 0) {
+    await db.delete(cartCouponsTable).where(eq(cartCouponsTable.sessionId, sessionId));
+    await db.delete(cartLoyaltyTable).where(eq(cartLoyaltyTable.sessionId, sessionId));
+  }
+  const cart = await buildCart(sessionId, userId);
   res.json(cart);
 });
 
@@ -321,12 +335,13 @@ router.post("/cart/coupon", async (req, res): Promise<void> => {
   await db.insert(cartCouponsTable).values({ sessionId, couponCode: upperCode })
     .onConflictDoNothing();
 
-  const cart = await buildCart(sessionId);
+  const cart = await buildCart(sessionId, userId);
   res.json(cart);
 });
 
 router.delete("/cart/coupon", async (req, res): Promise<void> => {
   const sessionId = getSessionId(req as Parameters<typeof getSessionId>[0]);
+  const userId = getUserId(req as Parameters<typeof getUserId>[0]);
   const code = (req.query.code ?? req.body?.code) as string | undefined;
   if (code) {
     const upperCode = String(code).toUpperCase().trim();
@@ -336,16 +351,17 @@ router.delete("/cart/coupon", async (req, res): Promise<void> => {
   } else {
     await db.delete(cartCouponsTable).where(eq(cartCouponsTable.sessionId, sessionId));
   }
-  const cart = await buildCart(sessionId);
+  const cart = await buildCart(sessionId, userId);
   res.json(cart);
 });
 
 router.delete("/cart/clear", async (req, res): Promise<void> => {
   const sessionId = getSessionId(req as Parameters<typeof getSessionId>[0]);
+  const userId = getUserId(req as Parameters<typeof getUserId>[0]);
   await db.delete(cartItemsTable).where(eq(cartItemsTable.sessionId, sessionId));
   await db.delete(cartCouponsTable).where(eq(cartCouponsTable.sessionId, sessionId));
   await db.delete(cartLoyaltyTable).where(eq(cartLoyaltyTable.sessionId, sessionId));
-  const cart = await buildCart(sessionId);
+  const cart = await buildCart(sessionId, userId);
   res.json(cart);
 });
 
@@ -390,14 +406,15 @@ router.post("/cart/loyalty", async (req, res): Promise<void> => {
     .values({ sessionId, userId, pointsToUse: points })
     .onConflictDoUpdate({ target: cartLoyaltyTable.sessionId, set: { pointsToUse: points, userId } });
 
-  const cart = await buildCart(sessionId);
+  const cart = await buildCart(sessionId, userId);
   res.json(cart);
 });
 
 router.delete("/cart/loyalty", async (req, res): Promise<void> => {
   const sessionId = getSessionId(req as Parameters<typeof getSessionId>[0]);
+  const userId = getUserId(req as Parameters<typeof getUserId>[0]);
   await db.delete(cartLoyaltyTable).where(eq(cartLoyaltyTable.sessionId, sessionId));
-  const cart = await buildCart(sessionId);
+  const cart = await buildCart(sessionId, userId);
   res.json(cart);
 });
 
