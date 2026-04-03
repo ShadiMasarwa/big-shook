@@ -32,6 +32,7 @@ function serializeOrder(order: typeof ordersTable.$inferSelect, items: any[], cu
     tax: parseFloat(order.tax),
     total: parseFloat(order.total),
     couponDiscount: parseFloat(order.couponDiscount),
+    loyaltyPointsUsedAmount: parseFloat(order.loyaltyPointsUsedAmount),
     createdAt: order.createdAt.toISOString(),
     updatedAt: order.updatedAt.toISOString(),
     customerName: customerName ?? null,
@@ -103,7 +104,7 @@ router.post("/orders", async (req, res): Promise<void> => {
     total: String(total),
     couponCode: couponCode ?? null,
     couponDiscount: String(couponDiscount),
-    loyaltyPointsUsed, loyaltyPointsEarned,
+    loyaltyPointsUsed, loyaltyPointsUsedAmount: loyaltyDiscount.toFixed(2), loyaltyPointsEarned,
     shippingAddress: shippingAddress ?? {}, notes: notes ?? null,
   }).returning();
 

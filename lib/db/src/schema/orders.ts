@@ -27,6 +27,7 @@ export const ordersTable = pgTable("orders", {
   couponCode: text("coupon_code"),
   couponDiscount: numeric("coupon_discount", { precision: 10, scale: 2 }).notNull().default("0"),
   loyaltyPointsUsed: integer("loyalty_points_used").notNull().default(0),
+  loyaltyPointsUsedAmount: numeric("loyalty_points_used_amount", { precision: 10, scale: 2 }).notNull().default("0"),
   loyaltyPointsEarned: integer("loyalty_points_earned").notNull().default(0),
   shippingAddress: jsonb("shipping_address").notNull().default({}),
   notes: text("notes"),

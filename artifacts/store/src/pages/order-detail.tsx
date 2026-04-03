@@ -131,7 +131,7 @@ export default function OrderDetail() {
               {order.loyaltyPointsUsed > 0 && (
                 <div className="flex justify-between text-primary">
                   <span>שימוש בנקודות מועדון ({order.loyaltyPointsUsed})</span>
-                  <span>-₪{order.loyaltyPointsUsed * 0.1}</span> {/* Approximation, backend handles exact math */}
+                  <span>-{formatPrice((order as any).loyaltyPointsUsedAmount ?? order.discount)}</span>
                 </div>
               )}
               <div className="flex justify-between font-black text-lg pt-4 border-t border-border mt-4">
