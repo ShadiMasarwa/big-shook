@@ -32,6 +32,7 @@ export const ordersTable = pgTable("orders", {
   shippingAddress: jsonb("shipping_address").notNull().default({}),
   notes: text("notes"),
   invoiceRef: text("invoice_ref"),
+  statusHistory: jsonb("status_history").notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
@@ -48,6 +49,7 @@ export const orderItemsTable = pgTable("order_items", {
   itemStatus: text("item_status", {
     enum: ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled", "refunded"],
   }).notNull().default("pending"),
+  itemStatusHistory: jsonb("item_status_history").notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

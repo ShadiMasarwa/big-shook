@@ -95,6 +95,7 @@ router.post("/orders", async (req, res): Promise<void> => {
 
   const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
 
+  const initialHistory = [{ status: "pending", changedAt: new Date().toISOString() }];
   const [order] = await db.insert(ordersTable).values({
     orderNumber, userId: userId ?? cartItems[0]?.userId ?? null, sessionId,
     subtotal: String(subtotal),
@@ -106,6 +107,7 @@ router.post("/orders", async (req, res): Promise<void> => {
     couponDiscount: String(couponDiscount),
     loyaltyPointsUsed, loyaltyPointsUsedAmount: loyaltyDiscount.toFixed(2), loyaltyPointsEarned,
     shippingAddress: shippingAddress ?? {}, notes: notes ?? null,
+    statusHistory: initialHistory,
   }).returning();
 
   // Insert order items
@@ -212,13 +214,13 @@ router.patch("/orders/:id/status", async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   const { status, notes } = req.body;
-  const updateData: Record<string, unknown> = { status };
+  const [current] = await db.select().from(ordersTable).where(eq(ordersTable.id, id));
+  if (!current) { res.status(404).json({ error: "הזמנה לא נמצאה" }); return; }
+  const history = (Array.isArray(current.statusHistory) ? current.statusHistory : []) as { status: string; changedAt: string }[];
+  const newHistory = [...history, { status, changedAt: new Date().toISOString() }];
+  const updateData: Record<string, unknown> = { status, statusHistory: newHistory };
   if (notes !== undefined) updateData.notes = notes;
   const [order] = await db.update(ordersTable).set(updateData).where(eq(ordersTable.id, id)).returning();
-  if (!order) {
-    res.status(404).json({ error: "הזמנה לא נמצאה" });
-    return;
-  }
   const items = await fetchItemsWithProductData(id);
   res.json(serializeOrder(order, items));
 });
@@ -227,18 +229,16 @@ router.patch("/orders/:orderId/items/:itemId/status", async (req, res): Promise<
   const orderId = parseInt(req.params.orderId, 10);
   const itemId = parseInt(req.params.itemId, 10);
   const { itemStatus } = req.body;
-  if (!itemStatus) {
-    res.status(400).json({ error: "itemStatus נדרש" });
-    return;
-  }
+  if (!itemStatus) { res.status(400).json({ error: "itemStatus נדרש" }); return; }
+  const [current] = await db.select().from(orderItemsTable)
+    .where(and(eq(orderItemsTable.id, itemId), eq(orderItemsTable.orderId, orderId)));
+  if (!current) { res.status(404).json({ error: "פריט הזמנה לא נמצא" }); return; }
+  const history = (Array.isArray(current.itemStatusHistory) ? current.itemStatusHistory : []) as { status: string; changedAt: string }[];
+  const newHistory = [...history, { status: itemStatus, changedAt: new Date().toISOString() }];
   const [item] = await db.update(orderItemsTable)
-    .set({ itemStatus })
+    .set({ itemStatus, itemStatusHistory: newHistory })
     .where(and(eq(orderItemsTable.id, itemId), eq(orderItemsTable.orderId, orderId)))
     .returning();
-  if (!item) {
-    res.status(404).json({ error: "פריט הזמנה לא נמצא" });
-    return;
-  }
   res.json({ ...item, price: parseFloat(item.price), subtotal: parseFloat(item.subtotal), createdAt: item.createdAt.toISOString() });
 });
 
