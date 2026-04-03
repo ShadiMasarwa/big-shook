@@ -78,11 +78,25 @@ export default function Cart() {
     }
   };
 
-  const handleRemoveCoupon = async () => {
+  const handleRemoveCoupon = async (code?: string) => {
     try {
-      const updated = await removeCoupon.mutateAsync();
-      queryClient.setQueryData(getGetCartQueryKey(), updated);
-      toast({ title: "הקופון הוסר" });
+      const sid = localStorage.getItem("sessionId") ?? "default-session";
+      const token = localStorage.getItem("token");
+      const url = code ? `/api/cart/coupon?code=${encodeURIComponent(code)}` : "/api/cart/coupon";
+      const res = await fetch(url, {
+        method: "DELETE",
+        headers: {
+          "x-session-id": sid,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        queryClient.setQueryData(getGetCartQueryKey(), data);
+        toast({ title: code ? `קופון ${code} הוסר` : "הקופונים הוסרו" });
+      } else {
+        queryClient.invalidateQueries({ queryKey: getGetCartQueryKey() });
+      }
     } catch {
       queryClient.invalidateQueries({ queryKey: getGetCartQueryKey() });
     }
@@ -119,8 +133,7 @@ export default function Cart() {
     );
   }
 
-  const isPartialCoupon = (cart as any).couponScope === "partial";
-  const couponType: string | null = (cart as any).couponType ?? null;
+  const appliedCoupons: Array<{ code: string; discount: number; type: string; scope: string }> = (cart as any).appliedCoupons ?? [];
   const userAvailablePoints: number = (cart as any).userAvailablePoints ?? 0;
   const loyaltyDiscount: number = (cart as any).loyaltyDiscount ?? 0;
   const shekelPerPoint: number = (cart as any).shekelPerPoint ?? 0.01;
@@ -209,60 +222,33 @@ export default function Cart() {
                 <span className="font-medium">{cart.shipping > 0 ? formatPrice(cart.shipping) : 'חינם'}</span>
               </div>
 
-              {cart.couponDiscount > 0 && (
-                <div className="space-y-1">
-                  <div className="flex justify-between text-green-600">
-                    <span className="flex items-center gap-1">
-                      <Tag className="h-3 w-3" />
-                      הנחת קופון
-                      {cart.couponCode && (
-                        <code className="text-xs bg-green-100 text-green-700 px-1 rounded font-mono">{cart.couponCode}</code>
-                      )}
+              {/* Applied coupons list — one line per coupon */}
+              {appliedCoupons.map((c) => (
+                <div key={c.code} className="space-y-1">
+                  <div className={`flex justify-between ${c.discount > 0 ? "text-green-600" : "text-muted-foreground"}`}>
+                    <span className="flex items-center gap-1 flex-wrap">
+                      <Tag className="h-3 w-3 shrink-0" />
+                      {c.discount > 0 ? "הנחת קופון" : "קופון פעיל"}
+                      <code className="text-xs bg-green-100 text-green-700 px-1 rounded font-mono">{c.code}</code>
                       <button
-                        onClick={handleRemoveCoupon}
-                        className="text-xs text-muted-foreground underline ml-1 hover:text-destructive"
+                        onClick={() => handleRemoveCoupon(c.code)}
+                        className="text-xs text-muted-foreground underline hover:text-destructive"
                       >
                         הסר
                       </button>
                     </span>
-                    <span className="font-bold">-{formatPrice(cart.couponDiscount)}</span>
+                    <span className="font-bold shrink-0">
+                      {c.discount > 0 ? `-${formatPrice(c.discount)}` : c.type === "free_shipping" ? "משלוח חינם" : "-₪0"}
+                    </span>
                   </div>
-                  {isPartialCoupon && (
+                  {c.scope === "partial" && c.discount > 0 && (
                     <div className="flex items-start gap-1 text-xs text-amber-600 bg-amber-50 rounded-md px-2 py-1.5">
                       <Info className="h-3 w-3 mt-0.5 shrink-0" />
                       <span>הקופון חל רק על חלק מהמוצרים בעגלה</span>
                     </div>
                   )}
                 </div>
-              )}
-
-              {/* Applied coupon badge when discount = 0 */}
-              {cart.couponCode && cart.couponDiscount === 0 && (
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Tag className="h-3 w-3" />
-                      קופון פעיל
-                      <code className="text-xs bg-muted px-1 rounded font-mono">{cart.couponCode}</code>
-                      <button
-                        onClick={handleRemoveCoupon}
-                        className="text-xs underline ml-1 hover:text-destructive"
-                      >
-                        הסר
-                      </button>
-                    </span>
-                    <span className="text-xs">
-                      {couponType === "free_shipping" ? "ללא עלות משלוח" : "-₪0"}
-                    </span>
-                  </div>
-                  {couponType !== "free_shipping" && (
-                    <div className="flex items-start gap-1 text-xs text-amber-600 bg-amber-50 rounded-md px-2 py-1.5">
-                      <Info className="h-3 w-3 mt-0.5 shrink-0" />
-                      <span>הקופון אינו חל על המוצרים בעגלה</span>
-                    </div>
-                  )}
-                </div>
-              )}
+              ))}
               {/* Applied loyalty discount line in the summary */}
               {loyaltyDiscount > 0 && (
                 <div className="flex justify-between text-amber-600">
@@ -290,31 +276,29 @@ export default function Cart() {
               </div>
             </div>
 
-            {/* Coupon input — only shown when no coupon is applied */}
-            {!cart.couponCode && (
-              <div className="mb-6">
-                <label className="text-sm font-medium mb-2 block">קוד קופון</label>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="הזן קוד..."
-                    value={couponCode}
-                    onChange={e => setCouponCode(e.target.value.toUpperCase())}
-                    onKeyDown={handleKeyDown}
-                    className="uppercase font-mono tracking-wider"
-                  />
-                  <Button
-                    variant="secondary"
-                    onClick={handleApplyCoupon}
-                    disabled={!couponCode.trim() || applyCoupon.isPending}
-                  >
-                    {applyCoupon.isPending ? "..." : "הפעל"}
-                  </Button>
-                </div>
+            {/* Coupon input — always visible */}
+            <div className="mb-6">
+              <label className="text-sm font-medium mb-2 block">קוד קופון</label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="הזן קוד..."
+                  value={couponCode}
+                  onChange={e => setCouponCode(e.target.value.toUpperCase())}
+                  onKeyDown={handleKeyDown}
+                  className="uppercase font-mono tracking-wider"
+                />
+                <Button
+                  variant="secondary"
+                  onClick={handleApplyCoupon}
+                  disabled={!couponCode.trim() || applyCoupon.isPending}
+                >
+                  {applyCoupon.isPending ? "..." : "הפעל"}
+                </Button>
               </div>
-            )}
+            </div>
 
-            {/* Loyalty points redemption */}
-            {userAvailablePoints >= minRedemptionPoints && loyaltyDiscount === 0 && (
+            {/* Loyalty points redemption — always visible when user has enough points */}
+            {userAvailablePoints >= minRedemptionPoints && (
               <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Star className="h-4 w-4 fill-amber-500 text-amber-500" />

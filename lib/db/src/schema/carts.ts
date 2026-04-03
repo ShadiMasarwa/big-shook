@@ -5,6 +5,7 @@ import {
   integer,
   timestamp,
   numeric,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -22,10 +23,10 @@ export const cartItemsTable = pgTable("cart_items", {
 
 export const cartCouponsTable = pgTable("cart_coupons", {
   id: serial("id").primaryKey(),
-  sessionId: text("session_id").notNull().unique(),
+  sessionId: text("session_id").notNull(),
   couponCode: text("coupon_code").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [uniqueIndex("cart_coupons_session_coupon_key").on(t.sessionId, t.couponCode)]);
 
 export const cartLoyaltyTable = pgTable("cart_loyalty", {
   id: serial("id").primaryKey(),

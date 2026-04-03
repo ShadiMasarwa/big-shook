@@ -87,7 +87,7 @@ router.post("/orders", async (req, res): Promise<void> => {
 
   const cartItems = await db.select().from(cartItemsTable).where(eq(cartItemsTable.sessionId, sessionId));
 
-  const { subtotal, shipping, total, couponCode, couponDiscount, loyaltyPointsUsed, loyaltyDiscount } = cart;
+  const { subtotal, shipping, total, couponCode, couponDiscount, loyaltyPointsUsed, loyaltyDiscount, appliedCoupons } = cart as any;
   // Points earned are based on the final amount paid (after all discounts)
   const loyaltyPointsEarned = Math.floor(total);
 
@@ -168,18 +168,15 @@ router.post("/orders", async (req, res): Promise<void> => {
     }
   }
 
-  // Record coupon usage — increment global usedCount and log per-user usage
-  if (couponCode) {
-    const [coupon] = await db.select().from(couponsTable).where(eq(couponsTable.code, couponCode));
+  // Record coupon usage for each applied coupon
+  const couponsToRecord: string[] = Array.isArray(appliedCoupons) && appliedCoupons.length > 0
+    ? appliedCoupons.map((c: any) => c.code)
+    : couponCode ? couponCode.split(", ").map((c: string) => c.trim()).filter(Boolean) : [];
+  for (const code of couponsToRecord) {
+    const [coupon] = await db.select().from(couponsTable).where(eq(couponsTable.code, code));
     if (coupon) {
-      await db.update(couponsTable)
-        .set({ usedCount: coupon.usedCount + 1 })
-        .where(eq(couponsTable.id, coupon.id));
-      await db.insert(couponUsagesTable).values({
-        couponId: coupon.id,
-        userId: order.userId ?? null,
-        orderId: order.id,
-      });
+      await db.update(couponsTable).set({ usedCount: coupon.usedCount + 1 }).where(eq(couponsTable.id, coupon.id));
+      await db.insert(couponUsagesTable).values({ couponId: coupon.id, userId: order.userId ?? null, orderId: order.id });
     }
   }
 

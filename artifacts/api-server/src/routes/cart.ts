@@ -74,51 +74,51 @@ async function buildCart(sessionId: string, callerUserId?: number | null) {
   const subtotal = cartItems.reduce((sum, i) => sum + i.subtotal, 0);
   const baseShipping = subtotal > 200 ? 0 : 29.9;
 
+  // ── Coupons (supports stacking) ─────────────────────────────────────────────
+  const couponRows = await db.select().from(cartCouponsTable).where(eq(cartCouponsTable.sessionId, sessionId));
+  type AppliedCoupon = { code: string; discount: number; type: string; scope: string };
+  const appliedCoupons: AppliedCoupon[] = [];
   let couponDiscount = 0;
-  let couponCode: string | null = null;
-  let couponScope: string | null = null; // "all" | "partial"
-  let couponType: string | null = null;
 
-  if (couponRow) {
-    const [coupon] = await db.select().from(couponsTable).where(eq(couponsTable.code, couponRow.couponCode));
-    if (coupon && coupon.isActive) {
-      const now = new Date();
-      const isExpired = coupon.expiresAt && coupon.expiresAt < now;
-      const notStarted = coupon.startsAt && coupon.startsAt > now;
-      const overLimit = coupon.usageLimit != null && coupon.usedCount >= coupon.usageLimit;
+  for (const row of couponRows) {
+    const [coupon] = await db.select().from(couponsTable).where(eq(couponsTable.code, row.couponCode));
+    if (!coupon || !coupon.isActive) continue;
+    const now = new Date();
+    if (coupon.expiresAt && coupon.expiresAt < now) continue;
+    if (coupon.startsAt && coupon.startsAt > now) continue;
+    if (coupon.usageLimit != null && coupon.usedCount >= coupon.usageLimit) continue;
 
-      if (!isExpired && !notStarted && !overLimit) {
-        couponCode = coupon.code;
-        couponType = coupon.type;
+    const hasCategories = (coupon.applicableCategories ?? []).length > 0;
+    const hasBrands = (coupon.applicableBrands ?? []).length > 0;
+    const eligibleItems = (hasCategories || hasBrands)
+      ? cartItems.filter(item => {
+          const catMatch = !hasCategories || (coupon.applicableCategories ?? []).includes(item.product.categoryId ?? -1);
+          const brandMatch = !hasBrands || (coupon.applicableBrands ?? []).includes(item.product.brandId ?? -1);
+          return catMatch && brandMatch;
+        })
+      : cartItems;
 
-        // Determine eligible items (category / brand restrictions)
-        const hasCategories = (coupon.applicableCategories ?? []).length > 0;
-        const hasBrands = (coupon.applicableBrands ?? []).length > 0;
+    const scope = eligibleItems.length < cartItems.length ? "partial" : "all";
+    const eligibleSubtotal = eligibleItems.reduce((sum, i) => sum + i.subtotal, 0);
 
-        const eligibleItems = (hasCategories || hasBrands)
-          ? cartItems.filter(item => {
-              const categoryMatch = !hasCategories || (coupon.applicableCategories ?? []).includes(item.product.categoryId ?? -1);
-              const brandMatch = !hasBrands || (coupon.applicableBrands ?? []).includes(item.product.brandId ?? -1);
-              return categoryMatch && brandMatch;
-            })
-          : cartItems;
-
-        couponScope = eligibleItems.length < cartItems.length ? "partial" : "all";
-        const eligibleSubtotal = eligibleItems.reduce((sum, i) => sum + i.subtotal, 0);
-
-        if (coupon.type === "percentage") {
-          couponDiscount = eligibleSubtotal * (parseFloat(coupon.value) / 100);
-          if (coupon.maxDiscountAmount) {
-            couponDiscount = Math.min(couponDiscount, parseFloat(coupon.maxDiscountAmount));
-          }
-        } else if (coupon.type === "fixed") {
-          couponDiscount = Math.min(parseFloat(coupon.value), eligibleSubtotal);
-        } else if (coupon.type === "free_shipping") {
-          couponDiscount = baseShipping; // discount equals the shipping cost
-        }
-      }
+    let discount = 0;
+    if (coupon.type === "percentage") {
+      discount = eligibleSubtotal * (parseFloat(coupon.value) / 100);
+      if (coupon.maxDiscountAmount) discount = Math.min(discount, parseFloat(coupon.maxDiscountAmount));
+    } else if (coupon.type === "fixed") {
+      discount = Math.min(parseFloat(coupon.value), eligibleSubtotal);
+    } else if (coupon.type === "free_shipping") {
+      discount = baseShipping;
     }
+
+    couponDiscount += discount;
+    appliedCoupons.push({ code: coupon.code, discount, type: coupon.type, scope });
   }
+
+  // Back-compat single-coupon fields
+  const couponCode = appliedCoupons.length > 0 ? appliedCoupons.map(c => c.code).join(", ") : null;
+  const couponScope = appliedCoupons.length === 1 ? appliedCoupons[0].scope : (appliedCoupons.length > 1 ? "partial" : null);
+  const couponType = appliedCoupons.length === 1 ? appliedCoupons[0].type : null;
 
   const shipping = baseShipping;
 
@@ -165,6 +165,7 @@ async function buildCart(sessionId: string, callerUserId?: number | null) {
     couponDiscount,
     couponScope,
     couponType,
+    appliedCoupons,
     loyaltyPointsUsed,
     loyaltyDiscount,
     userAvailablePoints,
@@ -294,8 +295,31 @@ router.post("/cart/coupon", async (req, res): Promise<void> => {
     }
   }
 
+  // Stackability check — if there are already coupons applied, both must be stackable
+  const existingCouponRows = await db.select().from(cartCouponsTable).where(eq(cartCouponsTable.sessionId, sessionId));
+  if (existingCouponRows.length > 0) {
+    // Reject if this coupon is not stackable
+    if (!coupon.isStackable) {
+      res.status(400).json({ error: "קופון זה אינו ניתן לשילוב עם קופונים אחרים" });
+      return;
+    }
+    // Reject if any existing coupon is not stackable
+    for (const row of existingCouponRows) {
+      if (row.couponCode === upperCode) {
+        res.status(400).json({ error: "קופון זה כבר מופעל בעגלה" });
+        return;
+      }
+      const [existing] = await db.select({ isStackable: couponsTable.isStackable })
+        .from(couponsTable).where(eq(couponsTable.code, row.couponCode));
+      if (existing && !existing.isStackable) {
+        res.status(400).json({ error: `הקופון ${row.couponCode} אינו ניתן לשילוב עם קופונים נוספים` });
+        return;
+      }
+    }
+  }
+
   await db.insert(cartCouponsTable).values({ sessionId, couponCode: upperCode })
-    .onConflictDoUpdate({ target: cartCouponsTable.sessionId, set: { couponCode: upperCode } });
+    .onConflictDoNothing();
 
   const cart = await buildCart(sessionId);
   res.json(cart);
@@ -303,7 +327,15 @@ router.post("/cart/coupon", async (req, res): Promise<void> => {
 
 router.delete("/cart/coupon", async (req, res): Promise<void> => {
   const sessionId = getSessionId(req as Parameters<typeof getSessionId>[0]);
-  await db.delete(cartCouponsTable).where(eq(cartCouponsTable.sessionId, sessionId));
+  const code = (req.query.code ?? req.body?.code) as string | undefined;
+  if (code) {
+    const upperCode = String(code).toUpperCase().trim();
+    await db.delete(cartCouponsTable).where(
+      and(eq(cartCouponsTable.sessionId, sessionId), eq(cartCouponsTable.couponCode, upperCode))
+    );
+  } else {
+    await db.delete(cartCouponsTable).where(eq(cartCouponsTable.sessionId, sessionId));
+  }
   const cart = await buildCart(sessionId);
   res.json(cart);
 });
