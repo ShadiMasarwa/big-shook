@@ -133,9 +133,10 @@ router.post("/auth/verify-otp", async (req, res): Promise<void> => {
   const { passwordHash, firstName, lastName, phone } = pending.userData;
   const [user] = await db.insert(usersTable).values({
     email, passwordHash, firstName, lastName, phone, role: "customer",
+    loyaltyPoints: 1000,
   }).returning();
   const token = generateToken(user.id);
-  res.status(201).json({ user: serializeUser(user), token });
+  res.status(201).json({ user: serializeUser(user), token, welcomePoints: 1000 });
 });
 
 router.post("/auth/register", async (req, res): Promise<void> => {
@@ -150,9 +151,10 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   const [user] = await db.insert(usersTable).values({
     email, passwordHash: hashPassword(password),
     firstName, lastName, phone: phone ?? null, role: "customer",
+    loyaltyPoints: 1000,
   }).returning();
   const token = generateToken(user.id);
-  res.status(201).json({ user: serializeUser(user), token });
+  res.status(201).json({ user: serializeUser(user), token, welcomePoints: 1000 });
 });
 
 router.post("/auth/login", async (req, res): Promise<void> => {

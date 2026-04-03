@@ -371,6 +371,7 @@ export default function Cart() {
                   <p className="text-muted-foreground text-xs text-center">הצטרפות חינמית — תיהנו מהיתרונות הבאים:</p>
                   <div className="space-y-2 pt-1">
                     {([
+                      { icon: <Gift className="h-3.5 w-3.5 text-rose-500" />, text: "1,000 נקודות מתנה בהרשמה — מיד בחשבון שלך" },
                       { icon: <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />, text: "מועדון נקודות — צבור הנחות על כל קנייה" },
                       { icon: <Percent className="h-3.5 w-3.5 text-green-600" />, text: "קופונים והנחות בלעדיות לחברים" },
                       { icon: <Zap className="h-3.5 w-3.5 text-blue-600" />, text: "קנייה מהירה עם שמירת פרטים" },

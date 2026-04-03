@@ -195,6 +195,7 @@ export default function Auth() {
   // Success
   const [showSuccess, setShowSuccess] = useState(false);
   const [successName, setSuccessName] = useState("");
+  const [welcomePoints, setWelcomePoints] = useState(0);
 
   if (user) {
     setLocation(user.role === "admin" ? "/admin" : redirectTo);
@@ -318,6 +319,7 @@ export default function Auth() {
       }
       localStorage.setItem("token", data.token);
       setSuccessName(data.user.firstName);
+      setWelcomePoints(data.welcomePoints ?? 0);
       setRegStep("done");
       setShowSuccess(true);
     } catch {
@@ -694,6 +696,16 @@ export default function Auth() {
           <h2 className="text-2xl font-black mb-2">
             ברוך הבא, {successName}! 🎉
           </h2>
+          {welcomePoints > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4">
+              <p className="text-amber-800 font-bold text-lg">
+                🎁 קיבלת {welcomePoints.toLocaleString("he-IL")} נקודות מתנה!
+              </p>
+              <p className="text-amber-600 text-sm mt-0.5">
+                הנקודות כבר זמינות בחשבונך לשימוש בקנייה הבאה
+              </p>
+            </div>
+          )}
           <p className="text-muted-foreground mb-6">
             ההרשמה הושלמה בהצלחה.
             <br />
