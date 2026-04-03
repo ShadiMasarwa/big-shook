@@ -87,15 +87,15 @@ export default function Checkout() {
                 <span className={`font-black text-lg ${newTierInfo.color}`}>עלית דרגה!</span>
               </div>
 
-              {/* Tier transition */}
-              <div className="flex items-center justify-center gap-4 mb-4">
-                <div className="flex flex-col items-center gap-1 opacity-60">
+              {/* Tier transition — forced LTR so old is left, new is right */}
+              <div className="flex items-center justify-center gap-4 mb-4" dir="ltr">
+                <div className="flex flex-col items-center gap-1 opacity-50">
                   <span className="text-3xl">{oldTierInfo.icon}</span>
                   <span className={`text-sm font-bold ${TIER_INFO[tierUpgrade.from]?.color}`}>{oldTierInfo.label}</span>
                 </div>
-                <div className={`flex-1 h-0.5 ${newTierInfo.border.replace("border-", "bg-")} relative`}>
-                  <div className={`absolute inset-y-0 left-0 right-0 ${newTierInfo.border.replace("border-", "bg-")}`} />
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-lg">→</span>
+                <div className="flex-1 relative flex items-center justify-center">
+                  <div className={`absolute inset-y-1/2 left-0 right-0 h-0.5 ${newTierInfo.border.replace("border-", "bg-")}`} />
+                  <span className="relative text-lg z-10 bg-transparent">→</span>
                 </div>
                 <div className="flex flex-col items-center gap-1">
                   <span className="text-4xl drop-shadow-sm">{newTierInfo.icon}</span>
@@ -106,14 +106,6 @@ export default function Checkout() {
               <p className={`text-sm font-medium ${newTierInfo.color}`}>
                 כעת אתה חבר בדרגת <span className="font-black">{newTierInfo.label}</span> — נהנה מהטבות משופרות!
               </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className={`mt-3 border ${newTierInfo.border} ${newTierInfo.color} hover:${newTierInfo.bg}`}
-                asChild
-              >
-                <Link href="/loyalty">גלה את ההטבות שלך</Link>
-              </Button>
             </div>
           )}
 
