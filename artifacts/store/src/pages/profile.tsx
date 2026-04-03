@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
 import {
   User, Star, Package, ChevronLeft, CheckCircle, Loader2,
-  MapPin, Phone, Medal, ShoppingBag,
+  MapPin, Phone, Medal, ShoppingBag, Coins,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -47,11 +48,25 @@ const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondar
   cancelled:  { label: "בוטל",     variant: "destructive" },
 };
 
+interface LoyaltyTierDef {
+  name: string; nameHe: string; minSpent: number;
+  shekelPerPoint: number; color: string; icon: string; sortOrder: number;
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function Profile() {
   const { user, refreshUser } = useAuth() as any;
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+
+  const { data: tierDefs } = useQuery<LoyaltyTierDef[]>({
+    queryKey: ["loyalty-tiers"],
+    queryFn: async () => {
+      const res = await fetch("/api/loyalty/tiers");
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
   // Form state — mirrors editable fields
   const [firstName, setFirstName]     = useState("");
@@ -110,6 +125,12 @@ export default function Profile() {
   const progressPct = nextTier
     ? Math.min(100, (((user.loyaltyPoints ?? 0) - tierInfo.min) / (nextTier.min - tierInfo.min)) * 100)
     : 100;
+
+  // Look up this user's per-tier exchange rate from the DB
+  const currentTierName = user.loyaltyTier ?? "bronze";
+  const currentTierDef = tierDefs?.find(t => t.name === currentTierName);
+  const shekelPerPoint = currentTierDef?.shekelPerPoint ?? 0.01;
+  const valueOf1000Points = (1000 * shekelPerPoint).toFixed(2);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -311,6 +332,19 @@ export default function Profile() {
               {!nextTier && (
                 <p className="text-center text-sm text-purple-600 font-bold mt-2">✨ הגעת לדרגה הגבוהה ביותר!</p>
               )}
+
+              {/* Exchange rate for this tier */}
+              <div className="mt-4 rounded-xl bg-muted/60 px-4 py-3 flex items-center gap-3">
+                <Coins className={`h-5 w-5 shrink-0 ${tierInfo.color}`} />
+                <div className="flex-1 text-sm leading-tight">
+                  <span className="text-muted-foreground">שווי 1,000 נקודות בדרגת </span>
+                  <span className={`font-bold ${tierInfo.color}`}>{tierInfo.label}</span>
+                  <span className="text-muted-foreground">:</span>
+                  <span className="font-black text-foreground text-base mr-1">
+                    ₪{valueOf1000Points}
+                  </span>
+                </div>
+              </div>
 
               {/* Stats */}
               <div className="grid grid-cols-2 gap-3 mt-5 pt-4 border-t">
