@@ -19,17 +19,13 @@ interface Order {
   createdAt: string; items: { productName: string }[];
 }
 
-// ── Tier helpers ──────────────────────────────────────────────────────────────
-const TIERS = [
-  { name: "bronze", label: "ברונזה", min: 0,    next: 500,  color: "text-orange-700",  bg: "bg-orange-100" },
-  { name: "silver", label: "כסף",    min: 500,  next: 2000, color: "text-slate-600",   bg: "bg-slate-100" },
-  { name: "gold",   label: "זהב",    min: 2000, next: 5000, color: "text-amber-600",   bg: "bg-amber-100" },
-  { name: "vip",    label: "VIP",    min: 5000, next: null, color: "text-purple-700",  bg: "bg-purple-100" },
-];
-
-function getTierInfo(points: number) {
-  return TIERS.slice().reverse().find(t => points >= t.min) ?? TIERS[0];
-}
+// ── Tier display config ────────────────────────────────────────────────────────
+const TIER_DISPLAY: Record<string, { label: string; color: string; bg: string }> = {
+  bronze: { label: "ברונזה", color: "text-orange-700", bg: "bg-orange-100" },
+  silver: { label: "כסף",    color: "text-slate-600",  bg: "bg-slate-100" },
+  gold:   { label: "זהב",    color: "text-amber-600",  bg: "bg-amber-100" },
+  vip:    { label: "VIP",    color: "text-purple-700", bg: "bg-purple-100" },
+};
 
 function formatPrice(n: number) {
   return new Intl.NumberFormat("he-IL", { style: "currency", currency: "ILS", maximumFractionDigits: 0 }).format(n);
@@ -120,15 +116,23 @@ export default function Profile() {
     );
   }
 
-  const tierInfo = getTierInfo(user.loyaltyPoints ?? 0);
-  const nextTier = TIERS.find(t => t.min > (user.loyaltyPoints ?? 0));
-  const progressPct = nextTier
-    ? Math.min(100, (((user.loyaltyPoints ?? 0) - tierInfo.min) / (nextTier.min - tierInfo.min)) * 100)
+  // Compute effective tier from totalSpent + live DB thresholds (never trust stale loyaltyTier column)
+  const totalSpent = parseFloat(String(user.totalSpent ?? 0));
+  const sortedTierDefs = tierDefs ? [...tierDefs].sort((a, b) => b.minSpent - a.minSpent) : [];
+  const currentTierDef = sortedTierDefs.find(t => totalSpent >= t.minSpent) ?? sortedTierDefs[sortedTierDefs.length - 1];
+  const currentTierName = currentTierDef?.name ?? "bronze";
+  const tierDisplay = TIER_DISPLAY[currentTierName] ?? TIER_DISPLAY.bronze;
+  const tierInfo = { ...tierDisplay, name: currentTierName };
+
+  // Progress to next tier
+  const nextTierDef = tierDefs
+    ? [...tierDefs].sort((a, b) => a.minSpent - b.minSpent).find(t => t.minSpent > totalSpent)
+    : undefined;
+  const progressPct = nextTierDef && currentTierDef
+    ? Math.min(100, ((totalSpent - currentTierDef.minSpent) / (nextTierDef.minSpent - currentTierDef.minSpent)) * 100)
     : 100;
 
-  // Look up this user's per-tier exchange rate from the DB
-  const currentTierName = user.loyaltyTier ?? "bronze";
-  const currentTierDef = tierDefs?.find(t => t.name === currentTierName);
+  // Exchange rate for 1,000 points at the user's current tier
   const shekelPerPoint = currentTierDef?.shekelPerPoint ?? 0.01;
   const valueOf1000Points = (1000 * shekelPerPoint).toFixed(2);
 
@@ -314,7 +318,7 @@ export default function Profile() {
               </div>
 
               {/* Progress bar */}
-              {nextTier && (
+              {nextTierDef && currentTierDef && (
                 <>
                   <div className="h-2 bg-muted rounded-full overflow-hidden mb-2">
                     <div
@@ -324,12 +328,14 @@ export default function Profile() {
                   </div>
                   <div className="flex justify-between text-xs text-muted-foreground">
                     <span>{tierInfo.label}</span>
-                    <span>{(nextTier.min - (user.loyaltyPoints ?? 0)).toLocaleString("he-IL")} נקודות לדרגת {TIERS.find(t => t.name === nextTier.name)?.label}</span>
+                    <span>
+                      עוד {formatPrice(nextTierDef.minSpent - totalSpent)} לדרגת {TIER_DISPLAY[nextTierDef.name]?.label ?? nextTierDef.nameHe}
+                    </span>
                   </div>
                 </>
               )}
 
-              {!nextTier && (
+              {!nextTierDef && (
                 <p className="text-center text-sm text-purple-600 font-bold mt-2">✨ הגעת לדרגה הגבוהה ביותר!</p>
               )}
 
