@@ -135,9 +135,12 @@ export default function Cart() {
 
   const appliedCoupons: Array<{ code: string; discount: number; type: string; scope: string }> = (cart as any).appliedCoupons ?? [];
   const userAvailablePoints: number = (cart as any).userAvailablePoints ?? 0;
+  const maxRedeemablePoints: number = (cart as any).maxRedeemablePoints ?? 0;
+  const loyaltyPointsUsed: number = (cart as any).loyaltyPointsUsed ?? 0;
   const loyaltyDiscount: number = (cart as any).loyaltyDiscount ?? 0;
   const shekelPerPoint: number = (cart as any).shekelPerPoint ?? 0.01;
   const minRedemptionPoints: number = (cart as any).minRedemptionPoints ?? 100;
+  const remainingPoints: number = userAvailablePoints - loyaltyPointsUsed;
 
   return (
     <Layout>
@@ -297,35 +300,52 @@ export default function Cart() {
               </div>
             </div>
 
-            {/* Loyalty points redemption — always visible when user has enough points */}
+            {/* Loyalty points redemption — show when user has enough points */}
             {userAvailablePoints >= minRedemptionPoints && (
               <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center gap-2 mb-1">
                   <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
                   <span className="font-semibold text-sm">נקודות נאמנות</span>
-                  <span className="text-xs text-muted-foreground mr-auto">
-                    יתרה: <strong>{userAvailablePoints.toLocaleString("he-IL")}</strong> נק׳
-                  </span>
                 </div>
+
+                {/* Balance row: total and remaining after usage */}
+                <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                  <span>יתרה כוללת: <strong className="text-foreground">{userAvailablePoints.toLocaleString("he-IL")}</strong> נק׳</span>
+                  {loyaltyPointsUsed > 0 && (
+                    <span>לאחר מימוש: <strong className="text-amber-700">{remainingPoints.toLocaleString("he-IL")}</strong> נק׳</span>
+                  )}
+                </div>
+
+                {/* Max limit info */}
+                <div className="text-xs text-amber-700 bg-amber-100 rounded px-2 py-1.5 mb-3">
+                  ניתן לממש עד <strong>{maxRedeemablePoints.toLocaleString("he-IL")}</strong> נק׳ בהזמנה זו
+                  <span className="text-muted-foreground"> (עד 20% מסכום ההזמנה) = </span>
+                  <strong>₪{(maxRedeemablePoints * shekelPerPoint).toFixed(2)}</strong>
+                </div>
+
                 <p className="text-xs text-muted-foreground mb-3">
                   {Math.round(1 / shekelPerPoint).toLocaleString("he-IL")} נקודות = ₪1 · מינימום {minRedemptionPoints} נקודות
                 </p>
                 <div className="flex gap-2">
                   <Input
                     type="number"
-                    placeholder={`עד ${userAvailablePoints.toLocaleString("he-IL")} נק׳`}
+                    placeholder={`עד ${maxRedeemablePoints.toLocaleString("he-IL")} נק׳`}
                     value={loyaltyInput}
                     min={minRedemptionPoints}
-                    max={userAvailablePoints}
+                    max={maxRedeemablePoints}
                     step={minRedemptionPoints}
-                    onChange={e => setLoyaltyInput(e.target.value)}
+                    onChange={e => {
+                      const val = parseInt(e.target.value, 10);
+                      if (!e.target.value) { setLoyaltyInput(""); return; }
+                      setLoyaltyInput(String(Math.min(val, maxRedeemablePoints)));
+                    }}
                     onKeyDown={e => e.key === "Enter" && handleApplyLoyalty()}
                     className="text-sm"
                   />
                   <Button
                     variant="secondary"
                     onClick={handleApplyLoyalty}
-                    disabled={!loyaltyInput || loyaltyPending}
+                    disabled={!loyaltyInput || loyaltyPending || parseInt(loyaltyInput) > maxRedeemablePoints}
                     className="shrink-0"
                   >
                     {loyaltyPending ? "..." : "הפעל"}

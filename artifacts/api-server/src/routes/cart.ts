@@ -127,6 +127,7 @@ async function buildCart(sessionId: string, callerUserId?: number | null) {
   let loyaltyPointsUsed = 0;
   let loyaltyDiscount = 0;
   let userAvailablePoints = 0;
+  let maxRedeemablePoints = 0;
   let shekelPerPoint = 0.01;
   let minRedemptionPoints = 100;
 
@@ -144,11 +145,13 @@ async function buildCart(sessionId: string, callerUserId?: number | null) {
       // Use the per-tier exchange rate for this user's tier
       shekelPerPoint = await getShekelPerPointForTier(user.loyaltyTier ?? "bronze");
 
+      // Max points allowed by the 20% rule (capped also by what user actually has)
+      const maxDiscountFromPercent = (subtotal - couponDiscount) * (maxRedemptionPercent / 100);
+      maxRedeemablePoints = Math.min(user.loyaltyPoints, Math.floor(maxDiscountFromPercent / shekelPerPoint));
+
       if (loyaltyRow) {
         const requestedPoints = Math.min(loyaltyRow.pointsToUse, user.loyaltyPoints);
-        const maxDiscountFromPercent = (subtotal - couponDiscount) * (maxRedemptionPercent / 100);
-        const maxPoints = Math.floor(maxDiscountFromPercent / shekelPerPoint);
-        const clampedPoints = Math.min(requestedPoints, maxPoints);
+        const clampedPoints = Math.min(requestedPoints, maxRedeemablePoints);
         loyaltyPointsUsed = clampedPoints;
         loyaltyDiscount = Math.round(clampedPoints * shekelPerPoint * 100) / 100;
       }
@@ -171,6 +174,7 @@ async function buildCart(sessionId: string, callerUserId?: number | null) {
     loyaltyPointsUsed,
     loyaltyDiscount,
     userAvailablePoints,
+    maxRedeemablePoints,
     shekelPerPoint,
     minRedemptionPoints,
     itemCount: cartItems.reduce((sum, i) => sum + i.quantity, 0),
