@@ -51,9 +51,13 @@ export default function Cart() {
     setLoyaltyPending(true);
     try {
       const sid = localStorage.getItem("sessionId") ?? "default-session";
+      const token = localStorage.getItem("token");
       const res = await fetch("/api/cart/loyalty", {
         method: "DELETE",
-        headers: { "x-session-id": sid },
+        headers: {
+          "x-session-id": sid,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
       const data = await res.json();
       if (!res.ok) { queryClient.invalidateQueries({ queryKey: getGetCartQueryKey() }); return; }
