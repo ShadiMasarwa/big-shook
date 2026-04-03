@@ -217,13 +217,31 @@ router.patch("/orders/:id/status", async (req, res): Promise<void> => {
   const [current] = await db.select().from(ordersTable).where(eq(ordersTable.id, id));
   if (!current) { res.status(404).json({ error: "הזמנה לא נמצאה" }); return; }
 
-  // ── Loyalty & spent reversal on cancel / refund ──────────────────────────
-  const isNewlyCancelled =
+  // ── Mark all active items as cancelled / refunded ────────────────────────
+  const isBecomingTerminal =
     ["cancelled", "refunded"].includes(status) &&
-    !["cancelled", "refunded"].includes(current.status) &&
-    current.userId != null;
+    !["cancelled", "refunded"].includes(current.status);
 
-  if (isNewlyCancelled) {
+  if (isBecomingTerminal) {
+    const allItems = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, id));
+    const itemCancelledAt = new Date().toISOString();
+    await Promise.all(
+      allItems
+        .filter(it => !["cancelled", "refunded"].includes(it.itemStatus))
+        .map(it => {
+          const hist = (Array.isArray(it.itemStatusHistory) ? it.itemStatusHistory : []) as { status: string; changedAt: string }[];
+          return db.update(orderItemsTable)
+            .set({
+              itemStatus: status as "cancelled" | "refunded",
+              itemStatusHistory: [...hist, { status, changedAt: itemCancelledAt }],
+            })
+            .where(eq(orderItemsTable.id, it.id));
+        })
+    );
+  }
+
+  // ── Loyalty & spent reversal (registered users only) ─────────────────────
+  if (isBecomingTerminal && current.userId != null) {
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, current.userId!));
     if (user) {
       const orderTotal   = parseFloat(current.total);
