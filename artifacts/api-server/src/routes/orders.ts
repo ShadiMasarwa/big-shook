@@ -216,6 +216,48 @@ router.patch("/orders/:id/status", async (req, res): Promise<void> => {
   const { status, notes } = req.body;
   const [current] = await db.select().from(ordersTable).where(eq(ordersTable.id, id));
   if (!current) { res.status(404).json({ error: "הזמנה לא נמצאה" }); return; }
+
+  // ── Loyalty & spent reversal on cancel / refund ──────────────────────────
+  const isNewlyCancelled =
+    ["cancelled", "refunded"].includes(status) &&
+    !["cancelled", "refunded"].includes(current.status) &&
+    current.userId != null;
+
+  if (isNewlyCancelled) {
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, current.userId!));
+    if (user) {
+      const orderTotal   = parseFloat(current.total);
+      const pointsUsed   = current.loyaltyPointsUsed;   // used when buying → refund
+      const pointsEarned = current.loyaltyPointsEarned; // earned from order → reverse
+      const newSpent     = Math.max(0, parseFloat(user.totalSpent) - orderTotal);
+      const newTier      = await getTierBySpent(newSpent);
+      const newPoints    = Math.max(0, user.loyaltyPoints + pointsUsed - pointsEarned);
+
+      if (pointsUsed > 0) {
+        await db.insert(loyaltyTransactionsTable).values({
+          userId: current.userId!, points: pointsUsed,
+          type: "earned",
+          reason: `זיכוי נקודות ששומשו בהזמנה #${current.orderNumber} (${status === "cancelled" ? "ביטול" : "זיכוי"})`,
+          orderId: current.id,
+        });
+      }
+      if (pointsEarned > 0) {
+        await db.insert(loyaltyTransactionsTable).values({
+          userId: current.userId!, points: -pointsEarned,
+          type: "redeemed",
+          reason: `ביטול נקודות שנצברו בהזמנה #${current.orderNumber}`,
+          orderId: current.id,
+        });
+      }
+      await db.update(usersTable).set({
+        loyaltyPoints: newPoints,
+        loyaltyTier: newTier,
+        totalSpent: String(newSpent),
+        ordersCount: Math.max(0, user.ordersCount - 1),
+      }).where(eq(usersTable.id, current.userId!));
+    }
+  }
+
   const history = (Array.isArray(current.statusHistory) ? current.statusHistory : []) as { status: string; changedAt: string }[];
   const newHistory = [...history, { status, changedAt: new Date().toISOString() }];
   const updateData: Record<string, unknown> = { status, statusHistory: newHistory };
@@ -230,9 +272,64 @@ router.patch("/orders/:orderId/items/:itemId/status", async (req, res): Promise<
   const itemId = parseInt(req.params.itemId, 10);
   const { itemStatus } = req.body;
   if (!itemStatus) { res.status(400).json({ error: "itemStatus נדרש" }); return; }
+
   const [current] = await db.select().from(orderItemsTable)
     .where(and(eq(orderItemsTable.id, itemId), eq(orderItemsTable.orderId, orderId)));
   if (!current) { res.status(404).json({ error: "פריט הזמנה לא נמצא" }); return; }
+
+  // ── Partial loyalty & spent reversal on item cancel / refund ─────────────
+  const isNewlyCancelled =
+    ["cancelled", "refunded"].includes(itemStatus) &&
+    !["cancelled", "refunded"].includes(current.itemStatus);
+
+  if (isNewlyCancelled) {
+    const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, orderId));
+    if (order && order.userId) {
+      const [user] = await db.select().from(usersTable).where(eq(usersTable.id, order.userId));
+      if (user) {
+        const itemSubtotal  = parseFloat(current.subtotal);
+        const orderSubtotal = parseFloat(order.subtotal);
+        const orderTotal    = parseFloat(order.total);
+
+        // Proportion of this item relative to the pre-discount subtotal
+        const proportion = orderSubtotal > 0 ? itemSubtotal / orderSubtotal : 0;
+
+        // Actual amount this item contributed to the paid total (post-discount)
+        const itemPaidValue = proportion * orderTotal;
+
+        // Proportional loyalty points to reverse
+        const pointsUsedRefund   = Math.round(order.loyaltyPointsUsed   * proportion);
+        const pointsEarnedRevert = Math.round(order.loyaltyPointsEarned * proportion);
+
+        const newPoints = Math.max(0, user.loyaltyPoints + pointsUsedRefund - pointsEarnedRevert);
+        const newSpent  = Math.max(0, parseFloat(user.totalSpent) - itemPaidValue);
+        const newTier   = await getTierBySpent(newSpent);
+
+        if (pointsUsedRefund > 0) {
+          await db.insert(loyaltyTransactionsTable).values({
+            userId: order.userId, points: pointsUsedRefund,
+            type: "earned",
+            reason: `זיכוי נקודות ששומשו עבור פריט #${itemId} בהזמנה #${order.orderNumber}`,
+            orderId: order.id,
+          });
+        }
+        if (pointsEarnedRevert > 0) {
+          await db.insert(loyaltyTransactionsTable).values({
+            userId: order.userId, points: -pointsEarnedRevert,
+            type: "redeemed",
+            reason: `ביטול נקודות שנצברו עבור פריט #${itemId} בהזמנה #${order.orderNumber}`,
+            orderId: order.id,
+          });
+        }
+        await db.update(usersTable).set({
+          loyaltyPoints: newPoints,
+          loyaltyTier: newTier,
+          totalSpent: String(newSpent),
+        }).where(eq(usersTable.id, order.userId));
+      }
+    }
+  }
+
   const history = (Array.isArray(current.itemStatusHistory) ? current.itemStatusHistory : []) as { status: string; changedAt: string }[];
   const newHistory = [...history, { status: itemStatus, changedAt: new Date().toISOString() }];
   const [item] = await db.update(orderItemsTable)
