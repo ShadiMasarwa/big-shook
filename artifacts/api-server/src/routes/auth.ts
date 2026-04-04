@@ -51,29 +51,31 @@ function generateOtp(): string {
 }
 
 async function sendOtpEmail(to: string, firstName: string, otp: string): Promise<boolean> {
-  const smtpHost = process.env.SMTP_HOST;
+  const smtpHost = process.env.SMTP_HOST ?? "smtp.hostinger.com";
   const smtpUser = process.env.SMTP_USER;
   const smtpPass = process.env.SMTP_PASS;
-  const smtpPort = parseInt(process.env.SMTP_PORT ?? "587", 10);
+  const smtpPort = parseInt(process.env.SMTP_PORT ?? "465", 10);
 
-  if (!smtpHost || !smtpUser || !smtpPass) {
+  if (!smtpUser || !smtpPass) {
     console.log(`[OTP DEV] ${to} → ${otp}`);
     return false;
   }
 
   const transporter = nodemailer.createTransport({
-    host: smtpHost, port: smtpPort,
-    secure: smtpPort === 465,
+    host: smtpHost,
+    port: smtpPort,
+    secure: true,
     auth: { user: smtpUser, pass: smtpPass },
+    tls: { rejectUnauthorized: false },
   });
 
   await transporter.sendMail({
-    from: `"טק-סטור" <${smtpUser}>`,
+    from: `"ביג-שווק" <${smtpUser}>`,
     to,
-    subject: "קוד האימות שלך לטק-סטור",
+    subject: "קוד האימות שלך לביג-שווק",
     html: `
       <div dir="rtl" style="font-family:sans-serif;max-width:480px;margin:auto;padding:24px">
-        <h2 style="color:#4f46e5">ברוכים הבאים לטק-סטור 👋</h2>
+        <h2 style="color:#2563eb">ברוכים הבאים לביג-שווק 👋</h2>
         <p>שלום ${firstName},</p>
         <p>קוד האימות שלך להשלמת ההרשמה:</p>
         <div style="font-size:40px;font-weight:bold;letter-spacing:12px;text-align:center;
