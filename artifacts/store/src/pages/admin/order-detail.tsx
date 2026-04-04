@@ -9,6 +9,7 @@ import { formatPrice } from "@/lib/utils";
 import {
   ArrowRight, Package, MapPin, User, ChevronRight, CheckCircle2, Circle,
   XCircle, AlertTriangle, Truck, Clock, RefreshCw, Star,
+  Phone, Mail, Globe, Info,
 } from "lucide-react";
 
 // ─── constants ─────────────────────────────────────────────────────────────
@@ -44,6 +45,20 @@ const STATUS_COLOR: Record<string, string> = {
 // ─── types ──────────────────────────────────────────────────────────────────
 interface StatusEntry { status: string; changedAt: string }
 
+interface SupplierInfo {
+  id: number;
+  companyName: string;
+  contactPerson: string | null;
+  phone1: string | null;
+  phone2: string | null;
+  email: string | null;
+  address: string | null;
+  city: string | null;
+  website: string | null;
+  taxId: string | null;
+  notes: string | null;
+}
+
 interface OrderItem {
   id: number;
   productId: number;
@@ -55,6 +70,7 @@ interface OrderItem {
   itemStatus: string;
   itemStatusHistory: StatusEntry[];
   productImages: string[];
+  supplier: SupplierInfo | null;
 }
 
 interface Order {
@@ -294,6 +310,72 @@ function ItemRow({ item, orderId, onUpdate }: {
             </div>
           )}
         </div>
+      </div>
+
+      {/* ── Supplier info ──────────────────────────────────── */}
+      <div className="mt-3 pt-3 border-t border-border">
+        {item.supplier ? (
+          <div className="bg-muted/50 rounded-md p-3 space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">פרטי ספק</p>
+            <div className="flex items-center gap-2">
+              <Truck className="h-3.5 w-3.5 text-primary shrink-0" />
+              <span className="text-sm font-bold">{item.supplier.companyName}</span>
+              {item.supplier.taxId && (
+                <span className="text-xs text-muted-foreground font-mono mr-1" dir="ltr">ח.פ. {item.supplier.taxId}</span>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs text-muted-foreground">
+              {item.supplier.contactPerson && (
+                <div className="flex items-center gap-1.5">
+                  <User className="h-3 w-3 shrink-0" />
+                  <span>{item.supplier.contactPerson}</span>
+                </div>
+              )}
+              {item.supplier.phone1 && (
+                <div className="flex items-center gap-1.5">
+                  <Phone className="h-3 w-3 shrink-0" />
+                  <a href={`tel:${item.supplier.phone1}`} className="hover:text-foreground transition-colors" dir="ltr">{item.supplier.phone1}</a>
+                  {item.supplier.phone2 && (
+                    <span className="text-border">/</span>
+                  )}
+                  {item.supplier.phone2 && (
+                    <a href={`tel:${item.supplier.phone2}`} className="hover:text-foreground transition-colors" dir="ltr">{item.supplier.phone2}</a>
+                  )}
+                </div>
+              )}
+              {item.supplier.email && (
+                <div className="flex items-center gap-1.5">
+                  <Mail className="h-3 w-3 shrink-0" />
+                  <a href={`mailto:${item.supplier.email}`} className="hover:text-foreground transition-colors" dir="ltr">{item.supplier.email}</a>
+                </div>
+              )}
+              {(item.supplier.address || item.supplier.city) && (
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="h-3 w-3 shrink-0" />
+                  <span>{[item.supplier.address, item.supplier.city].filter(Boolean).join(", ")}</span>
+                </div>
+              )}
+              {item.supplier.website && (
+                <div className="flex items-center gap-1.5 sm:col-span-2">
+                  <Globe className="h-3 w-3 shrink-0" />
+                  <a href={item.supplier.website.startsWith("http") ? item.supplier.website : `https://${item.supplier.website}`}
+                     target="_blank" rel="noopener noreferrer"
+                     className="hover:text-foreground transition-colors" dir="ltr">
+                    {item.supplier.website}
+                  </a>
+                </div>
+              )}
+              {item.supplier.notes && (
+                <div className="flex gap-1.5 sm:col-span-2">
+                  <Info className="h-3 w-3 shrink-0 mt-0.5" />
+                  <span className="text-muted-foreground/80 italic">{item.supplier.notes}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground/60 italic">לא משויך ספק לפריט זה</p>
+        )}
       </div>
     </div>
   );

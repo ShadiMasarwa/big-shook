@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
-import { db, ordersTable, orderItemsTable, cartItemsTable, cartCouponsTable, productsTable, usersTable, loyaltyTransactionsTable, couponsTable, couponUsagesTable } from "@workspace/db";
+import { db, ordersTable, orderItemsTable, cartItemsTable, cartCouponsTable, productsTable, usersTable, loyaltyTransactionsTable, couponsTable, couponUsagesTable, suppliersTable } from "@workspace/db";
 import { getSessionId, getUserId, buildCart } from "./cart.js";
 import { getTierBySpent } from "./loyalty.js";
 
@@ -9,18 +9,52 @@ const router: IRouter = Router();
 async function fetchItemsWithProductData(orderId: number) {
   const rawItems = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, orderId));
   if (rawItems.length === 0) return [];
+
   const productIds = [...new Set(rawItems.map(i => i.productId))];
-  const products = await db.select({ id: productsTable.id, images: productsTable.images, slug: productsTable.slug })
-    .from(productsTable).where(inArray(productsTable.id, productIds));
+
+  // Fetch product data including supplierId
+  const products = await db.select({
+    id: productsTable.id,
+    images: productsTable.images,
+    slug: productsTable.slug,
+    supplierId: productsTable.supplierId,
+  }).from(productsTable).where(inArray(productsTable.id, productIds));
+
   const productMap = new Map(products.map(p => [p.id, p]));
-  return rawItems.map(i => ({
-    ...i,
-    price: parseFloat(i.price),
-    subtotal: parseFloat(i.subtotal),
-    createdAt: i.createdAt.toISOString(),
-    productImages: productMap.get(i.productId)?.images ?? [],
-    productSlug: productMap.get(i.productId)?.slug ?? null,
-  }));
+
+  // Fetch all relevant suppliers in one query
+  const supplierIds = [...new Set(products.map(p => p.supplierId).filter((id): id is number => id != null))];
+  const suppliers = supplierIds.length > 0
+    ? await db.select({
+        id: suppliersTable.id,
+        companyName: suppliersTable.companyName,
+        contactPerson: suppliersTable.contactPerson,
+        phone1: suppliersTable.phone1,
+        phone2: suppliersTable.phone2,
+        email: suppliersTable.email,
+        address: suppliersTable.address,
+        city: suppliersTable.city,
+        website: suppliersTable.website,
+        taxId: suppliersTable.taxId,
+        notes: suppliersTable.notes,
+      }).from(suppliersTable).where(inArray(suppliersTable.id, supplierIds))
+    : [];
+
+  const supplierMap = new Map(suppliers.map(s => [s.id, s]));
+
+  return rawItems.map(i => {
+    const product = productMap.get(i.productId);
+    const supplier = product?.supplierId != null ? supplierMap.get(product.supplierId) ?? null : null;
+    return {
+      ...i,
+      price: parseFloat(i.price),
+      subtotal: parseFloat(i.subtotal),
+      createdAt: i.createdAt.toISOString(),
+      productImages: product?.images ?? [],
+      productSlug: product?.slug ?? null,
+      supplier,
+    };
+  });
 }
 
 function serializeOrder(order: typeof ordersTable.$inferSelect, items: any[], customerName?: string | null) {
