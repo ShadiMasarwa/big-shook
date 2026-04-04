@@ -379,6 +379,29 @@ export default function AdminOrderDetail() {
 
   const addr = order.shippingAddress as Record<string, string>;
 
+  // ── Effective financial summary (accounts for partially-cancelled items) ──
+  const isCancelledItem = (s: string) => s === "cancelled" || s === "refunded";
+  const activeItems    = order.items.filter(it => !isCancelledItem(it.itemStatus));
+  const cancelledItems = order.items.filter(it => isCancelledItem(it.itemStatus));
+  const hasCancelled   = cancelledItems.length > 0;
+
+  const orderSubtotal  = Number(order.subtotal) || 0;
+  const orderTotal     = Number(order.total)    || 0;
+  const orderShipping  = Number(order.shipping) || 0;
+  const couponDiscount = Number(order.couponDiscount) || 0;
+  const loyaltyDiscount = Number(order.loyaltyPointsUsedAmount ?? order.discount) || 0;
+
+  const activeSubtotal = activeItems.reduce((s, it) => s + Number(it.subtotal), 0);
+  const cancelledSubtotal = cancelledItems.reduce((s, it) => s + Number(it.subtotal), 0);
+
+  const proportion = orderSubtotal > 0 ? activeSubtotal / orderSubtotal : 0;
+  const activeCoupon  = hasCancelled ? couponDiscount  * proportion : couponDiscount;
+  const activeLoyalty = hasCancelled ? loyaltyDiscount * proportion : loyaltyDiscount;
+  const discountedPortion = orderTotal - orderShipping;
+  const effectiveTotal = activeItems.length > 0
+    ? proportion * discountedPortion + orderShipping
+    : 0;
+
   return (
     <AdminLayout>
       <div className="max-w-5xl mx-auto" dir="rtl">
@@ -534,31 +557,54 @@ export default function AdminOrderDetail() {
             <div className="bg-card border border-border rounded-xl p-4">
               <h3 className="text-sm font-semibold mb-3">סיכום כספי</h3>
               <div className="space-y-2 text-sm">
+
+                {/* Subtotal — show original if all active, otherwise show active portion */}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">סכום ביניים</span>
-                  <span>{formatPrice(order.subtotal)}</span>
+                  <span>{formatPrice(hasCancelled ? activeSubtotal : orderSubtotal)}</span>
                 </div>
-                {order.couponDiscount > 0 && (
+
+                {/* Cancelled items deduction */}
+                {hasCancelled && cancelledSubtotal > 0 && (
+                  <div className="flex justify-between text-red-500">
+                    <span>פריטים שבוטלו ({cancelledItems.length})</span>
+                    <span>-{formatPrice(cancelledSubtotal)}</span>
+                  </div>
+                )}
+
+                {/* Coupon — proportional if partial cancellation */}
+                {activeCoupon > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>הנחת קופון {order.couponCode && `(${order.couponCode})`}</span>
-                    <span>-{formatPrice(order.couponDiscount)}</span>
+                    <span>-{formatPrice(activeCoupon)}</span>
                   </div>
                 )}
-                {order.discount > 0 && (
+
+                {/* Loyalty points — proportional if partial cancellation */}
+                {activeLoyalty > 0 && (
                   <div className="flex justify-between text-amber-600">
                     <span>מימוש נקודות</span>
-                    <span>-{formatPrice(order.discount)}</span>
+                    <span>-{formatPrice(activeLoyalty)}</span>
                   </div>
                 )}
-                {order.shipping > 0 && (
+
+                {orderShipping > 0 && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">משלוח</span>
-                    <span>{formatPrice(order.shipping)}</span>
+                    <span>{formatPrice(orderShipping)}</span>
                   </div>
                 )}
+
                 <div className="flex justify-between font-bold text-base border-t border-border pt-2 mt-2">
                   <span>סה"כ לתשלום</span>
-                  <span className="text-primary">{formatPrice(order.total)}</span>
+                  <div className="text-left">
+                    <span className="text-primary">{formatPrice(effectiveTotal)}</span>
+                    {hasCancelled && (
+                      <p className="text-xs text-muted-foreground font-normal line-through">
+                        {formatPrice(orderTotal)}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
