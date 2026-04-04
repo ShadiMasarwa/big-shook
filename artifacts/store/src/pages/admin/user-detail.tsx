@@ -174,7 +174,7 @@ export default function AdminUserDetail() {
                       return (
                         <TableRow key={order.id}>
                           <TableCell className="font-mono font-medium text-primary">
-                            <Link href={`/admin/orders`} className="hover:underline">
+                            <Link href={`/admin/orders/${order.id}`} className="hover:underline font-mono">
                               #{order.orderNumber}
                             </Link>
                           </TableCell>
