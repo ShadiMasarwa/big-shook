@@ -196,5 +196,37 @@ router.get("/auth/me", async (req, res): Promise<void> => {
   }
 });
 
+router.put("/auth/profile", async (req, res): Promise<void> => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) { res.status(401).json({ error: "לא מחובר" }); return; }
+  try {
+    const token = authHeader.replace("Bearer ", "");
+    const decoded = Buffer.from(token, "base64").toString("utf-8");
+    const userId = parseInt(decoded.split(":")[0], 10);
+    const [existing] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    if (!existing) { res.status(401).json({ error: "משתמש לא נמצא" }); return; }
+
+    const { firstName, lastName, phone, city, street, houseNumber, zipCode, addressNote } = req.body;
+    if (!firstName || !lastName || !phone || !city || !street || !houseNumber) {
+      res.status(400).json({ error: "יש למלא את כל השדות הנדרשים" }); return;
+    }
+
+    const [updated] = await db.update(usersTable).set({
+      firstName: String(firstName).trim(),
+      lastName: String(lastName).trim(),
+      phone: String(phone).trim(),
+      city: String(city).trim(),
+      street: String(street).trim(),
+      houseNumber: String(houseNumber).trim(),
+      zipCode: zipCode ? String(zipCode).trim() : null,
+      addressNote: addressNote ? String(addressNote).trim() : null,
+    }).where(eq(usersTable.id, userId)).returning();
+
+    res.json(serializeUser(updated));
+  } catch {
+    res.status(500).json({ error: "שגיאה בשמירת הפרטים" });
+  }
+});
+
 export { serializeUser };
 export default router;

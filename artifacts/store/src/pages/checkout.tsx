@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useCreateOrder } from "@workspace/api-client-react";
 import { toast } from "@/components/ui/use-toast";
 import { formatPrice } from "@/lib/utils";
-import { CheckCircle2, TrendingUp } from "lucide-react";
+import { CheckCircle2, Save, TrendingUp } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
 interface TierUpgrade { from: string; to: string }
@@ -41,6 +41,38 @@ export default function Checkout() {
     zipCode: user?.zipCode || "",
     addressNote: user?.addressNote || "",
   });
+
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  const handleSaveProfile = async () => {
+    const { firstName, lastName, phone, city, street, houseNumber, zipCode, addressNote } = shipping;
+    if (!firstName || !lastName || !phone || !city || !street || !houseNumber) {
+      toast({ title: "שדות חסרים", description: "יש למלא את כל השדות הנדרשים לפני השמירה", variant: "destructive" });
+      return;
+    }
+    const token = localStorage.getItem("token");
+    if (!token) {
+      toast({ title: "לא מחובר", description: "יש להתחבר כדי לשמור פרטים", variant: "destructive" });
+      return;
+    }
+    setSavingProfile(true);
+    try {
+      const res = await fetch("/api/auth/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ firstName, lastName, phone, city, street, houseNumber, zipCode, addressNote }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "שגיאה בשמירה");
+      }
+      toast({ title: "הפרטים נשמרו", description: "פרטי המשלוח עודכנו בהצלחה בחשבונך" });
+    } catch (err: any) {
+      toast({ title: "שגיאה בשמירה", description: err.message || "אירעה שגיאה, נסה שנית", variant: "destructive" });
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault();
@@ -192,7 +224,22 @@ export default function Checkout() {
                   <Label>הערות לכתובת <span className="text-muted-foreground text-xs">(אופציונלי)</span></Label>
                   <Input value={shipping.addressNote} onChange={(e) => setShipping({...shipping, addressNote: e.target.value})} placeholder="קומה, דירה, הוראות כניסה..." />
                 </div>
-                <Button type="submit" size="lg" className="w-full sm:w-auto mt-4 font-bold">המשך לתשלום</Button>
+                <div className="flex flex-wrap items-center gap-3 mt-4">
+                  <Button type="submit" size="lg" className="font-bold">המשך לתשלום</Button>
+                  {user && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="lg"
+                      disabled={savingProfile}
+                      onClick={handleSaveProfile}
+                      className="gap-2"
+                    >
+                      <Save className="h-4 w-4" />
+                      {savingProfile ? "שומר..." : "שמור פרטים לחשבון"}
+                    </Button>
+                  )}
+                </div>
               </form>
             ) : (
               <div className="text-sm text-muted-foreground space-y-0.5">
