@@ -76,10 +76,14 @@ export function Layout({ children }: { children: ReactNode }) {
 
           <Link
             href="/"
-            className="shrink-0"
+            className="shrink-0 flex items-center gap-2"
             data-testid="link-logo"
           >
             <img src="/logo.gif" alt="ביג-שווק" className="h-12 w-auto" />
+            <div className="flex flex-col leading-tight">
+              <span className="text-xl font-black text-primary">ביג שווק</span>
+              <span className="text-xs text-muted-foreground font-medium">חנות מבצעים</span>
+            </div>
           </Link>
 
           {/* Desktop search */}
