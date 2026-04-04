@@ -3,8 +3,192 @@ import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { db, ordersTable, orderItemsTable, cartItemsTable, cartCouponsTable, productsTable, usersTable, loyaltyTransactionsTable, couponsTable, couponUsagesTable, suppliersTable } from "@workspace/db";
 import { getSessionId, getUserId, buildCart } from "./cart.js";
 import { getTierBySpent } from "./loyalty.js";
+import nodemailer from "nodemailer";
 
 const router: IRouter = Router();
+
+function formatPrice(n: number) {
+  return `₪${n.toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+async function sendOrderConfirmationEmail(
+  to: string,
+  firstName: string,
+  orderNumber: string,
+  orderDate: string,
+  items: Array<{ productName: string; quantity: number; price: number; subtotal: number }>,
+  subtotal: number,
+  couponCode: string | null,
+  couponDiscount: number,
+  loyaltyPointsUsed: number,
+  loyaltyDiscount: number,
+  shipping: number,
+  total: number,
+  loyaltyPointsEarned: number,
+  shippingAddress: Record<string, string>,
+): Promise<void> {
+  const smtpHost = process.env.SMTP_HOST ?? "smtp.hostinger.com";
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+  const smtpPort = parseInt(process.env.SMTP_PORT ?? "465", 10);
+
+  if (!smtpUser || !smtpPass) {
+    console.log(`[ORDER EMAIL DEV] Would send confirmation to ${to} for order ${orderNumber}`);
+    return;
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: true,
+    auth: { user: smtpUser, pass: smtpPass },
+    tls: { rejectUnauthorized: false },
+  });
+
+  const itemRows = items.map(item => `
+    <tr>
+      <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;text-align:right">${item.productName}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;text-align:center;color:#555">${item.quantity}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;text-align:center;color:#555">${formatPrice(item.price)}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;text-align:left;font-weight:600">${formatPrice(item.subtotal)}</td>
+    </tr>
+  `).join("");
+
+  const addrParts = [
+    shippingAddress.street && shippingAddress.houseNumber
+      ? `${shippingAddress.street} ${shippingAddress.houseNumber}`
+      : shippingAddress.street ?? "",
+    shippingAddress.city ?? "",
+    shippingAddress.zipCode ?? "",
+  ].filter(Boolean);
+  const addrLine = addrParts.join(", ");
+
+  const discountRows: string[] = [];
+  if (couponDiscount > 0) {
+    discountRows.push(`
+      <tr>
+        <td style="padding:6px 0;color:#555">הנחת קופון${couponCode ? ` (${couponCode})` : ""}</td>
+        <td style="padding:6px 0;text-align:left;color:#16a34a;font-weight:600">-${formatPrice(couponDiscount)}</td>
+      </tr>`);
+  }
+  if (loyaltyPointsUsed > 0) {
+    discountRows.push(`
+      <tr>
+        <td style="padding:6px 0;color:#555">מימוש נקודות (${loyaltyPointsUsed.toLocaleString("he-IL")} נקודות)</td>
+        <td style="padding:6px 0;text-align:left;color:#16a34a;font-weight:600">-${formatPrice(loyaltyDiscount)}</td>
+      </tr>`);
+  }
+
+  const html = `
+    <div dir="rtl" style="font-family:'Segoe UI',Arial,sans-serif;background:#f8fafc;padding:32px 0">
+      <div style="max-width:600px;margin:auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.08)">
+
+        <!-- Header -->
+        <div style="background:#2563eb;padding:28px 32px;text-align:center">
+          <h1 style="margin:0;color:#fff;font-size:26px;letter-spacing:1px">ביג-שווק</h1>
+          <p style="margin:8px 0 0;color:#bfdbfe;font-size:14px">אישור הזמנה</p>
+        </div>
+
+        <!-- Greeting -->
+        <div style="padding:28px 32px 0">
+          <h2 style="margin:0 0 8px;color:#1e293b;font-size:20px">תודה, ${firstName}! ✅</h2>
+          <p style="margin:0;color:#475569;font-size:15px">
+            ההזמנה שלך התקבלה בהצלחה ואנחנו מתחילים לטפל בה.
+          </p>
+        </div>
+
+        <!-- Order meta -->
+        <div style="padding:20px 32px">
+          <div style="background:#f1f5f9;border-radius:10px;padding:16px 20px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap">
+            <div>
+              <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">מספר הזמנה</div>
+              <div style="font-size:16px;font-weight:700;color:#1e293b;direction:ltr">${orderNumber}</div>
+            </div>
+            <div>
+              <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">תאריך</div>
+              <div style="font-size:15px;font-weight:600;color:#1e293b">${orderDate}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Items table -->
+        <div style="padding:0 32px">
+          <h3 style="margin:0 0 12px;color:#1e293b;font-size:15px">פרטי הזמנה</h3>
+          <table style="width:100%;border-collapse:collapse;font-size:14px">
+            <thead>
+              <tr style="background:#f8fafc">
+                <th style="padding:10px 12px;text-align:right;color:#64748b;font-weight:600;border-bottom:2px solid #e2e8f0">מוצר</th>
+                <th style="padding:10px 12px;text-align:center;color:#64748b;font-weight:600;border-bottom:2px solid #e2e8f0">כמות</th>
+                <th style="padding:10px 12px;text-align:center;color:#64748b;font-weight:600;border-bottom:2px solid #e2e8f0">מחיר</th>
+                <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;border-bottom:2px solid #e2e8f0">סה"כ</th>
+              </tr>
+            </thead>
+            <tbody>${itemRows}</tbody>
+          </table>
+        </div>
+
+        <!-- Totals -->
+        <div style="padding:16px 32px 24px">
+          <div style="margin-right:auto;max-width:280px;font-size:14px">
+            <table style="width:100%;border-collapse:collapse">
+              <tr>
+                <td style="padding:6px 0;color:#555">סכום ביניים</td>
+                <td style="padding:6px 0;text-align:left">${formatPrice(subtotal)}</td>
+              </tr>
+              ${discountRows.join("")}
+              <tr>
+                <td style="padding:6px 0;color:#555">משלוח</td>
+                <td style="padding:6px 0;text-align:left">${shipping === 0 ? '<span style="color:#16a34a">חינם</span>' : formatPrice(shipping)}</td>
+              </tr>
+              <tr style="border-top:2px solid #e2e8f0">
+                <td style="padding:10px 0 4px;font-weight:700;color:#1e293b;font-size:16px">סה"כ לתשלום</td>
+                <td style="padding:10px 0 4px;text-align:left;font-weight:700;color:#2563eb;font-size:16px">${formatPrice(total)}</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+
+        ${loyaltyPointsEarned > 0 ? `
+        <!-- Loyalty points -->
+        <div style="padding:0 32px 24px">
+          <div style="background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:14px 18px">
+            <span style="font-size:20px">⭐</span>
+            <span style="font-size:14px;font-weight:600;color:#854d0e;margin-right:8px">
+              צברת <strong>${loyaltyPointsEarned.toLocaleString("he-IL")}</strong> נקודות מהזמנה זו!
+            </span>
+          </div>
+        </div>` : ""}
+
+        <!-- Shipping address -->
+        <div style="padding:0 32px 28px">
+          <h3 style="margin:0 0 10px;color:#1e293b;font-size:15px">כתובת למשלוח</h3>
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 18px;font-size:14px;color:#475569;line-height:1.8">
+            <div style="font-weight:600;color:#1e293b">${[shippingAddress.firstName, shippingAddress.lastName].filter(Boolean).join(" ")}</div>
+            <div>${addrLine}</div>
+            ${shippingAddress.phone ? `<div>טלפון: <span dir="ltr">${shippingAddress.phone}</span></div>` : ""}
+            ${shippingAddress.addressNote ? `<div style="color:#94a3b8;font-style:italic">${shippingAddress.addressNote}</div>` : ""}
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="background:#f1f5f9;padding:20px 32px;text-align:center;border-top:1px solid #e2e8f0">
+          <p style="margin:0;font-size:13px;color:#94a3b8">
+            שאלות? דברו איתנו בטלפון 077-1234577 או השיבו למייל זה.
+          </p>
+          <p style="margin:8px 0 0;font-size:12px;color:#cbd5e1">© 2025 ביג-שווק | כל הזכויות שמורות</p>
+        </div>
+
+      </div>
+    </div>
+  `;
+
+  await transporter.sendMail({
+    from: `"ביג-שווק" <${smtpUser}>`,
+    to,
+    subject: `אישור הזמנה ${orderNumber} – ביג-שווק`,
+    html,
+  });
+}
 
 async function fetchItemsWithProductData(orderId: number) {
   const rawItems = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, orderId));
@@ -222,6 +406,37 @@ router.post("/orders", async (req, res): Promise<void> => {
   }
 
   const serializedItems = await fetchItemsWithProductData(order.id);
+
+  // Send confirmation email (fire-and-forget — does not block response)
+  if (order.userId) {
+    const [emailUser] = await db.select({ email: usersTable.email, firstName: usersTable.firstName })
+      .from(usersTable).where(eq(usersTable.id, order.userId));
+    if (emailUser) {
+      const emailItems = cartItems.map(ci => {
+        const p = productMap.get(ci.productId);
+        const price = p ? parseFloat(p.salePrice ?? p.price) : 0;
+        return { productName: p?.nameHe ?? "מוצר", quantity: ci.quantity, price, subtotal: price * ci.quantity };
+      });
+      const orderDate = new Date(order.createdAt).toLocaleDateString("he-IL", { year: "numeric", month: "long", day: "numeric" });
+      sendOrderConfirmationEmail(
+        emailUser.email,
+        emailUser.firstName,
+        order.orderNumber,
+        orderDate,
+        emailItems,
+        subtotal,
+        couponCode ?? null,
+        parseFloat(String(couponDiscount)),
+        loyaltyPointsUsed,
+        loyaltyDiscount,
+        shipping,
+        total,
+        loyaltyPointsEarned,
+        shippingAddress as Record<string, string>,
+      ).catch(err => console.error("[ORDER EMAIL]", err instanceof Error ? err.message : err));
+    }
+  }
+
   res.status(201).json({ ...serializeOrder(order, serializedItems), tierUpgrade });
 });
 
