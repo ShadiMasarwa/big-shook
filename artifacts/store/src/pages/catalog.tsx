@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useSearch } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/layout";
@@ -10,36 +10,43 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, X } from "lucide-react";
+import { Loader2, Search, X } from "lucide-react";
 
 export default function Catalog() {
   const [, navigate] = useLocation();
-  const rawSearch = useSearch(); // reactive to ?param changes
+  const rawSearch = useSearch();
 
   const urlParams = new URLSearchParams(rawSearch);
   const urlCategoryId = urlParams.get("categoryId") ? Number(urlParams.get("categoryId")) : null;
   const urlSearch = urlParams.get("q") ?? "";
 
-  // Filters that come from the URL — derived directly (no useState needed)
   const categoryId = urlCategoryId;
   const search = urlSearch;
 
-  // Filters that are local-only (not URL-driven)
   const [brandId, setBrandId] = useState<number | null>(null);
   const [minPrice, setMinPrice] = useState<number | null>(null);
   const [maxPrice, setMaxPrice] = useState<number | null>(null);
   const [inStock, setInStock] = useState<boolean>(false);
   const [sort, setSort] = useState<any>("popular");
-  const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState(urlSearch);
+
+  // Infinite scroll state
+  const [page, setPage] = useState(1);
+  const [allProducts, setAllProducts] = useState<any[]>([]);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   // Sync searchInput when URL search changes (e.g. from header)
   useEffect(() => {
     setSearchInput(urlSearch);
-    setPage(1);
   }, [rawSearch]);
 
-  const { data: productsData, isLoading } = useListProducts({
+  // Reset accumulated products + page whenever any filter changes
+  useEffect(() => {
+    setPage(1);
+    setAllProducts([]);
+  }, [categoryId, brandId, minPrice, maxPrice, inStock, sort, search]);
+
+  const { data: productsData, isLoading, isFetching } = useListProducts({
     categoryId: categoryId ?? undefined,
     brandId: brandId ?? undefined,
     minPrice: minPrice ?? undefined,
@@ -50,6 +57,33 @@ export default function Catalog() {
     limit: 12,
     search: search || undefined,
   });
+
+  // Append new page results to accumulated list
+  useEffect(() => {
+    if (!productsData?.products) return;
+    if (page === 1) {
+      setAllProducts(productsData.products);
+    } else {
+      setAllProducts(prev => [...prev, ...productsData.products]);
+    }
+  }, [productsData]);
+
+  const hasMore = productsData ? page < productsData.totalPages : false;
+
+  // IntersectionObserver — load next page when sentinel scrolls into view
+  const handleIntersect = useCallback((entries: IntersectionObserverEntry[]) => {
+    if (entries[0].isIntersecting && hasMore && !isFetching) {
+      setPage(p => p + 1);
+    }
+  }, [hasMore, isFetching]);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(handleIntersect, { threshold: 0.1 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [handleIntersect]);
 
   const { data: categories } = useQuery({
     queryKey: ["/api/categories", "onlyWithProducts"],
@@ -72,7 +106,6 @@ export default function Catalog() {
     },
   });
 
-  // Clear selected brand if it no longer appears in the filtered brands list
   useEffect(() => {
     if (brandId !== null && brands && !brands.some(b => b.id === brandId)) {
       setBrandId(null);
@@ -82,7 +115,6 @@ export default function Catalog() {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const q = searchInput.trim();
-    setPage(1);
     if (q) {
       navigate(`/catalog?q=${encodeURIComponent(q)}`);
     } else {
@@ -92,18 +124,19 @@ export default function Catalog() {
 
   const clearSearch = () => {
     setSearchInput("");
-    setPage(1);
     navigate("/catalog");
   };
 
   const handleCategoryClick = (id: number | null) => {
-    setPage(1);
     if (id) {
       navigate(`/catalog?categoryId=${id}`);
     } else {
       navigate("/catalog");
     }
   };
+
+  const isInitialLoading = isLoading && page === 1;
+  const isLoadingMore = isFetching && page > 1;
 
   return (
     <Layout>
@@ -131,7 +164,6 @@ export default function Catalog() {
       <div className="container mx-auto px-4 pb-16 flex flex-col md:flex-row gap-8">
         {/* Sidebar Filters */}
         <aside className="w-full md:w-64 shrink-0 space-y-6 order-2 md:order-1">
-          {/* In-page search */}
           <form onSubmit={handleSearchSubmit} className="relative">
             <Input
               placeholder="חפש במוצרים..."
@@ -228,11 +260,14 @@ export default function Catalog() {
         <main className="flex-1 order-1 md:order-2">
           <div className="flex justify-between items-center mb-6">
             <p className="text-sm text-muted-foreground">
-              מציג {productsData?.products.length || 0} מתוך {productsData?.total || 0} מוצרים
+              {isInitialLoading
+                ? "טוען מוצרים..."
+                : `מציג ${allProducts.length} מתוך ${productsData?.total || 0} מוצרים`
+              }
             </p>
             <div className="flex items-center gap-2">
               <Label className="whitespace-nowrap">מיון לפי:</Label>
-              <Select value={sort} onValueChange={v => { setSort(v); setPage(1); }}>
+              <Select value={sort} onValueChange={v => setSort(v)}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="בחר מיון" />
                 </SelectTrigger>
@@ -248,9 +283,9 @@ export default function Catalog() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {isLoading ? (
+            {isInitialLoading ? (
               [...Array(12)].map((_, i) => <Skeleton key={i} className="h-[380px] rounded-xl" />)
-            ) : productsData?.products.length === 0 ? (
+            ) : allProducts.length === 0 ? (
               <div className="col-span-full text-center py-20">
                 <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground text-lg">לא נמצאו מוצרים התואמים את החיפוש.</p>
@@ -261,39 +296,26 @@ export default function Catalog() {
                 )}
               </div>
             ) : (
-              productsData?.products.map(product => (
+              allProducts.map(product => (
                 <ProductCard key={product.id} product={product} />
               ))
             )}
+
+            {/* Skeleton cards while loading the next page */}
+            {isLoadingMore && (
+              [...Array(4)].map((_, i) => <Skeleton key={`more-${i}`} className="h-[380px] rounded-xl" />)
+            )}
           </div>
 
-          {productsData && productsData.totalPages > 1 && (
-            <div className="flex justify-center mt-12 gap-2">
-              <Button
-                variant="outline"
-                disabled={page === 1}
-                onClick={() => setPage(p => p - 1)}
-              >
-                הקודם
-              </Button>
-              {[...Array(productsData.totalPages)].map((_, i) => (
-                <Button
-                  key={i}
-                  variant={page === i + 1 ? "default" : "outline"}
-                  onClick={() => setPage(i + 1)}
-                >
-                  {i + 1}
-                </Button>
-              ))}
-              <Button
-                variant="outline"
-                disabled={page === productsData.totalPages}
-                onClick={() => setPage(p => p + 1)}
-              >
-                הבא
-              </Button>
-            </div>
-          )}
+          {/* Sentinel — triggers next page load when scrolled into view */}
+          <div ref={sentinelRef} className="h-12 flex items-center justify-center mt-6">
+            {isLoadingMore && (
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            )}
+            {!hasMore && allProducts.length > 0 && !isInitialLoading && (
+              <p className="text-sm text-muted-foreground">הגעת לסוף הקטלוג</p>
+            )}
+          </div>
         </main>
       </div>
     </Layout>
