@@ -7,6 +7,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
 import { formatPrice } from "@/lib/utils";
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   ArrowRight, Package, MapPin, User, ChevronRight, CheckCircle2, Circle,
   XCircle, AlertTriangle, Truck, Clock, RefreshCw, Star,
   Phone, Mail, Globe, Info,
@@ -204,6 +209,37 @@ function StatusTimeline({ currentStatus, history }: { currentStatus: string; his
   );
 }
 
+// ─── Confirmation dialog ──────────────────────────────────────────────────────
+interface ConfirmState {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  danger?: boolean;
+  onConfirm: () => void;
+}
+
+function ConfirmDialog({ state, onClose }: { state: ConfirmState | null; onClose: () => void }) {
+  return (
+    <AlertDialog open={state !== null} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <AlertDialogContent dir="rtl">
+        <AlertDialogHeader>
+          <AlertDialogTitle>{state?.title}</AlertDialogTitle>
+          <AlertDialogDescription>{state?.description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="flex-row-reverse gap-2">
+          <AlertDialogCancel onClick={onClose}>ביטול</AlertDialogCancel>
+          <AlertDialogAction
+            className={state?.danger ? "bg-red-600 hover:bg-red-700 text-white" : ""}
+            onClick={() => { state?.onConfirm(); onClose(); }}
+          >
+            {state?.confirmLabel}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 /** Item row with per-item status progression */
 function ItemRow({ item, orderId, onUpdate }: {
   item: OrderItem;
@@ -212,6 +248,7 @@ function ItemRow({ item, orderId, onUpdate }: {
 }) {
   const [pending, setPending] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
 
   const next = nextStatus(item.itemStatus);
   const isTerminal = ["cancelled", "refunded", "delivered"].includes(item.itemStatus);
@@ -233,8 +270,10 @@ function ItemRow({ item, orderId, onUpdate }: {
   };
 
   return (
-    <div className="border border-border rounded-lg p-4 bg-card">
-      <div className="flex gap-3">
+    <>
+      <ConfirmDialog state={confirm} onClose={() => setConfirm(null)} />
+      <div className="border border-border rounded-lg p-4 bg-card">
+        <div className="flex gap-3">
         {/* Image */}
         <div className="h-14 w-14 rounded border border-border bg-muted flex items-center justify-center shrink-0">
           {item.productImages?.[0] ? (
@@ -279,7 +318,13 @@ function ItemRow({ item, orderId, onUpdate }: {
                 variant="outline"
                 className="h-7 text-xs border-red-200 text-red-600 hover:bg-red-50"
                 disabled={pending}
-                onClick={() => advance("cancelled")}
+                onClick={() => setConfirm({
+                  title: "ביטול פריט",
+                  description: `האם לבטל את הפריט "${item.productName}"? פעולה זו אינה ניתנת לביטול.`,
+                  confirmLabel: "כן, בטל פריט",
+                  danger: true,
+                  onConfirm: () => advance("cancelled"),
+                })}
               >
                 <XCircle className="h-3 w-3 ml-1" />
                 ביטול פריט
@@ -378,6 +423,7 @@ function ItemRow({ item, orderId, onUpdate }: {
         )}
       </div>
     </div>
+    </>
   );
 }
 
@@ -390,6 +436,7 @@ export default function AdminOrderDetail() {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [statusPending, setStatusPending] = useState(false);
+  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
 
   const fetchOrder = useCallback(async () => {
     setLoading(true);
@@ -486,6 +533,7 @@ export default function AdminOrderDetail() {
 
   return (
     <AdminLayout>
+      <ConfirmDialog state={confirm} onClose={() => setConfirm(null)} />
       <div className="max-w-5xl mx-auto" dir="rtl">
 
         {/* ── Header ── */}
@@ -529,7 +577,13 @@ export default function AdminOrderDetail() {
                 variant="outline"
                 className="gap-2 border-red-200 text-red-600 hover:bg-red-50"
                 disabled={statusPending}
-                onClick={() => changeOrderStatus("cancelled")}
+                onClick={() => setConfirm({
+                  title: "ביטול הזמנה",
+                  description: `האם לבטל את הזמנה #${order.orderNumber}? כל הפריטים הפעילים יסומנו כבוטלים ונקודות הנאמנות שנצברו יוחזרו. פעולה זו אינה ניתנת לביטול.`,
+                  confirmLabel: "כן, בטל הזמנה",
+                  danger: true,
+                  onConfirm: () => changeOrderStatus("cancelled"),
+                })}
               >
                 <XCircle className="h-4 w-4" />
                 ביטול הזמנה
@@ -541,7 +595,13 @@ export default function AdminOrderDetail() {
                 variant="outline"
                 className="gap-2 border-gray-300 text-gray-600 hover:bg-gray-50"
                 disabled={statusPending}
-                onClick={() => changeOrderStatus("refunded")}
+                onClick={() => setConfirm({
+                  title: "זיכוי הזמנה",
+                  description: `האם לזכות את הזמנה #${order.orderNumber}? הזמנה תסומן כמזוכה. פעולה זו אינה ניתנת לביטול.`,
+                  confirmLabel: "כן, זכה הזמנה",
+                  danger: false,
+                  onConfirm: () => changeOrderStatus("refunded"),
+                })}
               >
                 <AlertTriangle className="h-4 w-4" />
                 זיכוי הזמנה
@@ -557,7 +617,13 @@ export default function AdminOrderDetail() {
                 variant="outline"
                 className="gap-2 border-gray-300 text-gray-600 hover:bg-gray-50"
                 disabled={statusPending}
-                onClick={() => changeOrderStatus("refunded")}
+                onClick={() => setConfirm({
+                  title: "זיכוי הזמנה",
+                  description: `האם לזכות את הזמנה #${order.orderNumber}? הזמנה תסומן כמזוכה. פעולה זו אינה ניתנת לביטול.`,
+                  confirmLabel: "כן, זכה הזמנה",
+                  danger: false,
+                  onConfirm: () => changeOrderStatus("refunded"),
+                })}
               >
                 <AlertTriangle className="h-4 w-4" />
                 זיכוי הזמנה

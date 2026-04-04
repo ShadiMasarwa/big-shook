@@ -92,7 +92,9 @@ function OtpInput({
         {Array.from({ length: 6 }, (_, i) => (
           <input
             key={i}
-            ref={(el) => { refs.current[i] = el; }}
+            ref={(el) => {
+              refs.current[i] = el;
+            }}
             type="text"
             inputMode="numeric"
             maxLength={1}
@@ -100,7 +102,13 @@ function OtpInput({
             onChange={(e) => handleChange(i, e.target.value)}
             onKeyDown={(e) => handleKey(i, e)}
             onPaste={handlePaste}
-            style={{ position: "absolute", left: i * 54, top: 0, width: 48, height: 56 }}
+            style={{
+              position: "absolute",
+              left: i * 54,
+              top: 0,
+              width: 48,
+              height: 56,
+            }}
             className="text-center text-2xl font-bold border-2 border-border rounded-xl bg-background focus:border-primary focus:outline-none transition-colors"
           />
         ))}
@@ -156,10 +164,13 @@ export default function Auth() {
   // Read ?redirect= param so we can bounce back after login/register
   const redirectTo = (() => {
     try {
-      const r = new URLSearchParams(window.location.search).get("redirect") ?? "";
+      const r =
+        new URLSearchParams(window.location.search).get("redirect") ?? "";
       // Only allow relative paths that start with /
       return r.startsWith("/") && !r.startsWith("//") ? r : "/";
-    } catch { return "/"; }
+    } catch {
+      return "/";
+    }
   })();
 
   // Login
@@ -468,7 +479,10 @@ export default function Auth() {
                 <form onSubmit={handleSendOtp} className="space-y-4" dir="rtl">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>שם פרטי *</Label>
+                      <Label>
+                        שם פרטי{" "}
+                        <span className="text-destructive font-bold">*</span>
+                      </Label>
                       <Input
                         required
                         value={regFirstName}
@@ -477,7 +491,7 @@ export default function Auth() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>שם משפחה *</Label>
+                      <Label>שם משפחה <span className="text-destructive font-bold">*</span></Label>
                       <Input
                         required
                         value={regLastName}
@@ -488,7 +502,7 @@ export default function Auth() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>אימייל *</Label>
+                    <Label>אימייל <span className="text-destructive font-bold">*</span></Label>
                     <Input
                       type="email"
                       required
@@ -514,7 +528,7 @@ export default function Auth() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>טלפון *</Label>
+                    <Label>טלפון <span className="text-destructive font-bold">*</span></Label>
                     <Input
                       type="tel"
                       required
@@ -526,7 +540,7 @@ export default function Auth() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>סיסמה *</Label>
+                    <Label>סיסמה <span className="text-destructive font-bold">*</span></Label>
                     <div className="relative">
                       <Input
                         type={showPwd ? "text" : "password"}
@@ -556,7 +570,7 @@ export default function Auth() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>אימות סיסמה *</Label>
+                    <Label>אימות סיסמה <span className="text-destructive font-bold">*</span></Label>
                     <div className="relative">
                       <Input
                         type={showConfirm ? "text" : "password"}
@@ -624,7 +638,9 @@ export default function Auth() {
                         className="mt-0.5 h-4 w-4 shrink-0 rounded border-2 border-primary accent-primary cursor-pointer"
                       />
                       <span className="text-sm leading-snug text-muted-foreground">
-                        אני מסכים/ה לקבל הודעות שיווקיות במייל מ<strong className="text-foreground">ביג-שווק</strong> ולהישאר מעודכן/ת בקמפיינים, מבצעים וקופונים בלעדיים
+                        אני מסכים/ה לקבל הודעות שיווקיות במייל מ
+                        <strong className="text-foreground">ביג-שווק</strong>{" "}
+                        ולהישאר מעודכן/ת בקמפיינים, מבצעים וקופונים בלעדיים
                       </span>
                     </label>
                   </div>
@@ -674,13 +690,13 @@ export default function Auth() {
                       </p>
                     </div>
                   )}
-                    <OtpInput value={otpValue} onChange={setOtpValue} />
+                  <OtpInput value={otpValue} onChange={setOtpValue} />
 
-                    {otpError && (
-                      <p className="text-sm text-destructive text-center">
-                        {otpError}
-                      </p>
-                    )}
+                  {otpError && (
+                    <p className="text-sm text-destructive text-center">
+                      {otpError}
+                    </p>
+                  )}
 
                   <div className="flex items-center justify-center gap-2 text-sm">
                     <span className="text-muted-foreground">פג תוקף בעוד:</span>
