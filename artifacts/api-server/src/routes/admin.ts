@@ -61,8 +61,21 @@ router.get("/admin/summary", async (_req, res): Promise<void> => {
     .where(eq(couponsTable.isActive, false))
     .orderBy(couponsTable.code);
 
-  const [earnedRow] = await db.select({ total: sql<number>`coalesce(sum(points), 0)` }).from(loyaltyTransactionsTable).where(eq(loyaltyTransactionsTable.type, "earned"));
-  const [redeemedRow] = await db.select({ total: sql<number>`coalesce(sum(points), 0)` }).from(loyaltyTransactionsTable).where(eq(loyaltyTransactionsTable.type, "redeemed"));
+  // ── Loyalty stats (ground-truth approach) ────────────────────────────────
+  // "redeemed" transactions store NEGATIVE points; take abs() to get magnitude.
+  // Welcome bonuses bypass the transaction log, so we derive earned from:
+  //   earned = current_balance + redeemed  (mathematically consistent)
+  const [balanceRow]  = await db.select({
+    total: sql<number>`coalesce(sum(loyalty_points), 0)`,
+  }).from(usersTable);
+
+  const [redeemedRow] = await db.select({
+    total: sql<number>`coalesce(abs(sum(points) filter (where points < 0)), 0)`,
+  }).from(loyaltyTransactionsTable);
+
+  const currentBalance = Math.round(Number(balanceRow.total)  || 0);
+  const totalRedeemed  = Math.round(Number(redeemedRow.total) || 0);
+  const totalEarned    = currentBalance + totalRedeemed; // balance = earned - redeemed
 
   res.json({
     todayRevenue: parseFloat(String(todayRevRow.revenue)) || 0,
@@ -94,9 +107,9 @@ router.get("/admin/summary", async (_req, res): Promise<void> => {
       usageLimit: c.usageLimit ?? null,
       expiresAt: c.expiresAt?.toISOString() ?? null,
     })),
-    totalLoyaltyPoints: (earnedRow.total || 0) - (redeemedRow.total || 0),
-    totalLoyaltyPointsEarned: earnedRow.total || 0,
-    totalLoyaltyPointsRedeemed: redeemedRow.total || 0,
+    totalLoyaltyPoints: currentBalance,
+    totalLoyaltyPointsEarned: totalEarned,
+    totalLoyaltyPointsRedeemed: totalRedeemed,
   });
 });
 
