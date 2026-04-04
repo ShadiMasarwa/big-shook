@@ -181,6 +181,8 @@ export default function Auth() {
   const [showPwd, setShowPwd] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [pwdTouched, setPwdTouched] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [agreedToMarketing, setAgreedToMarketing] = useState(true);
   const [regError, setRegError] = useState("");
   const [regLoading, setRegLoading] = useState(false);
   const [devOtp, setDevOtp] = useState<string | null>(null);
@@ -264,6 +266,10 @@ export default function Auth() {
     }
     if (regPassword !== regConfirm) {
       setRegError("הסיסמאות אינן תואמות");
+      return;
+    }
+    if (!agreedToTerms) {
+      setRegError("יש לאשר את קריאת תקנון האתר כדי להמשיך");
       return;
     }
 
@@ -579,6 +585,49 @@ export default function Auth() {
                     )}
                   </div>
 
+                  {/* ── Checkboxes ───────────────────────────── */}
+                  <div className="space-y-3 pt-1">
+                    {/* 1. Terms — required */}
+                    <label className="flex items-start gap-3 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={agreedToTerms}
+                        onChange={(e) => {
+                          setAgreedToTerms(e.target.checked);
+                          if (e.target.checked) setRegError("");
+                        }}
+                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-2 border-primary accent-primary cursor-pointer"
+                      />
+                      <span className="text-sm leading-snug">
+                        אני מאשר/ת שקראתי את{" "}
+                        <a
+                          href="/terms"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary underline underline-offset-2 hover:text-primary/80 font-medium"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          תקנון האתר
+                        </a>{" "}
+                        ואני מסכים/ה לתנאיו{" "}
+                        <span className="text-destructive font-bold">*</span>
+                      </span>
+                    </label>
+
+                    {/* 2. Marketing — optional, checked by default */}
+                    <label className="flex items-start gap-3 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={agreedToMarketing}
+                        onChange={(e) => setAgreedToMarketing(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-2 border-primary accent-primary cursor-pointer"
+                      />
+                      <span className="text-sm leading-snug text-muted-foreground">
+                        אני מסכים/ה לקבל הודעות שיווקיות במייל מ<strong className="text-foreground">ביג-שווק</strong> ולהישאר מעודכן/ת בקמפיינים, מבצעים וקופונים בלעדיים
+                      </span>
+                    </label>
+                  </div>
+
                   {regError && (
                     <p className="text-sm text-destructive">{regError}</p>
                   )}
@@ -586,7 +635,7 @@ export default function Auth() {
                   <Button
                     type="submit"
                     className="w-full h-12 text-lg font-bold mt-4"
-                    disabled={regLoading}
+                    disabled={regLoading || !agreedToTerms}
                   >
                     {regLoading ? (
                       <Loader2 className="h-5 w-5 animate-spin" />
