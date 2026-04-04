@@ -9,7 +9,6 @@ import {
   Heart,
   Search,
   Menu,
-  Package,
   Star,
   X,
   LogOut,
@@ -77,11 +76,10 @@ export function Layout({ children }: { children: ReactNode }) {
 
           <Link
             href="/"
-            className="flex items-center gap-2 text-2xl font-black text-primary shrink-0"
+            className="shrink-0"
             data-testid="link-logo"
           >
-            <Package className="h-8 w-8" />
-            <span>ביג-שוווק</span>
+            <img src="/logo.gif" alt="ביג-שווק" className="h-12 w-auto" />
           </Link>
 
           {/* Desktop search */}
@@ -231,9 +229,8 @@ export function Layout({ children }: { children: ReactNode }) {
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent side="right" className="w-72 p-0 flex flex-col" dir="rtl">
           <SheetHeader className="px-4 py-4 border-b">
-            <SheetTitle className="flex items-center gap-2 text-primary">
-              <Package className="h-6 w-6" />
-              ביג-שוווק
+            <SheetTitle>
+              <img src="/logo.gif" alt="ביג-שווק" className="h-9 w-auto" />
             </SheetTitle>
           </SheetHeader>
 
@@ -381,7 +378,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <footer className="bg-muted py-12 border-t border-border mt-auto">
         <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
-            <h3 className="font-bold text-lg mb-4">ביג-שוווק</h3>
+            <img src="/logo.gif" alt="ביג-שווק" className="h-10 w-auto mb-4" />
             <p className="text-sm text-muted-foreground mb-4">
               כל המוצרים במחירי מבצע וללא תחרות
             </p>
