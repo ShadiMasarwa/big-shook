@@ -13,6 +13,7 @@ interface PendingReg {
   userData: {
     email: string; passwordHash: string;
     firstName: string; lastName: string; phone: string;
+    marketingEmails: boolean;
   };
 }
 const pendingRegistrations = new Map<string, PendingReg>();
@@ -38,7 +39,8 @@ function serializeUser(u: typeof usersTable.$inferSelect) {
     addressNote: u.addressNote, role: u.role,
     loyaltyPoints: u.loyaltyPoints, loyaltyTier: u.loyaltyTier,
     totalSpent: parseFloat(u.totalSpent), ordersCount: u.ordersCount,
-    isActive: u.isActive, createdAt: u.createdAt.toISOString(),
+    marketingEmails: u.marketingEmails, isActive: u.isActive,
+    createdAt: u.createdAt.toISOString(),
   };
 }
 
@@ -99,7 +101,7 @@ router.post("/auth/check-email", async (req, res): Promise<void> => {
 });
 
 router.post("/auth/send-otp", async (req, res): Promise<void> => {
-  const { email, password, firstName, lastName, phone } = req.body;
+  const { email, password, firstName, lastName, phone, marketingEmails } = req.body;
   if (!email || !password || !firstName || !lastName || !phone) {
     res.status(400).json({ error: "כל השדות נדרשים" }); return;
   }
@@ -111,7 +113,11 @@ router.post("/auth/send-otp", async (req, res): Promise<void> => {
   pendingRegistrations.set(email, {
     otp,
     expiresAt: Date.now() + 5 * 60 * 1000,
-    userData: { email, passwordHash: hashPassword(password), firstName, lastName, phone },
+    userData: {
+      email, passwordHash: hashPassword(password),
+      firstName, lastName, phone,
+      marketingEmails: marketingEmails !== false,
+    },
   });
   const emailSent = await sendOtpEmail(email, firstName, otp).catch(() => false);
   res.json({ success: true, emailSent, ...(!emailSent ? { devOtp: otp } : {}) });
@@ -132,17 +138,17 @@ router.post("/auth/verify-otp", async (req, res): Promise<void> => {
     res.status(400).json({ error: "קוד האימות שגוי" }); return;
   }
   pendingRegistrations.delete(email);
-  const { passwordHash, firstName, lastName, phone } = pending.userData;
+  const { passwordHash, firstName, lastName, phone, marketingEmails } = pending.userData;
   const [user] = await db.insert(usersTable).values({
     email, passwordHash, firstName, lastName, phone, role: "customer",
-    loyaltyPoints: 1000,
+    loyaltyPoints: 1000, marketingEmails,
   }).returning();
   const token = generateToken(user.id);
   res.status(201).json({ user: serializeUser(user), token, welcomePoints: 1000 });
 });
 
 router.post("/auth/register", async (req, res): Promise<void> => {
-  const { email, password, firstName, lastName, phone } = req.body;
+  const { email, password, firstName, lastName, phone, marketingEmails } = req.body;
   if (!email || !password || !firstName || !lastName) {
     res.status(400).json({ error: "כל השדות הנדרשים חסרים" }); return;
   }
@@ -153,7 +159,7 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   const [user] = await db.insert(usersTable).values({
     email, passwordHash: hashPassword(password),
     firstName, lastName, phone: phone ?? null, role: "customer",
-    loyaltyPoints: 1000,
+    loyaltyPoints: 1000, marketingEmails: marketingEmails !== false,
   }).returning();
   const token = generateToken(user.id);
   res.status(201).json({ user: serializeUser(user), token, welcomePoints: 1000 });

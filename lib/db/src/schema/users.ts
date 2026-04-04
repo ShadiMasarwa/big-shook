@@ -27,6 +27,7 @@ export const usersTable = pgTable("users", {
   loyaltyTier: text("loyalty_tier", { enum: ["bronze", "silver", "gold", "vip"] }).notNull().default("bronze"),
   totalSpent: numeric("total_spent", { precision: 12, scale: 2 }).notNull().default("0"),
   ordersCount: integer("orders_count").notNull().default(0),
+  marketingEmails: boolean("marketing_emails").notNull().default(true),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

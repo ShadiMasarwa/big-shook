@@ -284,6 +284,7 @@ export default function Auth() {
           firstName: regFirstName,
           lastName: regLastName,
           phone: regPhone,
+          marketingEmails: agreedToMarketing,
         }),
       });
       const data = await res.json();
