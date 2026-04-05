@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { desc, sql, eq, and, gte } from "drizzle-orm";
+import { desc, sql, eq, and } from "drizzle-orm";
 import { db, ordersTable, orderItemsTable, usersTable, productsTable, couponsTable, inventoryTable } from "@workspace/db";
 
 const router: IRouter = Router();
@@ -21,9 +21,11 @@ function getStartDate(period: string): Date {
 router.get("/analytics/dashboard", async (req, res): Promise<void> => {
   const period = (req.query.period as string) ?? "current-month";
   const startDate = getStartDate(period);
+  const startDateStr = startDate.toISOString().split("T")[0]; // 'YYYY-MM-DD'
+  const isrStart = sql`(${ordersTable.createdAt} AT TIME ZONE 'Asia/Jerusalem')::date >= ${startDateStr}::date`;
 
-  const [totalRevenueRow] = await db.select({ revenue: sql<number>`coalesce(sum(total::numeric), 0)` }).from(ordersTable).where(and(gte(ordersTable.createdAt, startDate), ACTIVE_ORDER));
-  const [totalOrdersRow] = await db.select({ count: sql<number>`count(*)::int` }).from(ordersTable).where(and(gte(ordersTable.createdAt, startDate), ACTIVE_ORDER));
+  const [totalRevenueRow] = await db.select({ revenue: sql<number>`coalesce(sum(total::numeric), 0)` }).from(ordersTable).where(and(isrStart, ACTIVE_ORDER));
+  const [totalOrdersRow] = await db.select({ count: sql<number>`count(*)::int` }).from(ordersTable).where(and(isrStart, ACTIVE_ORDER));
   const [totalCustomersRow] = await db.select({ count: sql<number>`count(*)::int` }).from(usersTable);
   const [pendingOrdersRow] = await db.select({ count: sql<number>`count(*)::int` }).from(ordersTable).where(eq(ordersTable.status, "pending"));
   const [activeProductsRow] = await db.select({ count: sql<number>`count(*)::int` }).from(productsTable).where(eq(productsTable.isActive, true));
@@ -51,9 +53,18 @@ router.get("/analytics/dashboard", async (req, res): Promise<void> => {
   });
 });
 
-// Returns revenue, orders count, and profit (revenue − cost_price − delivery_cost) for a time bucket
+// Returns revenue, orders count, and profit (revenue − cost_price − delivery_cost) for a time bucket.
+// Dates are interpreted in Israel timezone (Asia/Jerusalem) so that the chart aligns with what the
+// admin sees when browsing orders in the browser.
 async function getBucketData(start: Date, end: Date): Promise<{ revenue: number; orders: number; profit: number }> {
-  const dateRange = and(gte(ordersTable.createdAt, start), sql`${ordersTable.createdAt} < ${end}`);
+  // Convert JS Date boundaries to plain date strings ('YYYY-MM-DD') and compare against the
+  // order's local Israel date so midnight-Israel orders are never split across buckets.
+  const startStr = start.toISOString().split("T")[0]; // e.g. '2026-04-04'
+  const endStr   = end.toISOString().split("T")[0];   // e.g. '2026-04-05'
+  const dateRange = and(
+    sql`(${ordersTable.createdAt} AT TIME ZONE 'Asia/Jerusalem')::date >= ${startStr}::date`,
+    sql`(${ordersTable.createdAt} AT TIME ZONE 'Asia/Jerusalem')::date <  ${endStr}::date`,
+  );
 
   const [revRow] = await db.select({
     revenue: sql<number>`coalesce(sum(total::numeric), 0)`,
