@@ -46,12 +46,12 @@ export default function Wishlist() {
   const handleClearAll = async () => {
     setClearing(true);
     try {
-      const token = localStorage.getItem("auth_token");
+      const token = localStorage.getItem("token");
       await fetch("/api/wishlist", {
         method: "DELETE",
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          "x-session-id": localStorage.getItem("session_id") ?? "default-session",
+          "x-session-id": localStorage.getItem("sessionId") ?? "default-session",
         },
       });
       queryClient.invalidateQueries({ queryKey: getGetWishlistQueryKey() });
