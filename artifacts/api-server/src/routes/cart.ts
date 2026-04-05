@@ -88,6 +88,7 @@ async function buildCart(sessionId: string, callerUserId?: number | null) {
     if (coupon.expiresAt && coupon.expiresAt < now) continue;
     if (coupon.startsAt && coupon.startsAt > now) continue;
     if (coupon.usageLimit != null && coupon.usedCount >= coupon.usageLimit) continue;
+    if (coupon.minOrderAmount != null && subtotal < parseFloat(coupon.minOrderAmount)) continue;
 
     const hasCategories = (coupon.applicableCategories ?? []).length > 0;
     const hasBrands = (coupon.applicableBrands ?? []).length > 0;
@@ -183,6 +184,85 @@ async function buildCart(sessionId: string, callerUserId?: number | null) {
   };
 }
 
+/** After items change, remove coupons that no longer qualify and clamp loyalty.
+ *  Returns lists of what was removed/reduced so the API can inform the client. */
+async function revalidateDiscounts(
+  sessionId: string,
+  userId: number | null,
+): Promise<{ removedCoupons: string[]; loyaltyReduced: boolean }> {
+  const cartRows = await db.select().from(cartItemsTable).where(eq(cartItemsTable.sessionId, sessionId));
+
+  const productIds = cartRows.map(r => r.productId);
+  let productMap = new Map<number, { categoryId: number | null; brandId: number | null }>();
+  if (productIds.length > 0) {
+    const prods = await db.select({ id: productsTable.id, categoryId: productsTable.categoryId, brandId: productsTable.brandId })
+      .from(productsTable)
+      .where(sql`${productsTable.id} = ANY(ARRAY[${sql.join(productIds.map(id => sql`${id}`), sql`, `)}]::int[])`);
+    productMap = new Map(prods.map(p => [p.id, { categoryId: p.categoryId, brandId: p.brandId }]));
+  }
+
+  const subtotal = cartRows.reduce((s, i) => s + parseFloat(i.price) * i.quantity, 0);
+  const now = new Date();
+  const removedCoupons: string[] = [];
+
+  const couponRows = await db.select().from(cartCouponsTable).where(eq(cartCouponsTable.sessionId, sessionId));
+  for (const row of couponRows) {
+    const [coupon] = await db.select().from(couponsTable).where(eq(couponsTable.code, row.couponCode));
+    let invalid = false;
+    if (!coupon || !coupon.isActive) { invalid = true; }
+    else if (coupon.expiresAt && coupon.expiresAt < now) { invalid = true; }
+    else if (coupon.startsAt && coupon.startsAt > now) { invalid = true; }
+    else if (coupon.usageLimit != null && coupon.usedCount >= coupon.usageLimit) { invalid = true; }
+    else if (coupon.minOrderAmount != null && subtotal < parseFloat(coupon.minOrderAmount)) { invalid = true; }
+    else {
+      const hasCategories = (coupon.applicableCategories ?? []).length > 0;
+      const hasBrands = (coupon.applicableBrands ?? []).length > 0;
+      if (hasCategories || hasBrands) {
+        const eligible = cartRows.filter(item => {
+          const prod = productMap.get(item.productId);
+          const catMatch = !hasCategories || (coupon.applicableCategories ?? []).includes(prod?.categoryId ?? -1);
+          const brandMatch = !hasBrands || (coupon.applicableBrands ?? []).includes(prod?.brandId ?? -1);
+          return catMatch && brandMatch;
+        });
+        if (eligible.length === 0) invalid = true;
+      }
+    }
+    if (invalid) {
+      await db.delete(cartCouponsTable).where(
+        and(eq(cartCouponsTable.sessionId, sessionId), eq(cartCouponsTable.couponCode, row.couponCode))
+      );
+      removedCoupons.push(row.couponCode);
+    }
+  }
+
+  let loyaltyReduced = false;
+  if (userId) {
+    const [loyaltyRow] = await db.select().from(cartLoyaltyTable).where(eq(cartLoyaltyTable.sessionId, sessionId));
+    if (loyaltyRow) {
+      const [rules] = await db.select().from(loyaltyRulesTable);
+      const maxRedemptionPercent = rules ? parseFloat(rules.maxRedemptionPercent) : 20;
+      const [user] = await db.select({ loyaltyPoints: usersTable.loyaltyPoints, loyaltyTier: usersTable.loyaltyTier })
+        .from(usersTable).where(eq(usersTable.id, userId));
+      if (user) {
+        const shekelPerPoint = await getShekelPerPointForTier(user.loyaltyTier ?? "bronze");
+        const maxDiscountFromPercent = subtotal * (maxRedemptionPercent / 100);
+        const newMaxRedeemable = Math.min(user.loyaltyPoints, Math.floor(maxDiscountFromPercent / shekelPerPoint));
+        if (newMaxRedeemable <= 0) {
+          await db.delete(cartLoyaltyTable).where(eq(cartLoyaltyTable.sessionId, sessionId));
+          loyaltyReduced = true;
+        } else if (loyaltyRow.pointsToUse > newMaxRedeemable) {
+          await db.update(cartLoyaltyTable)
+            .set({ pointsToUse: newMaxRedeemable })
+            .where(eq(cartLoyaltyTable.sessionId, sessionId));
+          loyaltyReduced = true;
+        }
+      }
+    }
+  }
+
+  return { removedCoupons, loyaltyReduced };
+}
+
 router.get("/cart", async (req, res): Promise<void> => {
   const sessionId = getSessionId(req as Parameters<typeof getSessionId>[0]);
   const userId = getUserId(req as Parameters<typeof getUserId>[0]);
@@ -230,14 +310,17 @@ router.patch("/cart/items/:productId", async (req, res): Promise<void> => {
   } else {
     await db.update(cartItemsTable).set({ quantity }).where(and(eq(cartItemsTable.sessionId, sessionId), eq(cartItemsTable.productId, productId)));
   }
-  // If cart is now empty, reset coupons and loyalty so they don't linger
   const remaining = await db.select().from(cartItemsTable).where(eq(cartItemsTable.sessionId, sessionId));
   if (remaining.length === 0) {
     await db.delete(cartCouponsTable).where(eq(cartCouponsTable.sessionId, sessionId));
     await db.delete(cartLoyaltyTable).where(eq(cartLoyaltyTable.sessionId, sessionId));
+    const cart = await buildCart(sessionId, userId);
+    res.json({ ...cart, removedCoupons: [], loyaltyReduced: false });
+    return;
   }
+  const { removedCoupons, loyaltyReduced } = await revalidateDiscounts(sessionId, userId);
   const cart = await buildCart(sessionId, userId);
-  res.json(cart);
+  res.json({ ...cart, removedCoupons, loyaltyReduced });
 });
 
 router.delete("/cart/items/:productId", async (req, res): Promise<void> => {
@@ -246,14 +329,17 @@ router.delete("/cart/items/:productId", async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.productId) ? req.params.productId[0] : req.params.productId;
   const productId = parseInt(raw, 10);
   await db.delete(cartItemsTable).where(and(eq(cartItemsTable.sessionId, sessionId), eq(cartItemsTable.productId, productId)));
-  // If cart is now empty, reset coupons and loyalty
   const remaining = await db.select().from(cartItemsTable).where(eq(cartItemsTable.sessionId, sessionId));
   if (remaining.length === 0) {
     await db.delete(cartCouponsTable).where(eq(cartCouponsTable.sessionId, sessionId));
     await db.delete(cartLoyaltyTable).where(eq(cartLoyaltyTable.sessionId, sessionId));
+    const cart = await buildCart(sessionId, userId);
+    res.json({ ...cart, removedCoupons: [], loyaltyReduced: false });
+    return;
   }
+  const { removedCoupons, loyaltyReduced } = await revalidateDiscounts(sessionId, userId);
   const cart = await buildCart(sessionId, userId);
-  res.json(cart);
+  res.json({ ...cart, removedCoupons, loyaltyReduced });
 });
 
 router.post("/cart/coupon", async (req, res): Promise<void> => {

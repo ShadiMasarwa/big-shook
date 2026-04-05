@@ -12,14 +12,78 @@ import { toast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 
 export default function Cart() {
-  const { cart, isLoading, updateItem, removeItem, clearCart } = useCart();
+  const { cart, isLoading, clearCart } = useCart();
   const { user, isLoading: authLoading } = useAuth();
   const [couponCode, setCouponCode] = useState("");
   const [loyaltyInput, setLoyaltyInput] = useState("");
   const [loyaltyPending, setLoyaltyPending] = useState(false);
+  const [itemPending, setItemPending] = useState<number | null>(null);
   const applyCoupon = useApplyCouponToCart();
   const removeCoupon = useRemoveCouponFromCart();
   const queryClient = useQueryClient();
+
+  const cartHeaders = () => {
+    const sid = localStorage.getItem("sessionId") ?? "default-session";
+    const token = localStorage.getItem("token");
+    return {
+      "Content-Type": "application/json",
+      "x-session-id": sid,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+  };
+
+  const applyCartResponse = (data: any) => {
+    queryClient.setQueryData(getGetCartQueryKey(), data);
+    const removed: string[] = data?.removedCoupons ?? [];
+    if (removed.length > 0) {
+      toast({
+        title: `קופון ${removed.join(", ")} הוסר`,
+        description: "הסכום המינימלי לא עמד בדרישות הקופון לאחר הסרת הפריט",
+        variant: "destructive",
+      });
+    }
+    if (data?.loyaltyReduced) {
+      toast({
+        title: "נקודות הנאמנות הופחתו",
+        description: "הנקודות עודכנו לסכום המקסימלי המותר לפי סל הקניות החדש",
+      });
+    }
+  };
+
+  const handleRemoveCartItem = async (productId: number) => {
+    setItemPending(productId);
+    try {
+      const res = await fetch(`/api/cart/items/${productId}`, {
+        method: "DELETE",
+        headers: cartHeaders(),
+      });
+      const data = await res.json();
+      if (res.ok) applyCartResponse(data);
+      else queryClient.invalidateQueries({ queryKey: getGetCartQueryKey() });
+    } catch {
+      queryClient.invalidateQueries({ queryKey: getGetCartQueryKey() });
+    } finally {
+      setItemPending(null);
+    }
+  };
+
+  const handleUpdateCartItem = async (productId: number, quantity: number) => {
+    setItemPending(productId);
+    try {
+      const res = await fetch(`/api/cart/items/${productId}`, {
+        method: "PATCH",
+        headers: cartHeaders(),
+        body: JSON.stringify({ quantity }),
+      });
+      const data = await res.json();
+      if (res.ok) applyCartResponse(data);
+      else queryClient.invalidateQueries({ queryKey: getGetCartQueryKey() });
+    } catch {
+      queryClient.invalidateQueries({ queryKey: getGetCartQueryKey() });
+    } finally {
+      setItemPending(null);
+    }
+  };
 
   const handleApplyLoyalty = async () => {
     const points = parseInt(loyaltyInput, 10);
@@ -166,8 +230,10 @@ export default function Cart() {
             <span className="w-1/6 text-left">סה"כ</span>
           </div>
 
-          {cart.items.map((item: any) => (
-            <div key={item.productId} className="flex items-center justify-between py-4 border-b border-border gap-4">
+          {cart.items.map((item: any) => {
+            const isPending = itemPending === item.productId;
+            return (
+            <div key={item.productId} className={`flex items-center justify-between py-4 border-b border-border gap-4 transition-opacity ${isPending ? "opacity-50 pointer-events-none" : ""}`}>
               <div className="w-2/3 flex items-center gap-4">
                 <Link href={`/product/${item.productId}`}>
                   <div className="w-20 h-20 bg-white rounded-lg border border-border overflow-hidden shrink-0 flex items-center justify-center p-1">
@@ -190,24 +256,25 @@ export default function Cart() {
                 <div className="flex items-center border border-border rounded-md bg-background w-fit">
                   <button
                     className="px-2 py-1 hover:text-primary transition-colors"
-                    onClick={() => updateItem({ productId: item.productId, quantity: item.quantity - 1 })}
+                    onClick={() => handleUpdateCartItem(item.productId, item.quantity - 1)}
                   >-</button>
                   <span className="w-8 text-center font-medium text-sm">{item.quantity}</span>
                   <button
                     className="px-2 py-1 hover:text-primary transition-colors"
-                    onClick={() => updateItem({ productId: item.productId, quantity: item.quantity + 1 })}
+                    onClick={() => handleUpdateCartItem(item.productId, item.quantity + 1)}
                   >+</button>
                 </div>
               </div>
 
               <div className="w-1/6 flex items-center justify-between pl-0 text-left gap-4">
                 <span className="font-bold">{formatPrice(item.subtotal)}</span>
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive shrink-0" onClick={() => removeItem({ productId: item.productId })}>
+                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive shrink-0" onClick={() => handleRemoveCartItem(item.productId)}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
             </div>
-          ))}
+            );
+          })}
 
           <div className="flex justify-start pt-4">
             <Button variant="outline" className="text-destructive border-destructive hover:bg-destructive hover:text-white" onClick={() => clearCart()}>
