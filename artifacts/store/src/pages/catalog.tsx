@@ -155,7 +155,7 @@ export default function Catalog() {
           ) : (
             <>
               <h1 className="text-3xl font-bold">קטלוג מוצרים</h1>
-              <p className="text-muted-foreground mt-2">כל מוצרי החשמל והטכנולוגיה במקום אחד</p>
+              
             </>
           )}
         </div>

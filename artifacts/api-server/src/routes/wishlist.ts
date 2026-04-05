@@ -53,6 +53,12 @@ router.post("/wishlist", async (req, res): Promise<void> => {
   res.json({ id: entry.id, productId: entry.productId, product: product ? serializeProduct(product) : null, addedAt: entry.addedAt.toISOString() });
 });
 
+router.delete("/wishlist", async (req, res): Promise<void> => {
+  const sessionId = getSessionId(req as Parameters<typeof getSessionId>[0]);
+  await db.delete(wishlistTable).where(eq(wishlistTable.sessionId, sessionId));
+  res.sendStatus(204);
+});
+
 router.delete("/wishlist/:productId", async (req, res): Promise<void> => {
   const sessionId = getSessionId(req as Parameters<typeof getSessionId>[0]);
   const raw = Array.isArray(req.params.productId) ? req.params.productId[0] : req.params.productId;
