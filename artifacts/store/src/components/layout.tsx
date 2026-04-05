@@ -298,7 +298,7 @@ export function Layout({ children }: { children: ReactNode }) {
       {ads && ads.length > 0 && (
         <div className="border-b border-border bg-background">
           <div className="container mx-auto px-4 py-3">
-            {/* Desktop: 4-column grid */}
+            {/* Desktop (lg+): 4-column grid */}
             <div className="hidden lg:grid grid-cols-4 gap-3">
               {[...ads]
                 .sort((a, b) => a.position - b.position)
@@ -322,8 +322,32 @@ export function Layout({ children }: { children: ReactNode }) {
                 })}
             </div>
 
-            {/* Mobile / Tablet: auto-playing carousel */}
-            <div className="lg:hidden">
+            {/* Tablet (sm–lg): 2-column grid */}
+            <div className="hidden sm:grid lg:hidden grid-cols-2 gap-3">
+              {[...ads]
+                .sort((a, b) => a.position - b.position)
+                .map(ad => {
+                  const inner = (
+                    <div className="relative w-full overflow-hidden rounded-lg" style={{ aspectRatio: "2/1" }}>
+                      <img
+                        src={ad.imageUrl}
+                        alt={ad.title ?? `מודעה ${ad.position}`}
+                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                      />
+                    </div>
+                  );
+                  return ad.linkUrl ? (
+                    <a key={ad.id} href={ad.linkUrl} target="_blank" rel="noopener noreferrer" className="block">
+                      {inner}
+                    </a>
+                  ) : (
+                    <div key={ad.id}>{inner}</div>
+                  );
+                })}
+            </div>
+
+            {/* Mobile (< sm): auto-playing carousel */}
+            <div className="sm:hidden">
               <AdsCarousel ads={ads} />
             </div>
           </div>
