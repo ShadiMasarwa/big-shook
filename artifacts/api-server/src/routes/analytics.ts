@@ -4,6 +4,10 @@ import { db, ordersTable, orderItemsTable, usersTable, productsTable, couponsTab
 
 const router: IRouter = Router();
 
+// Reusable filters — exclude cancelled / refunded at both order and item level
+const ACTIVE_ORDER  = sql`${ordersTable.status}    NOT IN ('cancelled', 'refunded')`;
+const ACTIVE_ITEM   = sql`${orderItemsTable.itemStatus} NOT IN ('cancelled', 'refunded')`;
+
 function getStartDate(period: string): Date {
   const now = new Date();
   switch (period) {
@@ -18,8 +22,8 @@ router.get("/analytics/dashboard", async (req, res): Promise<void> => {
   const period = (req.query.period as string) ?? "current-month";
   const startDate = getStartDate(period);
 
-  const [totalRevenueRow] = await db.select({ revenue: sql<number>`coalesce(sum(total::numeric), 0)` }).from(ordersTable).where(gte(ordersTable.createdAt, startDate));
-  const [totalOrdersRow] = await db.select({ count: sql<number>`count(*)::int` }).from(ordersTable).where(gte(ordersTable.createdAt, startDate));
+  const [totalRevenueRow] = await db.select({ revenue: sql<number>`coalesce(sum(total::numeric), 0)` }).from(ordersTable).where(and(gte(ordersTable.createdAt, startDate), ACTIVE_ORDER));
+  const [totalOrdersRow] = await db.select({ count: sql<number>`count(*)::int` }).from(ordersTable).where(and(gte(ordersTable.createdAt, startDate), ACTIVE_ORDER));
   const [totalCustomersRow] = await db.select({ count: sql<number>`count(*)::int` }).from(usersTable);
   const [pendingOrdersRow] = await db.select({ count: sql<number>`count(*)::int` }).from(ordersTable).where(eq(ordersTable.status, "pending"));
   const [activeProductsRow] = await db.select({ count: sql<number>`count(*)::int` }).from(productsTable).where(eq(productsTable.isActive, true));
@@ -49,18 +53,19 @@ router.get("/analytics/dashboard", async (req, res): Promise<void> => {
 
 // Returns revenue, orders count, and profit (revenue − cost_price − delivery_cost) for a time bucket
 async function getBucketData(start: Date, end: Date): Promise<{ revenue: number; orders: number; profit: number }> {
-  const whereClause = and(gte(ordersTable.createdAt, start), sql`${ordersTable.createdAt} < ${end}`);
+  const dateRange = and(gte(ordersTable.createdAt, start), sql`${ordersTable.createdAt} < ${end}`);
+
   const [revRow] = await db.select({
     revenue: sql<number>`coalesce(sum(total::numeric), 0)`,
     orders: sql<number>`count(*)::int`,
-  }).from(ordersTable).where(whereClause);
+  }).from(ordersTable).where(and(dateRange, ACTIVE_ORDER));
 
   const [costsRow] = await db.select({
     costs: sql<number>`coalesce(sum(${orderItemsTable.quantity} * (coalesce(${productsTable.costPrice}::numeric, 0) + coalesce(${productsTable.deliveryCost}::numeric, 0))), 0)`,
   }).from(orderItemsTable)
     .innerJoin(ordersTable, eq(orderItemsTable.orderId, ordersTable.id))
     .leftJoin(productsTable, eq(orderItemsTable.productId, productsTable.id))
-    .where(whereClause);
+    .where(and(dateRange, ACTIVE_ORDER, ACTIVE_ITEM));
 
   const revenue = parseFloat(String(revRow.revenue)) || 0;
   const costs   = parseFloat(String(costsRow.costs))  || 0;
@@ -115,6 +120,8 @@ router.get("/analytics/top-products", async (req, res): Promise<void> => {
     revenue: sql<number>`sum(subtotal::numeric)`,
     unitsSold: sql<number>`sum(quantity)::int`,
   }).from(orderItemsTable)
+    .innerJoin(ordersTable, eq(orderItemsTable.orderId, ordersTable.id))
+    .where(and(ACTIVE_ORDER, ACTIVE_ITEM))
     .groupBy(orderItemsTable.productId, orderItemsTable.productName)
     .orderBy(desc(sql`sum(subtotal::numeric)`))
     .limit(limit);
