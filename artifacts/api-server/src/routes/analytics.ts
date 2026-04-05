@@ -25,6 +25,13 @@ router.get("/analytics/dashboard", async (req, res): Promise<void> => {
   const isrStart = sql`(${ordersTable.createdAt} AT TIME ZONE 'Asia/Jerusalem')::date >= ${startDateStr}::date`;
 
   const [totalRevenueRow] = await db.select({ revenue: sql<number>`coalesce(sum(total::numeric), 0)` }).from(ordersTable).where(and(isrStart, ACTIVE_ORDER));
+  // Subtract subtotals of individually-cancelled items in otherwise-active orders
+  const [dashCancelledRow] = await db.select({
+    subtotal: sql<number>`coalesce(sum(${orderItemsTable.subtotal}::numeric), 0)`,
+  }).from(orderItemsTable)
+    .innerJoin(ordersTable, eq(orderItemsTable.orderId, ordersTable.id))
+    .where(and(isrStart, ACTIVE_ORDER, sql`${orderItemsTable.itemStatus} IN ('cancelled', 'refunded')`));
+
   const [totalOrdersRow] = await db.select({ count: sql<number>`count(*)::int` }).from(ordersTable).where(and(isrStart, ACTIVE_ORDER));
   const [totalCustomersRow] = await db.select({ count: sql<number>`count(*)::int` }).from(usersTable);
   const [pendingOrdersRow] = await db.select({ count: sql<number>`count(*)::int` }).from(ordersTable).where(eq(ordersTable.status, "pending"));
@@ -32,7 +39,9 @@ router.get("/analytics/dashboard", async (req, res): Promise<void> => {
   const [activeCouponsRow] = await db.select({ count: sql<number>`count(*)::int` }).from(couponsTable).where(eq(couponsTable.isActive, true));
   const [lowStockRow] = await db.select({ count: sql<number>`count(*)::int` }).from(inventoryTable).where(sql`quantity <= low_stock_threshold`);
 
-  const totalRevenue = parseFloat(String(totalRevenueRow.revenue)) || 0;
+  const rawDashRevenue = parseFloat(String(totalRevenueRow.revenue)) || 0;
+  const dashCancelledSub = parseFloat(String(dashCancelledRow.subtotal)) || 0;
+  const totalRevenue = Math.max(0, rawDashRevenue - dashCancelledSub);
   const totalOrders = totalOrdersRow.count || 0;
   const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
@@ -68,8 +77,17 @@ async function getBucketData(start: Date, end: Date): Promise<{ revenue: number;
 
   const [revRow] = await db.select({
     revenue: sql<number>`coalesce(sum(total::numeric), 0)`,
-    orders: sql<number>`count(*)::int`,
+    orders:  sql<number>`count(*)::int`,
   }).from(ordersTable).where(and(dateRange, ACTIVE_ORDER));
+
+  // Subtract subtotals of individually-cancelled items inside otherwise-active orders,
+  // so the chart revenue matches the effective total shown on the orders management page.
+  const CANCELLED_ITEM = sql`${orderItemsTable.itemStatus} IN ('cancelled', 'refunded')`;
+  const [cancelledItemsRow] = await db.select({
+    subtotal: sql<number>`coalesce(sum(${orderItemsTable.subtotal}::numeric), 0)`,
+  }).from(orderItemsTable)
+    .innerJoin(ordersTable, eq(orderItemsTable.orderId, ordersTable.id))
+    .where(and(dateRange, ACTIVE_ORDER, CANCELLED_ITEM));
 
   const [costsRow] = await db.select({
     costs: sql<number>`coalesce(sum(${orderItemsTable.quantity} * (coalesce(${productsTable.costPrice}::numeric, 0) + coalesce(${productsTable.deliveryCost}::numeric, 0))), 0)`,
@@ -78,8 +96,10 @@ async function getBucketData(start: Date, end: Date): Promise<{ revenue: number;
     .leftJoin(productsTable, eq(orderItemsTable.productId, productsTable.id))
     .where(and(dateRange, ACTIVE_ORDER, ACTIVE_ITEM));
 
-  const revenue = parseFloat(String(revRow.revenue)) || 0;
-  const costs   = parseFloat(String(costsRow.costs))  || 0;
+  const rawRevenue   = parseFloat(String(revRow.revenue))          || 0;
+  const cancelledSub = parseFloat(String(cancelledItemsRow.subtotal)) || 0;
+  const revenue      = Math.max(0, rawRevenue - cancelledSub);
+  const costs        = parseFloat(String(costsRow.costs))           || 0;
   return { revenue, orders: revRow.orders || 0, profit: Math.max(0, revenue - costs) };
 }
 
