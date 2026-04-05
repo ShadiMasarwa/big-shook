@@ -82,6 +82,14 @@ export default function AdminOrders() {
                 const loyalty = Number(order.discount ?? 0);
                 const totalDiscount = coupon + loyalty;
 
+                // Effective total: 0 if whole order cancelled/refunded,
+                // otherwise original total minus cancelled item subtotals
+                const isTerminal = ["cancelled", "refunded"].includes(order.status);
+                const cancelledSubtotal = items
+                  .filter((it: any) => ["cancelled", "refunded"].includes(it.itemStatus))
+                  .reduce((sum: number, it: any) => sum + Number(it.subtotal), 0);
+                const effectiveTotal = isTerminal ? 0 : Math.max(0, Number(order.total) - cancelledSubtotal);
+
                 return (
                   <TableRow
                     key={order.id}
@@ -122,7 +130,12 @@ export default function AdminOrders() {
                       )}
                     </TableCell>
                     <TableCell className="text-center font-bold">
-                      {formatPrice(Number(order.total))}
+                      {formatPrice(effectiveTotal)}
+                      {cancelledSubtotal > 0 && !isTerminal && (
+                        <div className="text-xs text-muted-foreground line-through font-normal">
+                          {formatPrice(Number(order.total))}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell className="text-center">
                       <StatusBadge status={order.status} />
