@@ -502,19 +502,35 @@ router.patch("/orders/:id/status", async (req, res): Promise<void> => {
   if (isBecomingTerminal) {
     const allItems = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, id));
     const itemCancelledAt = new Date().toISOString();
+    const activeItems = allItems.filter(it => !["cancelled", "refunded"].includes(it.itemStatus));
+
     await Promise.all(
-      allItems
-        .filter(it => !["cancelled", "refunded"].includes(it.itemStatus))
-        .map(it => {
-          const hist = (Array.isArray(it.itemStatusHistory) ? it.itemStatusHistory : []) as { status: string; changedAt: string }[];
-          return db.update(orderItemsTable)
-            .set({
-              itemStatus: status as "cancelled" | "refunded",
-              itemStatusHistory: [...hist, { status, changedAt: itemCancelledAt }],
-            })
-            .where(eq(orderItemsTable.id, it.id));
-        })
+      activeItems.map(it => {
+        const hist = (Array.isArray(it.itemStatusHistory) ? it.itemStatusHistory : []) as { status: string; changedAt: string }[];
+        return db.update(orderItemsTable)
+          .set({
+            itemStatus: status as "cancelled" | "refunded",
+            itemStatusHistory: [...hist, { status, changedAt: itemCancelledAt }],
+          })
+          .where(eq(orderItemsTable.id, it.id));
+      })
     );
+
+    // ── Restore stock and reverse sales count for newly cancelled items ───────
+    if (activeItems.length > 0) {
+      const productIds = activeItems.map(it => it.productId);
+      const products = await db.select().from(productsTable)
+        .where(sql`${productsTable.id} = ANY(ARRAY[${sql.join(productIds.map(pid => sql`${pid}`), sql`, `)}]::int[])`);
+      const productMap = new Map(products.map(p => [p.id, p]));
+      await Promise.all(activeItems.map(it => {
+        const p = productMap.get(it.productId);
+        if (!p) return Promise.resolve();
+        return db.update(productsTable).set({
+          stockQuantity: p.stockQuantity + it.quantity,
+          salesCount: Math.max(0, p.salesCount - it.quantity),
+        }).where(eq(productsTable.id, it.productId));
+      }));
+    }
   }
 
   // ── Loyalty & spent reversal (registered users only) ─────────────────────
@@ -622,6 +638,15 @@ router.patch("/orders/:orderId/items/:itemId/status", async (req, res): Promise<
           totalSpent: String(newSpent),
         }).where(eq(usersTable.id, order.userId));
       }
+    }
+
+    // ── Restore stock and reverse sales count for this cancelled item ─────────
+    const [product] = await db.select().from(productsTable).where(eq(productsTable.id, current.productId));
+    if (product) {
+      await db.update(productsTable).set({
+        stockQuantity: product.stockQuantity + current.quantity,
+        salesCount: Math.max(0, product.salesCount - current.quantity),
+      }).where(eq(productsTable.id, current.productId));
     }
   }
 
