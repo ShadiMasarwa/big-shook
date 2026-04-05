@@ -47,30 +47,44 @@ router.get("/analytics/dashboard", async (req, res): Promise<void> => {
   });
 });
 
+// Returns revenue, orders count, and profit (revenue − cost_price − delivery_cost) for a time bucket
+async function getBucketData(start: Date, end: Date): Promise<{ revenue: number; orders: number; profit: number }> {
+  const whereClause = and(gte(ordersTable.createdAt, start), sql`${ordersTable.createdAt} < ${end}`);
+  const [revRow] = await db.select({
+    revenue: sql<number>`coalesce(sum(total::numeric), 0)`,
+    orders: sql<number>`count(*)::int`,
+  }).from(ordersTable).where(whereClause);
+
+  const [costsRow] = await db.select({
+    costs: sql<number>`coalesce(sum(${orderItemsTable.quantity} * (coalesce(${productsTable.costPrice}::numeric, 0) + coalesce(${productsTable.deliveryCost}::numeric, 0))), 0)`,
+  }).from(orderItemsTable)
+    .innerJoin(ordersTable, eq(orderItemsTable.orderId, ordersTable.id))
+    .leftJoin(productsTable, eq(orderItemsTable.productId, productsTable.id))
+    .where(whereClause);
+
+  const revenue = parseFloat(String(revRow.revenue)) || 0;
+  const costs   = parseFloat(String(costsRow.costs))  || 0;
+  return { revenue, orders: revRow.orders || 0, profit: Math.max(0, revenue - costs) };
+}
+
 router.get("/analytics/revenue", async (req, res): Promise<void> => {
   const period = (req.query.period as string) ?? "current-month";
   const now = new Date();
-  const result: { date: string; revenue: number; orders: number }[] = [];
+  const result: { date: string; revenue: number; orders: number; profit: number }[] = [];
 
   if (period === "year") {
     for (let i = 11; i >= 0; i--) {
       const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
-      const [row] = await db.select({
-        revenue: sql<number>`coalesce(sum(total::numeric), 0)`,
-        orders: sql<number>`count(*)::int`,
-      }).from(ordersTable).where(and(gte(ordersTable.createdAt, start), sql`${ordersTable.createdAt} < ${end}`));
-      result.push({ date: start.toISOString().split("T")[0], revenue: parseFloat(String(row.revenue)) || 0, orders: row.orders || 0 });
+      const data = await getBucketData(start, end);
+      result.push({ date: start.toISOString().split("T")[0], ...data });
     }
   } else if (period === "3months") {
     for (let i = 12; i >= 0; i--) {
       const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i * 7);
       const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
-      const [row] = await db.select({
-        revenue: sql<number>`coalesce(sum(total::numeric), 0)`,
-        orders: sql<number>`count(*)::int`,
-      }).from(ordersTable).where(and(gte(ordersTable.createdAt, start), sql`${ordersTable.createdAt} < ${end}`));
-      result.push({ date: start.toISOString().split("T")[0], revenue: parseFloat(String(row.revenue)) || 0, orders: row.orders || 0 });
+      const data = await getBucketData(start, end);
+      result.push({ date: start.toISOString().split("T")[0], ...data });
     }
   } else {
     let startBase: Date;
@@ -85,11 +99,8 @@ router.get("/analytics/revenue", async (req, res): Promise<void> => {
     for (let i = 0; i < daysToShow; i++) {
       const start = new Date(startBase.getFullYear(), startBase.getMonth(), startBase.getDate() + i);
       const end = new Date(startBase.getFullYear(), startBase.getMonth(), startBase.getDate() + i + 1);
-      const [row] = await db.select({
-        revenue: sql<number>`coalesce(sum(total::numeric), 0)`,
-        orders: sql<number>`count(*)::int`,
-      }).from(ordersTable).where(and(gte(ordersTable.createdAt, start), sql`${ordersTable.createdAt} < ${end}`));
-      result.push({ date: start.toISOString().split("T")[0], revenue: parseFloat(String(row.revenue)) || 0, orders: row.orders || 0 });
+      const data = await getBucketData(start, end);
+      result.push({ date: start.toISOString().split("T")[0], ...data });
     }
   }
 

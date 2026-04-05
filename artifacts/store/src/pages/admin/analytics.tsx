@@ -3,7 +3,7 @@ import { AdminLayout } from "@/components/admin-layout";
 import { useGetAnalyticsDashboard, useGetRevenueChart } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatPrice } from "@/lib/utils";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type Period = "current-month" | "month" | "3months" | "year";
@@ -120,7 +120,7 @@ export default function AdminAnalytics() {
 
       <Card className="border-border">
         <CardHeader>
-          <CardTitle>הכנסות לאורך זמן — {selectedPeriod.cardLabel}</CardTitle>
+          <CardTitle>הכנסות ורווח לאורך זמן — {selectedPeriod.cardLabel}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-96 w-full mt-4" dir="ltr">
@@ -145,7 +145,11 @@ export default function AdminAnalytics() {
                   <Tooltip
                     contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px", direction: "rtl" }}
                     labelFormatter={(val) => labelFormatter(period, val)}
-                    formatter={(val: number) => [formatPrice(val), "הכנסות"]}
+                    formatter={(val: number, name: string) => [formatPrice(val), name === "revenue" ? "הכנסות" : "רווח"]}
+                  />
+                  <Legend
+                    formatter={(value) => value === "revenue" ? "הכנסות" : "רווח"}
+                    wrapperStyle={{ direction: "rtl", paddingTop: "8px" }}
                   />
                   <Line
                     type="monotone"
@@ -153,6 +157,14 @@ export default function AdminAnalytics() {
                     stroke="hsl(var(--primary))"
                     strokeWidth={3}
                     dot={{ fill: "hsl(var(--primary))", strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="profit"
+                    stroke="#16a34a"
+                    strokeWidth={3}
+                    dot={{ fill: "#16a34a", strokeWidth: 2, r: 4 }}
                     activeDot={{ r: 6 }}
                   />
                 </LineChart>
