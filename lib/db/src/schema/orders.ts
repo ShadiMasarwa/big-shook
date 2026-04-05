@@ -46,6 +46,8 @@ export const orderItemsTable = pgTable("order_items", {
   quantity: integer("quantity").notNull(),
   price: numeric("price", { precision: 10, scale: 2 }).notNull(),
   subtotal: numeric("subtotal", { precision: 12, scale: 2 }).notNull(),
+  costPrice: numeric("cost_price", { precision: 10, scale: 2 }).notNull().default("0"),
+  deliveryCost: numeric("delivery_cost", { precision: 10, scale: 2 }).notNull().default("0"),
   itemStatus: text("item_status", {
     enum: ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled", "refunded"],
   }).notNull().default("pending"),

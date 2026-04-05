@@ -89,11 +89,12 @@ async function getBucketData(start: Date, end: Date): Promise<{ revenue: number;
     .innerJoin(ordersTable, eq(orderItemsTable.orderId, ordersTable.id))
     .where(and(dateRange, ACTIVE_ORDER, CANCELLED_ITEM));
 
+  // Use cost_price and delivery_cost snapshotted on the order item at purchase time,
+  // so the profit reflects the actual margin on the sale price — not the current product price.
   const [costsRow] = await db.select({
-    costs: sql<number>`coalesce(sum(${orderItemsTable.quantity} * (coalesce(${productsTable.costPrice}::numeric, 0) + coalesce(${productsTable.deliveryCost}::numeric, 0))), 0)`,
+    costs: sql<number>`coalesce(sum(${orderItemsTable.quantity} * (${orderItemsTable.costPrice}::numeric + ${orderItemsTable.deliveryCost}::numeric)), 0)`,
   }).from(orderItemsTable)
     .innerJoin(ordersTable, eq(orderItemsTable.orderId, ordersTable.id))
-    .leftJoin(productsTable, eq(orderItemsTable.productId, productsTable.id))
     .where(and(dateRange, ACTIVE_ORDER, ACTIVE_ITEM));
 
   const rawRevenue   = parseFloat(String(revRow.revenue))          || 0;

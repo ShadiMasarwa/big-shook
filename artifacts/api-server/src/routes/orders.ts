@@ -371,6 +371,8 @@ router.post("/orders", async (req, res): Promise<void> => {
       productName: p.nameHe, productSku: p.sku ?? null,
       quantity: item.quantity, price: String(price),
       subtotal: String(price * item.quantity),
+      costPrice: String(parseFloat(p.costPrice ?? "0")),
+      deliveryCost: String(parseFloat(p.deliveryCost ?? "0")),
       itemStatus: "pending",
     });
   }));
