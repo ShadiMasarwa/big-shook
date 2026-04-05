@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useSearch } from "wouter";
 import { motion } from "framer-motion";
@@ -24,6 +24,60 @@ import {
 } from "@/components/ui/sheet";
 import { useListCategories, useGetWishlist } from "@workspace/api-client-react";
 
+type AdItem = { id: number; position: number; imageUrl: string; linkUrl?: string | null; title?: string | null };
+
+function AdsCarousel({ ads }: { ads: AdItem[] }) {
+  const [current, setCurrent] = useState(0);
+  const paused = useRef(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (ads.length <= 1) return;
+    const tick = () => {
+      if (!paused.current) setCurrent(i => (i + 1) % ads.length);
+    };
+    intervalRef.current = setInterval(tick, 4000);
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [ads.length]);
+
+  const sorted = [...ads].sort((a, b) => a.position - b.position);
+
+  return (
+    <div
+      className="relative overflow-hidden rounded-lg"
+      style={{ aspectRatio: "2/1" }}
+      onMouseEnter={() => { paused.current = true; }}
+      onMouseLeave={() => { paused.current = false; }}
+    >
+      {/* Slides strip — LTR so translateX maths is straightforward */}
+      <div
+        dir="ltr"
+        className="flex h-full transition-transform duration-700 ease-in-out"
+        style={{ transform: `translateX(-${current * 100}%)` }}
+      >
+        {sorted.map(ad => {
+          const img = (
+            <img
+              src={ad.imageUrl}
+              alt={ad.title ?? `מודעה ${ad.position}`}
+              className="w-full h-full object-cover"
+            />
+          );
+          return (
+            <div key={ad.id} className="w-full shrink-0 h-full">
+              {ad.linkUrl ? (
+                <a href={ad.linkUrl} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
+                  {img}
+                </a>
+              ) : img}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   const { cart } = useCart();
@@ -41,7 +95,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
   const { data: categories } = useListCategories();
 
-  const { data: ads } = useQuery<{ id: number; position: number; imageUrl: string; linkUrl?: string | null; title?: string | null }[]>({
+  const { data: ads } = useQuery<AdItem[]>({
     queryKey: ["ads"],
     queryFn: async () => {
       const res = await fetch("/api/ads");
@@ -244,15 +298,13 @@ export function Layout({ children }: { children: ReactNode }) {
       {ads && ads.length > 0 && (
         <div className="border-b border-border bg-background">
           <div className="container mx-auto px-4 py-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {ads
+            {/* Desktop: 4-column grid */}
+            <div className="hidden lg:grid grid-cols-4 gap-3">
+              {[...ads]
                 .sort((a, b) => a.position - b.position)
                 .map(ad => {
                   const inner = (
-                    <div
-                      className="relative w-full overflow-hidden rounded-lg"
-                      style={{ aspectRatio: "2/1" }}
-                    >
+                    <div className="relative w-full overflow-hidden rounded-lg" style={{ aspectRatio: "2/1" }}>
                       <img
                         src={ad.imageUrl}
                         alt={ad.title ?? `מודעה ${ad.position}`}
@@ -268,6 +320,11 @@ export function Layout({ children }: { children: ReactNode }) {
                     <div key={ad.id}>{inner}</div>
                   );
                 })}
+            </div>
+
+            {/* Mobile / Tablet: auto-playing carousel */}
+            <div className="lg:hidden">
+              <AdsCarousel ads={ads} />
             </div>
           </div>
         </div>
