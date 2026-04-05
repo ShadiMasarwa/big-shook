@@ -16,6 +16,7 @@ import {
   Layers,
   Award,
   Megaphone,
+  Images,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -33,6 +34,7 @@ const navItems = [
   { href: "/admin/loyalty", label: "מועדון לקוחות", icon: Star },
   { href: "/admin/import", label: "ייבוא וייצוא", icon: Download },
   { href: "/admin/ads", label: "מודעות", icon: Megaphone },
+  { href: "/admin/media", label: "ספריית מדיה", icon: Images },
 ];
 
 export function AdminLayout({ children }: { children: ReactNode }) {

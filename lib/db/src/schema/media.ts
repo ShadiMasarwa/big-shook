@@ -7,6 +7,7 @@ export const mediaTable = pgTable("media", {
   mimeType: text("mime_type").notNull(),
   size: integer("size").notNull(),
   altText: text("alt_text"),
+  title: text("title"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
