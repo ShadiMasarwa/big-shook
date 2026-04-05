@@ -151,6 +151,30 @@ export default function AdminAds() {
                   )}
                 </div>
 
+                {/* Image URL (direct paste or media picker) */}
+                <div className="space-y-1.5">
+                  <Label className="text-sm">כתובת תמונה</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={slot.imageUrl}
+                      onChange={e => update(pos, "imageUrl", e.target.value)}
+                      placeholder="הדבק URL של תמונה או GIF..."
+                      dir="ltr"
+                      className="flex-1 text-xs"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPickerOpenFor(pos)}
+                      className="shrink-0"
+                    >
+                      <ImageIcon className="h-4 w-4 ml-1" />
+                      מדיה
+                    </Button>
+                  </div>
+                </div>
+
                 {/* Link URL */}
                 <div className="space-y-1.5">
                   <Label className="text-sm">קישור (אופציונלי)</Label>
