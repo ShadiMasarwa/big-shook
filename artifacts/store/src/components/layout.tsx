@@ -26,25 +26,21 @@ import { useListCategories, useGetWishlist } from "@workspace/api-client-react";
 
 type AdItem = { id: number; position: number; imageUrl: string; linkUrl?: string | null; title?: string | null };
 
-function AdsCarousel({ ads, visibleCount = 1 }: { ads: AdItem[]; visibleCount?: number }) {
-  const sorted = [...ads].sort((a, b) => a.position - b.position);
-  const numPages = Math.ceil(sorted.length / visibleCount);
-  const [page, setPage] = useState(0);
+function AdsCarousel({ ads }: { ads: AdItem[] }) {
+  const [current, setCurrent] = useState(0);
   const paused = useRef(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    setPage(0);
-  }, [visibleCount]);
-
-  useEffect(() => {
-    if (numPages <= 1) return;
+    if (ads.length <= 1) return;
     const tick = () => {
-      if (!paused.current) setPage(p => (p + 1) % numPages);
+      if (!paused.current) setCurrent(i => (i + 1) % ads.length);
     };
     intervalRef.current = setInterval(tick, 4000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [numPages]);
+  }, [ads.length]);
+
+  const sorted = [...ads].sort((a, b) => a.position - b.position);
 
   return (
     <div
@@ -53,27 +49,22 @@ function AdsCarousel({ ads, visibleCount = 1 }: { ads: AdItem[]; visibleCount?: 
       onMouseEnter={() => { paused.current = true; }}
       onMouseLeave={() => { paused.current = false; }}
     >
-      {/* Slides strip — LTR so translateX maths is straightforward.
-          Each slide is (100/visibleCount)% wide; moving one full page = -100% translateX. */}
+      {/* Slides strip — LTR so translateX maths is straightforward */}
       <div
         dir="ltr"
         className="flex h-full transition-transform duration-700 ease-in-out"
-        style={{ transform: `translateX(-${page * 100}%)` }}
+        style={{ transform: `translateX(-${current * 100}%)` }}
       >
         {sorted.map(ad => {
           const img = (
             <img
               src={ad.imageUrl}
               alt={ad.title ?? `מודעה ${ad.position}`}
-              className="w-full h-full object-cover rounded-lg"
+              className="w-full h-full object-cover"
             />
           );
           return (
-            <div
-              key={ad.id}
-              className="shrink-0 h-full"
-              style={{ width: `${100 / visibleCount}%`, padding: visibleCount > 1 ? "0 6px" : undefined }}
-            >
+            <div key={ad.id} className="w-full shrink-0 h-full">
               {ad.linkUrl ? (
                 <a href={ad.linkUrl} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
                   {img}
@@ -307,7 +298,7 @@ export function Layout({ children }: { children: ReactNode }) {
       {ads && ads.length > 0 && (
         <div className="border-b border-border bg-background">
           <div className="container mx-auto px-4 py-3">
-            {/* Desktop (lg+): 4-column grid */}
+            {/* Desktop: 4-column grid */}
             <div className="hidden lg:grid grid-cols-4 gap-3">
               {[...ads]
                 .sort((a, b) => a.position - b.position)
@@ -331,13 +322,8 @@ export function Layout({ children }: { children: ReactNode }) {
                 })}
             </div>
 
-            {/* Tablet (sm–lg): carousel showing 2 ads at once */}
-            <div className="hidden sm:block lg:hidden">
-              <AdsCarousel ads={ads} visibleCount={2} />
-            </div>
-
-            {/* Mobile (< sm): carousel showing 1 ad at a time */}
-            <div className="sm:hidden">
+            {/* Mobile / Tablet: auto-playing carousel */}
+            <div className="lg:hidden">
               <AdsCarousel ads={ads} />
             </div>
           </div>
