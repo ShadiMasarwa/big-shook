@@ -375,11 +375,14 @@ router.post("/orders", async (req, res): Promise<void> => {
     });
   }));
 
-  // Update product sales counts
+  // Update product sales counts and deduct stock
   await Promise.all(cartItems.map(item => {
     const p = productMap.get(item.productId);
     if (!p) return Promise.resolve();
-    return db.update(productsTable).set({ salesCount: p.salesCount + item.quantity }).where(eq(productsTable.id, item.productId));
+    return db.update(productsTable).set({
+      salesCount: p.salesCount + item.quantity,
+      stockQuantity: Math.max(0, p.stockQuantity - item.quantity),
+    }).where(eq(productsTable.id, item.productId));
   }));
 
   // Clear cart
