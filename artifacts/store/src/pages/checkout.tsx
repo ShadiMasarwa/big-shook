@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useCreateOrder } from "@workspace/api-client-react";
 import { toast } from "@/components/ui/use-toast";
 import { formatPrice } from "@/lib/utils";
-import { CheckCircle2, Save, TrendingUp } from "lucide-react";
+import { AlertCircle, CheckCircle2, Save, TrendingUp } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
 interface TierUpgrade { from: string; to: string }
@@ -30,6 +30,7 @@ export default function Checkout() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [orderNumber, setOrderNumber] = useState("");
   const [tierUpgrade, setTierUpgrade] = useState<TierUpgrade | null>(null);
+  const [outOfStockItems, setOutOfStockItems] = useState<{ productName: string; requested: number; available: number }[]>([]);
 
   const [shipping, setShipping] = useState({
     firstName: user?.firstName || "",
@@ -80,6 +81,7 @@ export default function Checkout() {
   };
 
   const handlePlaceOrder = async () => {
+    setOutOfStockItems([]);
     try {
       const order = await createOrder.mutateAsync({
         data: {
@@ -90,7 +92,12 @@ export default function Checkout() {
       setTierUpgrade((order as any).tierUpgrade ?? null);
       await clearCart();
       setIsSuccess(true);
-    } catch (e) {
+    } catch (e: any) {
+      // 409 = stock validation failed — show which items are unavailable
+      if (e?.status === 409 && Array.isArray(e?.data?.outOfStock)) {
+        setOutOfStockItems(e.data.outOfStock);
+        return;
+      }
       toast({ title: "שגיאה ביצירת ההזמנה", variant: "destructive" });
     }
   };
@@ -287,6 +294,31 @@ export default function Checkout() {
                     </div>
                   </div>
                 </div>
+
+                {/* Out-of-stock warning */}
+                {outOfStockItems.length > 0 && (
+                  <div className="rounded-xl border border-red-300 bg-red-50 p-4" dir="rtl">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
+                      <div className="flex-1">
+                        <p className="font-bold text-red-700 mb-2">
+                          {outOfStockItems.length === 1 ? "מוצר אחד אינו זמין במלאי" : `${outOfStockItems.length} מוצרים אינם זמינים במלאי`}
+                        </p>
+                        <ul className="space-y-1">
+                          {outOfStockItems.map((item, i) => (
+                            <li key={i} className="text-sm text-red-700">
+                              <span className="font-semibold">{item.productName}</span>
+                              {item.available === 0
+                                ? " — אזל מהמלאי"
+                                : ` — ביקשת ${item.requested}, זמינים רק ${item.available}`}
+                            </li>
+                          ))}
+                        </ul>
+                        <p className="text-sm text-red-600 mt-2">אנא עדכן את הכמויות בעגלה ונסה שנית.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <Button size="lg" className="w-full font-bold text-lg h-14" onClick={handlePlaceOrder}>
                   שלם {formatPrice(cart.total)} וסיים הזמנה

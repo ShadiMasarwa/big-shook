@@ -307,6 +307,31 @@ router.post("/orders", async (req, res): Promise<void> => {
 
   const cartItems = await db.select().from(cartItemsTable).where(eq(cartItemsTable.sessionId, sessionId));
 
+  // ── Stock check before charging ──────────────────────────────────────────
+  {
+    const productIds = cartItems.map(i => i.productId);
+    const stockRows = productIds.length > 0
+      ? await db.select({ id: productsTable.id, nameHe: productsTable.nameHe, stockQuantity: productsTable.stockQuantity })
+          .from(productsTable)
+          .where(sql`${productsTable.id} = ANY(ARRAY[${sql.join(productIds.map(id => sql`${id}`), sql`, `)}]::int[])`)
+      : [];
+    const stockMap = new Map(stockRows.map(p => [p.id, p]));
+
+    const outOfStock: { productId: number; productName: string; requested: number; available: number }[] = [];
+    for (const item of cartItems) {
+      const p = stockMap.get(item.productId);
+      const available = p?.stockQuantity ?? 0;
+      if (available < item.quantity) {
+        outOfStock.push({ productId: item.productId, productName: p?.nameHe ?? "מוצר", requested: item.quantity, available });
+      }
+    }
+    if (outOfStock.length > 0) {
+      res.status(409).json({ error: "מוצרים חסרים במלאי", outOfStock });
+      return;
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   const { subtotal, shipping, total, couponCode, couponDiscount, loyaltyPointsUsed, loyaltyDiscount, appliedCoupons } = cart as any;
   // Points earned are based on the final amount paid (after all discounts)
   const loyaltyPointsEarned = Math.floor(total);
