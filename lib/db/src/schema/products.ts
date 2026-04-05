@@ -21,6 +21,7 @@ export const productsTable = pgTable("products", {
   price: numeric("price", { precision: 10, scale: 2 }).notNull(),
   salePrice: numeric("sale_price", { precision: 10, scale: 2 }),
   costPrice: numeric("cost_price", { precision: 10, scale: 2 }),
+  deliveryCost: numeric("delivery_cost", { precision: 10, scale: 2 }),
   categoryId: integer("category_id"),
   brandId: integer("brand_id"),
   supplierId: integer("supplier_id"),

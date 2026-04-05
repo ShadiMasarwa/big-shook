@@ -48,6 +48,8 @@ export default function AdminProductForm() {
     sku: "",
     price: 0,
     salePrice: 0,
+    costPrice: 0,
+    deliveryCost: 0,
     stockQuantity: 0,
     categoryId: "",
     brandId: "",
@@ -77,6 +79,8 @@ export default function AdminProductForm() {
         sku: product.sku || "",
         price: product.price,
         salePrice: product.salePrice || 0,
+        costPrice: (product as any).costPrice || 0,
+        deliveryCost: (product as any).deliveryCost || 0,
         stockQuantity: product.stockQuantity,
         categoryId: product.categoryId?.toString() || "",
         brandId: product.brandId?.toString() || "",
@@ -146,6 +150,8 @@ export default function AdminProductForm() {
       sku: formData.sku || null,
       price: Number(formData.price),
       salePrice: Number(formData.salePrice) > 0 ? Number(formData.salePrice) : null,
+      costPrice: Number(formData.costPrice) > 0 ? Number(formData.costPrice) : null,
+      deliveryCost: Number(formData.deliveryCost) > 0 ? Number(formData.deliveryCost) : null,
       stockQuantity: Number(formData.stockQuantity),
       categoryId: formData.categoryId ? Number(formData.categoryId) : null,
       brandId: formData.brandId ? Number(formData.brandId) : null,
@@ -246,7 +252,7 @@ export default function AdminProductForm() {
 
         <Card>
           <CardHeader><CardTitle>מחיר ומלאי</CardTitle></CardHeader>
-          <CardContent>
+          <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
                 <Label>מחיר רגיל (₪) *</Label>
@@ -259,6 +265,16 @@ export default function AdminProductForm() {
               <div className="space-y-2">
                 <Label>כמות במלאי *</Label>
                 <Input type="number" required min="0" value={formData.stockQuantity} onChange={e => setFormData({...formData, stockQuantity: Number(e.target.value)})} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label>מחיר עלות (₪)</Label>
+                <Input type="number" min="0" step="0.01" value={formData.costPrice || ""} placeholder="ריק = לא מוגדר" onChange={e => setFormData({...formData, costPrice: Number(e.target.value)})} />
+              </div>
+              <div className="space-y-2">
+                <Label>עלות משלוח (₪)</Label>
+                <Input type="number" min="0" step="0.01" value={formData.deliveryCost || ""} placeholder="ריק = לא מוגדר" onChange={e => setFormData({...formData, deliveryCost: Number(e.target.value)})} />
               </div>
             </div>
           </CardContent>
