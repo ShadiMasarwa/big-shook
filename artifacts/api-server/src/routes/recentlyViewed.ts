@@ -55,6 +55,9 @@ router.post("/recently-viewed", async (req, res): Promise<void> => {
   const { productId } = req.body;
   if (!productId) { res.status(400).json({ error: "productId is required" }); return; }
   await db.insert(recentlyViewedTable).values({ sessionId, productId });
+  await db.update(productsTable)
+    .set({ viewsCount: sql`${productsTable.viewsCount} + 1` })
+    .where(eq(productsTable.id, productId));
   // Keep only last 20
   const entries = await db.select().from(recentlyViewedTable)
     .where(eq(recentlyViewedTable.sessionId, sessionId))
