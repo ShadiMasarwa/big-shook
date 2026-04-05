@@ -18,6 +18,7 @@ import adminRouter from "./admin.js";
 import suppliersRouter from "./suppliers.js";
 import storageRouter from "./storage.js";
 import mediaRouter from "./media.js";
+import adsRouter from "./ads.js";
 
 const router: IRouter = Router();
 
@@ -40,5 +41,6 @@ router.use(adminRouter);
 router.use(suppliersRouter);
 router.use(storageRouter);
 router.use(mediaRouter);
+router.use(adsRouter);
 
 export default router;

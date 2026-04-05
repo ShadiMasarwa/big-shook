@@ -1,4 +1,5 @@
 import { ReactNode, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useSearch } from "wouter";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
@@ -39,6 +40,16 @@ export function Layout({ children }: { children: ReactNode }) {
     location === "/catalog" || location.startsWith("/catalog");
 
   const { data: categories } = useListCategories();
+
+  const { data: ads } = useQuery<{ id: number; position: number; imageUrl: string; linkUrl?: string | null; title?: string | null }[]>({
+    queryKey: ["ads"],
+    queryFn: async () => {
+      const res = await fetch("/api/ads");
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -228,6 +239,39 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
         </div>
       </header>
+
+      {/* Ad Banner Strip */}
+      {ads && ads.length > 0 && (
+        <div className="border-b border-border bg-background">
+          <div className="container mx-auto px-4 py-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {ads
+                .sort((a, b) => a.position - b.position)
+                .map(ad => {
+                  const inner = (
+                    <div
+                      className="relative w-full overflow-hidden rounded-lg"
+                      style={{ aspectRatio: "2/1" }}
+                    >
+                      <img
+                        src={ad.imageUrl}
+                        alt={ad.title ?? `מודעה ${ad.position}`}
+                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                      />
+                    </div>
+                  );
+                  return ad.linkUrl ? (
+                    <a key={ad.id} href={ad.linkUrl} target="_blank" rel="noopener noreferrer" className="block">
+                      {inner}
+                    </a>
+                  ) : (
+                    <div key={ad.id}>{inner}</div>
+                  );
+                })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Mobile Drawer */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>

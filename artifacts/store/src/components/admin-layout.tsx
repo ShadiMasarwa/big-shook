@@ -14,7 +14,8 @@ import {
   Download,
   Truck,
   Layers,
-  Award
+  Award,
+  Megaphone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -31,6 +32,7 @@ const navItems = [
   { href: "/admin/coupons", label: "קופונים", icon: Percent },
   { href: "/admin/loyalty", label: "מועדון לקוחות", icon: Star },
   { href: "/admin/import", label: "ייבוא וייצוא", icon: Download },
+  { href: "/admin/ads", label: "מודעות", icon: Megaphone },
 ];
 
 export function AdminLayout({ children }: { children: ReactNode }) {
