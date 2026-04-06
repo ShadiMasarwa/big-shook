@@ -295,7 +295,7 @@ function ItemRow({ item, orderId, onUpdate }: {
             <div className="text-left text-sm min-w-[120px]">
               <p className="text-muted-foreground text-xs">כמות: <strong className="text-foreground">{item.quantity}</strong></p>
               <p className="font-bold">{formatPrice(item.subtotal)}</p>
-              {(() => {
+              {!["cancelled", "refunded"].includes(item.itemStatus) && (() => {
                 const totalCost = item.costPrice * item.quantity;
                 const totalDelivery = item.deliveryCost * item.quantity;
                 const profit = item.subtotal - totalCost - totalDelivery;
@@ -773,8 +773,9 @@ export default function AdminOrderDetail() {
 
                 {/* ── Cost / Profit breakdown ── */}
                 {(() => {
-                  const totalCost     = order.items.reduce((s, it) => s + it.costPrice * it.quantity, 0);
-                  const totalDelivery = order.items.reduce((s, it) => s + it.deliveryCost * it.quantity, 0);
+                  const billableItems = order.items.filter(it => !["cancelled", "refunded"].includes(it.itemStatus));
+                  const totalCost     = billableItems.reduce((s, it) => s + it.costPrice * it.quantity, 0);
+                  const totalDelivery = billableItems.reduce((s, it) => s + it.deliveryCost * it.quantity, 0);
                   const totalProfit   = effectiveTotal - totalCost - totalDelivery;
                   return (
                     <div className="mt-3 pt-3 border-t border-dashed border-border space-y-1.5 text-sm">
