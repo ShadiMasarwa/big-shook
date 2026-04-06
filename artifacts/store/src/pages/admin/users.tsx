@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { formatPrice } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Mail, MailX } from "lucide-react";
 
 export default function AdminUsers() {
   const { data, isLoading } = useListUsers({ limit: 50 });
@@ -24,6 +25,7 @@ export default function AdminUsers() {
               <TableHead className="text-center">דרגת מועדון</TableHead>
               <TableHead className="text-center">נקודות</TableHead>
               <TableHead className="text-center">הזמנות</TableHead>
+              <TableHead className="text-center">פרסומים</TableHead>
               <TableHead className="text-left">סה"כ קניות</TableHead>
             </TableRow>
           </TableHeader>
@@ -36,6 +38,7 @@ export default function AdminUsers() {
                   <TableCell><Skeleton className="h-6 w-16 mx-auto rounded-full" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-12 mx-auto" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-8 mx-auto" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-5 mx-auto rounded" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                 </TableRow>
               ))
@@ -59,6 +62,12 @@ export default function AdminUsers() {
                   </TableCell>
                   <TableCell className="text-center font-bold text-amber-600">{user.loyaltyPoints}</TableCell>
                   <TableCell className="text-center">{user.ordersCount}</TableCell>
+                  <TableCell className="text-center">
+                    {user.marketingEmails
+                      ? <Mail className="h-4 w-4 text-green-500 mx-auto" />
+                      : <MailX className="h-4 w-4 text-muted-foreground mx-auto" />
+                    }
+                  </TableCell>
                   <TableCell className="text-left font-bold text-primary">{formatPrice(user.totalSpent)}</TableCell>
                 </TableRow>
               ))

@@ -199,6 +199,7 @@ export interface User {
   totalSpent: number;
   ordersCount: number;
   isActive: boolean;
+  marketingEmails: boolean;
   createdAt: string;
 }
 
