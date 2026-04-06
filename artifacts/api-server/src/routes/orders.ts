@@ -233,6 +233,8 @@ async function fetchItemsWithProductData(orderId: number) {
       ...i,
       price: parseFloat(i.price),
       subtotal: parseFloat(i.subtotal),
+      costPrice: parseFloat(i.costPrice ?? "0"),
+      deliveryCost: parseFloat(i.deliveryCost ?? "0"),
       createdAt: i.createdAt.toISOString(),
       productImages: product?.images ?? [],
       productSlug: product?.slug ?? null,

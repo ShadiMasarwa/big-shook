@@ -72,6 +72,8 @@ interface OrderItem {
   quantity: number;
   price: number;
   subtotal: number;
+  costPrice: number;
+  deliveryCost: number;
   itemStatus: string;
   itemStatusHistory: StatusEntry[];
   productImages: string[];
@@ -290,9 +292,23 @@ function ItemRow({ item, orderId, onUpdate }: {
               <p className="font-semibold text-sm">{item.productName}</p>
               {item.productSku && <p className="text-xs text-muted-foreground font-mono" dir="ltr">{item.productSku}</p>}
             </div>
-            <div className="text-left text-sm">
+            <div className="text-left text-sm min-w-[120px]">
               <p className="text-muted-foreground text-xs">כמות: <strong className="text-foreground">{item.quantity}</strong></p>
               <p className="font-bold">{formatPrice(item.subtotal)}</p>
+              {(() => {
+                const totalCost = item.costPrice * item.quantity;
+                const totalDelivery = item.deliveryCost * item.quantity;
+                const profit = item.subtotal - totalCost - totalDelivery;
+                return (
+                  <>
+                    <p className="text-xs text-red-500 mt-0.5">- {formatPrice(totalCost)} עלות</p>
+                    <p className="text-xs text-red-500">- {formatPrice(totalDelivery)} משלוח</p>
+                    <p className={`text-xs font-semibold mt-0.5 ${profit >= 0 ? "text-green-600" : "text-red-500"}`}>
+                      רווח: {formatPrice(profit)}
+                    </p>
+                  </>
+                );
+              })()}
             </div>
           </div>
 
@@ -754,6 +770,29 @@ export default function AdminOrderDetail() {
                     )}
                   </div>
                 </div>
+
+                {/* ── Cost / Profit breakdown ── */}
+                {(() => {
+                  const totalCost     = order.items.reduce((s, it) => s + it.costPrice * it.quantity, 0);
+                  const totalDelivery = order.items.reduce((s, it) => s + it.deliveryCost * it.quantity, 0);
+                  const totalProfit   = effectiveTotal - totalCost - totalDelivery;
+                  return (
+                    <div className="mt-3 pt-3 border-t border-dashed border-border space-y-1.5 text-sm">
+                      <div className="flex justify-between text-red-500">
+                        <span>סה"כ עלות מוצרים</span>
+                        <span>-{formatPrice(totalCost)}</span>
+                      </div>
+                      <div className="flex justify-between text-red-500">
+                        <span>סה"כ עלות משלוח</span>
+                        <span>-{formatPrice(totalDelivery)}</span>
+                      </div>
+                      <div className={`flex justify-between font-bold ${totalProfit >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        <span>רווח כולל</span>
+                        <span>{formatPrice(totalProfit)}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
