@@ -47,7 +47,7 @@ router.get("/users/:id", async (req, res): Promise<void> => {
 router.patch("/users/:id", async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
-  const { firstName, lastName, phone, city, street, houseNumber, zipCode, addressNote, isActive } = req.body;
+  const { firstName, lastName, phone, city, street, houseNumber, zipCode, addressNote, isActive, marketingEmails, loyaltyTier } = req.body;
   const updateData: Record<string, unknown> = {};
   if (firstName !== undefined) updateData.firstName = firstName;
   if (lastName !== undefined) updateData.lastName = lastName;
@@ -58,6 +58,8 @@ router.patch("/users/:id", async (req, res): Promise<void> => {
   if (zipCode !== undefined) updateData.zipCode = zipCode;
   if (addressNote !== undefined) updateData.addressNote = addressNote;
   if (isActive !== undefined) updateData.isActive = isActive;
+  if (marketingEmails !== undefined) updateData.marketingEmails = marketingEmails;
+  if (loyaltyTier !== undefined) updateData.loyaltyTier = loyaltyTier;
 
   const [user] = await db.update(usersTable).set(updateData).where(eq(usersTable.id, id)).returning();
   if (!user) {
