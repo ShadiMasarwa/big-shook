@@ -8,6 +8,7 @@ import { formatPrice } from "@/lib/utils";
 import { useAddToWishlist, getGetWishlistQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/ui/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 
 interface ProductCardProps {
   product: Product;
@@ -20,7 +21,14 @@ export function ProductCard({ product }: ProductCardProps) {
 
   const handleAddToCart = () => {
     addToCart({ productId: product.id, quantity: 1 })
-      .then(() => toast({ title: "נוסף לעגלה בהצלחה!" }))
+      .then(() => toast({
+        title: "נוסף לעגלה בהצלחה!",
+        action: (
+          <ToastAction altText="עבור לעגלה" onClick={() => { window.location.href = "/cart"; }}>
+            לעגלה
+          </ToastAction>
+        ),
+      }))
       .catch(() => toast({ title: "שגיאה בהוספה לעגלה", variant: "destructive" }));
   };
 

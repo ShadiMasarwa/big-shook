@@ -19,6 +19,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ShoppingCart, Heart, Check, Star, ChevronRight, ChevronLeft, Play } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { ProductCard } from "@/components/product-card";
 
 export default function ProductDetail() {
@@ -88,7 +89,14 @@ export default function ProductDetail() {
     if (!product) return;
     try {
       await addToCart({ productId: product.id, quantity });
-      toast({ title: "המוצר נוסף לעגלה בהצלחה" });
+      toast({
+        title: "המוצר נוסף לעגלה בהצלחה",
+        action: (
+          <ToastAction altText="עבור לעגלה" onClick={() => { window.location.href = "/cart"; }}>
+            לעגלה
+          </ToastAction>
+        ),
+      });
     } catch (e) {
       toast({ title: "שגיאה בהוספה לעגלה", variant: "destructive" });
     }
