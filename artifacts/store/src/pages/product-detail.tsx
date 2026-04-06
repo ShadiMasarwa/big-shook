@@ -1,4 +1,4 @@
-import { useParams } from "wouter";
+import { useParams, useLocation } from "wouter";
 import { Layout } from "@/components/layout";
 import { 
   useGetProduct, 
@@ -51,6 +51,7 @@ export default function ProductDetail() {
   });
   
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
   const { addToCart } = useCart();
   const addToWishlistMutation = useAddToWishlist();
   const trackView = useTrackProductView();
@@ -92,7 +93,7 @@ export default function ProductDetail() {
       toast({
         title: "המוצר נוסף לעגלה בהצלחה",
         action: (
-          <ToastAction altText="עבור לעגלה" onClick={() => { window.location.href = "/cart"; }} className="bg-green-600 text-white border-green-600 hover:bg-green-700 hover:border-green-700">
+          <ToastAction altText="עבור לעגלה" onClick={() => setLocation("/cart")} className="bg-green-600 text-white border-green-600 hover:bg-green-700 hover:border-green-700">
             לעגלה
           </ToastAction>
         ),
