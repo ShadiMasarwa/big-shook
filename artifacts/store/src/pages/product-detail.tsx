@@ -92,7 +92,7 @@ export default function ProductDetail() {
       toast({
         title: "המוצר נוסף לעגלה בהצלחה",
         action: (
-          <ToastAction altText="עבור לעגלה" onClick={() => { window.location.href = "/cart"; }}>
+          <ToastAction altText="עבור לעגלה" onClick={() => { window.location.href = "/cart"; }} className="bg-green-600 text-white border-green-600 hover:bg-green-700 hover:border-green-700">
             לעגלה
           </ToastAction>
         ),
