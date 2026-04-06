@@ -88,6 +88,9 @@ export default function OrderDetail() {
   const loyaltyDiscount    = parseFloat((order as any).loyaltyPointsUsedAmount ?? order.discount as unknown as string) || 0;
   const activeCoupon       = hasCancelled ? couponDiscount  * proportion : couponDiscount;
   const activeLoyalty      = hasCancelled ? loyaltyDiscount * proportion : loyaltyDiscount;
+  const earnedPoints       = hasCancelled
+    ? Math.floor((order.loyaltyPointsEarned ?? 0) * proportion)
+    : (order.loyaltyPointsEarned ?? 0);
 
   const statusDisplay = getStatusDisplay(order.status);
   const StatusIcon    = statusDisplay.icon;
@@ -213,10 +216,10 @@ export default function OrderDetail() {
               )}
             </div>
 
-            {activeItems.length > 0 && order.loyaltyPointsEarned > 0 && (
+            {activeItems.length > 0 && earnedPoints > 0 && (
               <div className="mt-6 bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800 flex items-center justify-center gap-2">
                 <Star className="h-4 w-4" />
-                צברת {order.loyaltyPointsEarned} נקודות בהזמנה זו!
+                צברת {earnedPoints} נקודות בהזמנה זו!
               </div>
             )}
           </div>
