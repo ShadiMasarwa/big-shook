@@ -172,7 +172,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   if (!user || user.passwordHash !== hashPassword(password)) {
     res.status(401).json({ error: "פרטי התחברות שגויים" }); return;
   }
-  if (!user.isActive) { res.status(401).json({ error: "החשבון אינו פעיל" }); return; }
+  if (!user.isActive) { res.status(403).json({ error: "account_inactive" }); return; }
   const token = generateToken(user.id);
   res.json({ user: serializeUser(user), token });
 });

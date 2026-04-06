@@ -178,6 +178,7 @@ export default function Auth() {
   const [loginPassword, setLoginPassword] = useState("");
   const [loginShowPwd, setLoginShowPwd] = useState(false);
   const [loginError, setLoginError] = useState("");
+  const [loginInactive, setLoginInactive] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
 
   // Register – step 1
@@ -219,6 +220,7 @@ export default function Auth() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError("");
+    setLoginInactive(false);
     setLoginLoading(true);
     try {
       const res = await fetch("/api/auth/login", {
@@ -228,7 +230,11 @@ export default function Auth() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setLoginError(data.error ?? "שגיאה בהתחברות");
+        if (data.error === "account_inactive") {
+          setLoginInactive(true);
+        } else {
+          setLoginError(data.error ?? "שגיאה בהתחברות");
+        }
         return;
       }
       localStorage.setItem("token", data.token);
@@ -455,6 +461,19 @@ export default function Auth() {
                     </button>
                   </div>
                 </div>
+                {loginInactive && (
+                  <div className="rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800 space-y-1">
+                    <p className="font-semibold">החשבון שלך מושהה</p>
+                    <p>לשאלות ולהפעלת החשבון, פנה אלינו במייל:</p>
+                    <a
+                      href="mailto:support@bigshook.com"
+                      className="font-bold underline underline-offset-2 hover:text-orange-900"
+                      dir="ltr"
+                    >
+                      support@bigshook.com
+                    </a>
+                  </div>
+                )}
                 {loginError && (
                   <p className="text-sm text-destructive">{loginError}</p>
                 )}
