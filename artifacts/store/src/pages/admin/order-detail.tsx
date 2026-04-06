@@ -798,20 +798,29 @@ export default function AdminOrderDetail() {
             </div>
 
             {/* Loyalty */}
-            {(order.loyaltyPointsEarned > 0 || order.loyaltyPointsUsed > 0) && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-                <h3 className="text-sm font-semibold mb-2 flex items-center gap-1.5 text-amber-800">
-                  <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
-                  נקודות נאמנות
-                </h3>
-                {order.loyaltyPointsUsed > 0 && (
-                  <p className="text-xs text-amber-700">נמשו: <strong>{order.loyaltyPointsUsed.toLocaleString("he-IL")} נק׳</strong> (₪{Number(order.loyaltyPointsUsedAmount).toFixed(2)})</p>
-                )}
-                {order.loyaltyPointsEarned > 0 && (
-                  <p className="text-xs text-amber-700 mt-0.5">נצברו: <strong>{order.loyaltyPointsEarned.toLocaleString("he-IL")} נק׳</strong></p>
-                )}
-              </div>
-            )}
+            {(order.loyaltyPointsEarned > 0 || order.loyaltyPointsUsed > 0) && (() => {
+              const activeEarned = hasCancelled
+                ? Math.round(order.loyaltyPointsEarned * proportion)
+                : order.loyaltyPointsEarned;
+              const activeUsed = hasCancelled
+                ? Math.round(order.loyaltyPointsUsed * proportion)
+                : order.loyaltyPointsUsed;
+              const activeUsedAmount = activeLoyalty;
+              return (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                  <h3 className="text-sm font-semibold mb-2 flex items-center gap-1.5 text-amber-800">
+                    <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
+                    נקודות נאמנות
+                  </h3>
+                  {activeUsed > 0 && (
+                    <p className="text-xs text-amber-700">נמשו: <strong>{activeUsed.toLocaleString("he-IL")} נק׳</strong> (₪{activeUsedAmount.toFixed(2)})</p>
+                  )}
+                  {activeEarned > 0 && (
+                    <p className="text-xs text-amber-700 mt-0.5">נצברו: <strong>{activeEarned.toLocaleString("he-IL")} נק׳</strong></p>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Notes */}
             {order.notes && (
