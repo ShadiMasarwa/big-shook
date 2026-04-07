@@ -438,15 +438,6 @@ export function Layout({ children }: { children: ReactNode }) {
                       </Link>
                     </li>
                     <li>
-                      <Link
-                        href="/loyalty"
-                        onClick={handleCategoryClick}
-                        className="flex items-center py-2 px-3 rounded-md hover:bg-muted text-sm"
-                      >
-                        מועדון לקוחות
-                      </Link>
-                    </li>
-                    <li>
                       <button
                         onClick={async () => {
                           await logout();
@@ -520,11 +511,6 @@ export function Layout({ children }: { children: ReactNode }) {
               <li>
                 <Link href="/orders" className="hover:text-primary">
                   ההזמנות שלי
-                </Link>
-              </li>
-              <li>
-                <Link href="/loyalty" className="hover:text-primary">
-                  מועדון לקוחות
                 </Link>
               </li>
               <li>

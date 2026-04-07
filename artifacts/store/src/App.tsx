@@ -16,7 +16,6 @@ import Orders from "@/pages/orders";
 import OrderDetail from "@/pages/order-detail";
 import Wishlist from "@/pages/wishlist";
 import Compare from "@/pages/compare";
-import Loyalty from "@/pages/loyalty";
 import Profile from "@/pages/profile";
 
 // Admin
@@ -56,7 +55,6 @@ function Router() {
       <Route path="/orders/:id" component={OrderDetail} />
       <Route path="/wishlist" component={Wishlist} />
       <Route path="/compare" component={Compare} />
-      <Route path="/loyalty" component={Loyalty} />
       <Route path="/profile" component={Profile} />
 
       <Route path="/admin" component={AdminDashboard} />

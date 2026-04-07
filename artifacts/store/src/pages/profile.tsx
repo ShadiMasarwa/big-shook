@@ -363,14 +363,14 @@ export default function Profile() {
                   <p className="text-xs text-muted-foreground">סה״כ קניות</p>
                 </div>
               </div>
-
+              {/* Stats 
               <Button
                 variant="outline"
                 className="w-full mt-4"
                 onClick={() => setLocation("/loyalty")}
               >
                 <Star className="h-4 w-4 ml-1" /> לפרטי מועדון הלקוחות
-              </Button>
+              </Button>*/}
             </div>
           </div>
         </div>
