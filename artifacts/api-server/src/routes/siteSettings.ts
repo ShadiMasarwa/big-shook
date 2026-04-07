@@ -16,6 +16,7 @@ router.get("/site-settings", async (_req: Request, res: Response): Promise<void>
   for (const row of rows) {
     result[row.key] = row.value;
   }
+  res.setHeader("Cache-Control", "no-store");
   res.json(result);
 });
 
