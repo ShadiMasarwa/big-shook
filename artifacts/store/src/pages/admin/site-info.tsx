@@ -12,15 +12,15 @@ import { RichTextEditor } from "@/components/rich-text-editor";
 const TOPBAR_FIELDS = [
   {
     key: "topbar_left",
-    label: "טקסט שמאל",
-    description: "מופיע בצד שמאל של הרצועה הכחולה העליונה",
-    placeholder: "שירות לקוחות: 077-1234577",
+    label: "טקסט ימין",
+    description: "מופיע בצד ימין של הרצועה הכחולה העליונה",
+    //placeholder: "שירות לקוחות: 077-1234577",
   },
   {
     key: "topbar_right",
-    label: "טקסט ימין",
-    description: "מופיע בצד ימין של הרצועה הכחולה העליונה",
-    placeholder: "משלוח חינם בקנייה מעל ₪299",
+    label: "טקסט שמאל",
+    description: "מופיע בצד שמאל של הרצועה הכחולה העליונה",
+    //placeholder: "משלוח חינם בקנייה מעל ₪299",
   },
 ] as const;
 
@@ -158,7 +158,6 @@ export default function AdminSiteInfo() {
                   value={values[section.key] ?? ""}
                   onChange={(html) => setValues((prev) => ({ ...prev, [section.key]: html }))}
                   placeholder={`הקלד את תוכן ${section.title} כאן...`}
-                  minHeight={220}
                 />
               </div>
             ))}

@@ -19,7 +19,6 @@ interface Props {
   value: string;
   onChange: (html: string) => void;
   placeholder?: string;
-  minHeight?: number;
 }
 
 function ToolbarButton({
@@ -48,7 +47,7 @@ function ToolbarButton({
   );
 }
 
-export function RichTextEditor({ value, onChange, placeholder = "הקלד טקסט כאן...", minHeight = 200 }: Props) {
+export function RichTextEditor({ value, onChange, placeholder = "הקלד טקסט כאן..." }: Props) {
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -64,7 +63,6 @@ export function RichTextEditor({ value, onChange, placeholder = "הקלד טקס
       attributes: {
         dir: "rtl",
         class: "prose prose-sm max-w-none focus:outline-none px-4 py-3",
-        style: `min-height:${minHeight}px`,
       },
     },
   });
@@ -147,8 +145,8 @@ export function RichTextEditor({ value, onChange, placeholder = "הקלד טקס
         </ToolbarButton>
       </div>
 
-      {/* Editor area */}
-      <div className="relative">
+      {/* Editor area — fixed 10-line height with scroll */}
+      <div className="relative h-60 overflow-y-auto">
         {editor.isEmpty && (
           <p className="absolute top-3 right-4 text-muted-foreground/50 text-sm pointer-events-none select-none" dir="rtl">
             {placeholder}
