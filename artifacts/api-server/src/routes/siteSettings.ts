@@ -5,9 +5,15 @@ import { eq } from "drizzle-orm";
 const router: IRouter = Router();
 
 const DEFAULT_SETTINGS: Record<string, string> = {
-  topbar_left:   "שירות לקוחות: 077-1234577",
-  topbar_right:  "משלוח חינם בקנייה מעל ₪299",
-  midbar_center: "הצטרפו למועדון הלקוחות וצברו נקודות בכל קנייה!",
+  topbar_left:        "שירות לקוחות: 077-1234577",
+  topbar_right:       "משלוח חינם בקנייה מעל ₪299",
+  midbar_center:      "",
+  page_takanon:       "",
+  page_delivery:      "",
+  page_privacy:       "",
+  page_accessibility: "",
+  page_cancellation:  "",
+  page_safety:        "",
 };
 
 router.get("/site-settings", async (_req: Request, res: Response): Promise<void> => {
