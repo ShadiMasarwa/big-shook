@@ -10,14 +10,14 @@ import { Loader2, Save, Settings2, Info } from "lucide-react";
 const FIELD_DEFS = [
   {
     key: "topbar_left",
-    label: 'שורה עליונה — טקסט שמאל',
-    description: 'מופיע בצד שמאל של הרצועה הכחולה העליונה (טלפון, שעות פעילות וכו\')',
+    label: "טקסט שמאל",
+    description: "מופיע בצד שמאל של הרצועה הכחולה העליונה",
     placeholder: "שירות לקוחות: 077-1234577",
   },
   {
     key: "topbar_right",
-    label: 'שורה עליונה — טקסט ימין',
-    description: 'מופיע בצד ימין של הרצועה הכחולה העליונה (מבצעי משלוח וכו\')',
+    label: "טקסט ימין",
+    description: "מופיע בצד ימין של הרצועה הכחולה העליונה",
     placeholder: "משלוח חינם בקנייה מעל ₪299",
   },
 ] as const;
@@ -65,14 +65,14 @@ export default function AdminSiteInfo() {
 
   return (
     <AdminLayout>
-      <div className="max-w-2xl mx-auto" dir="rtl">
+      <div dir="rtl">
         <div className="flex items-center gap-3 mb-8">
           <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
             <Settings2 className="h-5 w-5 text-primary" />
           </div>
           <div>
             <h1 className="text-2xl font-black">מידע האתר</h1>
-            <p className="text-muted-foreground text-sm">עריכת הטקסטים ברצועות הפרסומיות</p>
+            <p className="text-muted-foreground text-sm">עריכת הטקסטים ברצועה הכחולה העליונה</p>
           </div>
         </div>
 
@@ -81,37 +81,42 @@ export default function AdminSiteInfo() {
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="space-y-5">
-            {FIELD_DEFS.map((field) => (
-              <div key={field.key} className="bg-card border border-border rounded-2xl p-6">
-                <Label className="text-base font-bold mb-1 block">{field.label}</Label>
-                <p className="text-xs text-muted-foreground mb-3 flex items-start gap-1.5">
-                  <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                  {field.description}
-                </p>
-                <div className="flex gap-3">
-                  <Input
-                    value={values[field.key] ?? ""}
-                    onChange={(e) => setValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                    placeholder={field.placeholder}
-                    className="flex-1"
-                    dir="rtl"
-                  />
-                  <Button
-                    onClick={() => handleSave(field.key)}
-                    disabled={saving === field.key}
-                    className="shrink-0 gap-2"
-                  >
-                    {saving === field.key ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Save className="h-4 w-4" />
-                    )}
-                    שמור
-                  </Button>
-                </div>
+          <div className="space-y-6">
+            <div className="bg-card border border-border rounded-2xl p-6">
+              <h2 className="text-base font-bold mb-5">רצועה עליונה</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {FIELD_DEFS.map((field) => (
+                  <div key={field.key}>
+                    <Label className="text-sm font-semibold mb-1 block">{field.label}</Label>
+                    <p className="text-xs text-muted-foreground mb-2 flex items-start gap-1.5">
+                      <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                      {field.description}
+                    </p>
+                    <div className="flex gap-2">
+                      <Input
+                        value={values[field.key] ?? ""}
+                        onChange={(e) => setValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                        placeholder={field.placeholder}
+                        className="flex-1"
+                        dir="rtl"
+                      />
+                      <Button
+                        onClick={() => handleSave(field.key)}
+                        disabled={saving === field.key}
+                        className="shrink-0 gap-1.5"
+                      >
+                        {saving === field.key ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Save className="h-4 w-4" />
+                        )}
+                        שמור
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
 
             <div className="rounded-xl bg-muted/60 p-4 text-sm text-muted-foreground flex gap-3">
               <Info className="h-4 w-4 shrink-0 mt-0.5 text-primary" />
