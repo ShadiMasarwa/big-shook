@@ -17,6 +17,7 @@ import {
   Award,
   Megaphone,
   Images,
+  Settings2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -35,6 +36,7 @@ const navItems = [
   { href: "/admin/import", label: "ייבוא וייצוא", icon: Download },
   { href: "/admin/ads", label: "מודעות", icon: Megaphone },
   { href: "/admin/media", label: "ספריית מדיה", icon: Images },
+  { href: "/admin/site-info", label: "מידע האתר", icon: Settings2 },
 ];
 
 export function AdminLayout({ children }: { children: ReactNode }) {

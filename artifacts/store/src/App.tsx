@@ -38,6 +38,7 @@ import AdminBrands from "@/pages/admin/brands";
 import AdminOrderDetail from "@/pages/admin/order-detail";
 import AdminAds from "@/pages/admin/ads";
 import AdminMedia from "@/pages/admin/media";
+import AdminSiteInfo from "@/pages/admin/site-info";
 
 const queryClient = new QueryClient();
 
@@ -79,6 +80,7 @@ function Router() {
       <Route path="/admin/brands" component={AdminBrands} />
       <Route path="/admin/ads" component={AdminAds} />
       <Route path="/admin/media" component={AdminMedia} />
+      <Route path="/admin/site-info" component={AdminSiteInfo} />
 
       <Route component={NotFound} />
     </Switch>

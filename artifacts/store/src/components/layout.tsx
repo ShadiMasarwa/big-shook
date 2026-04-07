@@ -105,6 +105,16 @@ export function Layout({ children }: { children: ReactNode }) {
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: siteSettings } = useQuery<Record<string, string>>({
+    queryKey: ["site-settings"],
+    queryFn: async () => {
+      const res = await fetch("/api/site-settings");
+      if (!res.ok) return {};
+      return res.json();
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const q = searchValue.trim();
@@ -120,8 +130,8 @@ export function Layout({ children }: { children: ReactNode }) {
     <div className="min-h-[100dvh] flex flex-col bg-background font-sans text-foreground">
       {/* Top bar */}
       <div className="bg-primary text-primary-foreground py-2 px-4 text-sm flex justify-between items-center">
-        <div>שירות לקוחות: 077-1234577</div>
-        <div className="hidden md:block">משלוח חינם בקנייה מעל ₪299</div>
+        <div>{siteSettings?.topbar_left ?? "שירות לקוחות: 077-1234577"}</div>
+        <div className="hidden md:block">{siteSettings?.topbar_right ?? "משלוח חינם בקנייה מעל ₪299"}</div>
       </div>
 
       {/* Main Header */}
@@ -327,6 +337,13 @@ export function Layout({ children }: { children: ReactNode }) {
               <AdsCarousel ads={ads} />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Middle bar */}
+      {siteSettings?.midbar_center && (
+        <div className="bg-primary/10 border-b border-primary/20 py-2 px-4 text-sm text-center font-medium text-primary">
+          {siteSettings.midbar_center}
         </div>
       )}
 
