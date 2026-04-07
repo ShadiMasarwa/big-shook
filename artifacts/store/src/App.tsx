@@ -17,6 +17,7 @@ import OrderDetail from "@/pages/order-detail";
 import Wishlist from "@/pages/wishlist";
 import Compare from "@/pages/compare";
 import Profile from "@/pages/profile";
+import InfoPage from "@/pages/info-page";
 
 // Admin
 import AdminDashboard from "@/pages/admin/dashboard";
@@ -57,6 +58,7 @@ function Router() {
       <Route path="/wishlist" component={Wishlist} />
       <Route path="/compare" component={Compare} />
       <Route path="/profile" component={Profile} />
+      <Route path="/info/:slug" component={InfoPage} />
 
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/products" component={AdminProducts} />

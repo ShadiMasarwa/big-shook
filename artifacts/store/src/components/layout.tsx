@@ -483,7 +483,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <main className="flex-1">{children}</main>
 
       <footer className="bg-muted py-12 border-t border-border mt-auto">
-        <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-5 gap-8">
           <div>
             <img src="/logo.gif" alt="ביג-שווק" className="h-10 w-auto mb-4" />
             <p className="text-sm text-muted-foreground mb-4">
@@ -537,6 +537,41 @@ export function Layout({ children }: { children: ReactNode }) {
               <li>טלפון: 077-1234567</li>
               <li>דוא"ל: support@techstore.co.il</li>
               <li>כתובת: רחוב הטכנולוגיה 1, תל אביב</li>
+            </ul>
+          </div>
+          <div>
+            <h3 className="font-bold text-lg mb-4">תנאי שימוש באתר ומידע</h3>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li>
+                <Link href="/info/takanon" className="hover:text-primary">
+                  תקנון
+                </Link>
+              </li>
+              <li>
+                <Link href="/info/delivery" className="hover:text-primary">
+                  מדיניות הובלה
+                </Link>
+              </li>
+              <li>
+                <Link href="/info/privacy" className="hover:text-primary">
+                  הגנת הפרטיות
+                </Link>
+              </li>
+              <li>
+                <Link href="/info/accessibility" className="hover:text-primary">
+                  נגישות
+                </Link>
+              </li>
+              <li>
+                <Link href="/info/cancellation" className="hover:text-primary">
+                  מדיניות ביטול עסקה
+                </Link>
+              </li>
+              <li>
+                <Link href="/info/safety" className="hover:text-primary">
+                  הוראות בטיחות
+                </Link>
+              </li>
             </ul>
           </div>
         </div>
