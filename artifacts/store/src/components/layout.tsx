@@ -112,7 +112,8 @@ export function Layout({ children }: { children: ReactNode }) {
       if (!res.ok) return {};
       return res.json();
     },
-    staleTime: 2 * 60 * 1000,
+    staleTime: 0,
+    gcTime: 0,
   });
 
   const handleSearch = (e: React.FormEvent) => {
