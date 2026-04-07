@@ -20,12 +20,6 @@ const FIELD_DEFS = [
     description: 'מופיע בצד ימין של הרצועה הכחולה העליונה (מבצעי משלוח וכו\')',
     placeholder: "משלוח חינם בקנייה מעל ₪299",
   },
-  {
-    key: "midbar_center",
-    label: 'שורה אמצעית — טקסט מרכזי',
-    description: 'מופיע ברצועה האמצעית מתחת לבאנרים הפרסומיים. ריק = הרצועה מוסתרת',
-    placeholder: "הצטרפו למועדון הלקוחות וצברו נקודות בכל קנייה!",
-  },
 ] as const;
 
 export default function AdminSiteInfo() {
@@ -121,7 +115,7 @@ export default function AdminSiteInfo() {
 
             <div className="rounded-xl bg-muted/60 p-4 text-sm text-muted-foreground flex gap-3">
               <Info className="h-4 w-4 shrink-0 mt-0.5 text-primary" />
-              <span>שינויים יופיעו מיד בחנות לאחר השמירה. הרצועה האמצעית מוסתרת אוטומטית אם השדה שלה ריק.</span>
+              <span>שינויים יופיעו מיד בחנות לאחר השמירה.</span>
             </div>
           </div>
         )}

@@ -341,13 +341,6 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
       )}
 
-      {/* Middle bar */}
-      {siteSettings?.midbar_center && (
-        <div className="bg-primary/10 border-b border-primary/20 py-2 px-4 text-sm text-center font-medium text-primary">
-          {siteSettings.midbar_center}
-        </div>
-      )}
-
       {/* Mobile Drawer */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent side="right" className="w-72 p-0 flex flex-col" dir="rtl">
