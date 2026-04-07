@@ -145,20 +145,22 @@ export default function AdminSiteInfo() {
                     <FileText className="h-4 w-4 text-primary" />
                     {section.title}
                   </h2>
-                  <Button
-                    onClick={() => handleSave(section.key)}
-                    disabled={saving === section.key}
-                    className="gap-1.5"
-                  >
-                    {saving === section.key ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    שמור
-                  </Button>
+                  
                 </div>
                 <RichTextEditor
                   value={values[section.key] ?? ""}
                   onChange={(html) => setValues((prev) => ({ ...prev, [section.key]: html }))}
                   placeholder={`הקלד את תוכן ${section.title} כאן...`}
+                  minHeight={220}
                 />
+                <Button
+                  onClick={() => handleSave(section.key)}
+                  disabled={saving === section.key}
+                  className="gap-1.5 mt-4 "
+                >
+                  {saving === section.key ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  שמור
+                </Button>
               </div>
             ))}
 
