@@ -31,7 +31,7 @@ const PAGE_SECTIONS = [
   { key: "page_privacy",       title: "הגנת הפרטיות" },
   { key: "page_accessibility", title: "נגישות" },
   { key: "page_cancellation",  title: "מדיניות ביטול עסקה" },
-  { key: "page_safety",        title: "הוראות בטיחות" },
+  { key: "page_loyalty",       title: "מועדון נאמנות" },
 ] as const;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

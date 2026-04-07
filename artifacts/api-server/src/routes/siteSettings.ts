@@ -13,7 +13,7 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   page_privacy:       "",
   page_accessibility: "",
   page_cancellation:  "",
-  page_safety:        "",
+  page_loyalty:       "",
 };
 
 router.get("/site-settings", async (_req: Request, res: Response): Promise<void> => {

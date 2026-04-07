@@ -568,8 +568,8 @@ export function Layout({ children }: { children: ReactNode }) {
                 </Link>
               </li>
               <li>
-                <Link href="/info/safety" className="hover:text-primary">
-                  הוראות בטיחות
+                <Link href="/info/loyalty" className="hover:text-primary">
+                  מועדון נאמנות
                 </Link>
               </li>
             </ul>

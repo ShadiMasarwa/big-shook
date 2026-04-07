@@ -9,7 +9,7 @@ const SLUG_MAP: Record<string, { key: string; title: string }> = {
   privacy:       { key: "page_privacy",       title: "הגנת הפרטיות" },
   accessibility: { key: "page_accessibility", title: "נגישות" },
   cancellation:  { key: "page_cancellation",  title: "מדיניות ביטול עסקה" },
-  safety:        { key: "page_safety",        title: "הוראות בטיחות" },
+  loyalty:       { key: "page_loyalty",       title: "מועדון נאמנות" },
 };
 
 export default function InfoPage() {
