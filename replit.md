@@ -120,6 +120,70 @@ Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used b
 
 Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
 
+## Accessibility Improvements (WCAG 2.2 AA)
+
+The following accessibility improvements were implemented across the store frontend:
+
+### Global (index.css)
+- **Skip link** (`.skip-link`) — visible on keyboard focus, jumps to `#main-content`
+- **Focus rings** — `*:focus-visible` outline: 3px solid primary, offset 2px
+- **`prefers-reduced-motion`** — disables all animations and transitions
+- **Touch target size** — `min-height/min-width: 44px` on mobile for all interactive elements
+- **`.sr-only`** utility class for screen-reader-only text
+
+### Layout (layout.tsx)
+- Skip-to-main `<a>` as first child of root element
+- `<main id="main-content" tabIndex={-1}>` — skip link target
+- `role="banner" aria-label` on top announcement bar
+- `<header>` with mobile button `aria-expanded` and `aria-controls` pointing to sheet ID
+- Desktop search wrapped in `role="search"` form with `<label htmlFor="desktop-search">`
+- Mobile search with `<label htmlFor="mobile-search">`
+- `<nav aria-label="ניווט קטגוריות">` for desktop category bar
+- `<nav aria-label="ניווט ראשי">` for mobile drawer nav
+- `SheetContent id="mobile-nav-sheet"` matching hamburger's `aria-controls`
+- Wishlist/cart `<Link>` have descriptive `aria-label` including count (e.g., "עגלת קניות, 3 פריטים")
+- Logout button has `aria-label="התנתק מהחשבון"`; all icons are `aria-hidden`
+
+### Product Card (product-card.tsx)
+- Wishlist button: `aria-label={הוסף את ${name} למועדפים}`
+- Add-to-cart button: `aria-label={הוסף את ${name} לעגלת הקניות}`
+- Sale badge: `aria-hidden="true"` (visual only; price already announced via `aria-label`)
+- Price container `aria-label` announces full price context (sale + original)
+- Image link `aria-label` describes destination product
+
+### Cart (cart.tsx)
+- Quantity group wrapped in `role="group" aria-label={כמות של ${name}}`
+- `-/+` buttons: `aria-label` with product name and action; span counts get `aria-live="polite"`
+- Remove button: `aria-label={הסר ${name} מהעגלה}`
+- Cart total: `aria-live="polite" aria-atomic="true"` for live updates
+- Coupon input: `id="coupon-code"` with `<label htmlFor>` and `aria-describedby` hint
+- Loyalty input: sr-only `<label>` with range info and `aria-describedby` hint
+- Item row `aria-busy={isPending}` during API call
+
+### Checkout (checkout.tsx)
+- All form fields have `id` + `Label htmlFor` associations (firstName, lastName, phone, city, street, houseNumber, zipCode, addressNote)
+- `autoComplete` attributes on all fields
+- `aria-required="true"` on required fields
+- Step number circles are `aria-hidden="true"`; step heading text is descriptive
+- Edit step button has `aria-label="ערוך פרטי משלוח"`
+
+### Auth (auth.tsx)
+- Login form: `aria-label="טופס התחברות" noValidate`
+- Login email/password: `id` + `Label htmlFor` + `autoComplete`
+- Show/hide password buttons: `aria-label` toggling between הסג/הסתר
+- Login errors: `role="alert" aria-live="assertive"`
+- Registration form: `aria-label="טופס הרשמה" noValidate`
+- All register fields have `id` + `Label htmlFor` + `autoComplete`
+- Email error: `id="reg-email-error"` + `aria-describedby` + `role="alert"` + `aria-invalid`
+- Password rules list wrapped in `aria-live="polite"` div
+- OTP input group: `role="group" aria-label="הזנת קוד אימות בן 6 ספרות"` with `aria-label` per digit
+- `autoComplete="one-time-code"` on first OTP digit
+- All confirmation and registration errors: `role="alert"`
+
+### Accessibility Statement Page (/info/accessibility)
+- Comprehensive Hebrew statement stored as `page_accessibility` in `site_settings`
+- Mentions online-only operation, WCAG 2.2 AA target, specific improvements made, limitations, contact info, date
+
 ### `scripts` (`@workspace/scripts`)
 
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.

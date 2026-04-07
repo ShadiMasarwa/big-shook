@@ -185,51 +185,54 @@ export default function Checkout() {
           <div className={`bg-card border ${step === 1 ? 'border-primary shadow-md' : 'border-border'} rounded-xl p-6 mb-6 transition-all`}>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold flex items-center gap-3">
-                <span className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${step === 1 ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'}`}>1</span>
+                <span
+                  className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${step === 1 ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'}`}
+                  aria-hidden="true"
+                >1</span>
                 פרטי משלוח
               </h2>
               {step > 1 && (
-                <Button variant="ghost" size="sm" onClick={() => setStep(1)}>ערוך</Button>
+                <Button variant="ghost" size="sm" onClick={() => setStep(1)} aria-label="ערוך פרטי משלוח">ערוך</Button>
               )}
             </div>
 
             {step === 1 ? (
-              <form onSubmit={handleNextStep} className="space-y-4">
+              <form onSubmit={handleNextStep} className="space-y-4" aria-label="טופס פרטי משלוח" noValidate>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>שם פרטי</Label>
-                    <Input required value={shipping.firstName} onChange={(e) => setShipping({...shipping, firstName: e.target.value})} />
+                    <Label htmlFor="shipping-first-name">שם פרטי <span aria-hidden="true" className="text-destructive">*</span></Label>
+                    <Input id="shipping-first-name" required value={shipping.firstName} onChange={(e) => setShipping({...shipping, firstName: e.target.value})} aria-required="true" autoComplete="given-name" />
                   </div>
                   <div className="space-y-2">
-                    <Label>שם משפחה</Label>
-                    <Input required value={shipping.lastName} onChange={(e) => setShipping({...shipping, lastName: e.target.value})} />
+                    <Label htmlFor="shipping-last-name">שם משפחה <span aria-hidden="true" className="text-destructive">*</span></Label>
+                    <Input id="shipping-last-name" required value={shipping.lastName} onChange={(e) => setShipping({...shipping, lastName: e.target.value})} aria-required="true" autoComplete="family-name" />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>טלפון</Label>
-                  <Input required type="tel" value={shipping.phone} onChange={(e) => setShipping({...shipping, phone: e.target.value})} />
+                  <Label htmlFor="shipping-phone">טלפון <span aria-hidden="true" className="text-destructive">*</span></Label>
+                  <Input id="shipping-phone" required type="tel" value={shipping.phone} onChange={(e) => setShipping({...shipping, phone: e.target.value})} aria-required="true" autoComplete="tel" />
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2 col-span-3 sm:col-span-1">
-                    <Label>עיר</Label>
-                    <Input required value={shipping.city} onChange={(e) => setShipping({...shipping, city: e.target.value})} />
+                    <Label htmlFor="shipping-city">עיר <span aria-hidden="true" className="text-destructive">*</span></Label>
+                    <Input id="shipping-city" required value={shipping.city} onChange={(e) => setShipping({...shipping, city: e.target.value})} aria-required="true" autoComplete="address-level2" />
                   </div>
                   <div className="space-y-2 col-span-2 sm:col-span-1">
-                    <Label>רחוב</Label>
-                    <Input required value={shipping.street} onChange={(e) => setShipping({...shipping, street: e.target.value})} />
+                    <Label htmlFor="shipping-street">רחוב <span aria-hidden="true" className="text-destructive">*</span></Label>
+                    <Input id="shipping-street" required value={shipping.street} onChange={(e) => setShipping({...shipping, street: e.target.value})} aria-required="true" autoComplete="street-address" />
                   </div>
                   <div className="space-y-2 col-span-1">
-                    <Label>מס' בית</Label>
-                    <Input required value={shipping.houseNumber} onChange={(e) => setShipping({...shipping, houseNumber: e.target.value})} />
+                    <Label htmlFor="shipping-house">מס' בית <span aria-hidden="true" className="text-destructive">*</span></Label>
+                    <Input id="shipping-house" required value={shipping.houseNumber} onChange={(e) => setShipping({...shipping, houseNumber: e.target.value})} aria-required="true" />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>מיקוד</Label>
-                  <Input value={shipping.zipCode} onChange={(e) => setShipping({...shipping, zipCode: e.target.value})} placeholder="לדוגמה: 6433223" />
+                  <Label htmlFor="shipping-zip">מיקוד</Label>
+                  <Input id="shipping-zip" value={shipping.zipCode} onChange={(e) => setShipping({...shipping, zipCode: e.target.value})} placeholder="לדוגמה: 6433223" autoComplete="postal-code" />
                 </div>
                 <div className="space-y-2">
-                  <Label>הערות לכתובת <span className="text-muted-foreground text-xs">(אופציונלי)</span></Label>
-                  <Input value={shipping.addressNote} onChange={(e) => setShipping({...shipping, addressNote: e.target.value})} placeholder="קומה, דירה, הוראות כניסה..." />
+                  <Label htmlFor="shipping-note">הערות לכתובת <span className="text-muted-foreground text-xs">(אופציונלי)</span></Label>
+                  <Input id="shipping-note" value={shipping.addressNote} onChange={(e) => setShipping({...shipping, addressNote: e.target.value})} placeholder="קומה, דירה, הוראות כניסה..." />
                 </div>
                 <div className="flex flex-wrap items-center gap-3 mt-4">
                   <Button type="submit" size="lg" className="font-bold">המשך לתשלום</Button>

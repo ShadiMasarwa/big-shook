@@ -87,7 +87,11 @@ function OtpInput({
   };
 
   return (
-    <div className="flex justify-center">
+    <div
+      className="flex justify-center"
+      role="group"
+      aria-label="הזנת קוד אימות בן 6 ספרות"
+    >
       <div className="relative" style={{ width: 318, height: 56 }}>
         {Array.from({ length: 6 }, (_, i) => (
           <input
@@ -102,6 +106,9 @@ function OtpInput({
             onChange={(e) => handleChange(i, e.target.value)}
             onKeyDown={(e) => handleKey(i, e)}
             onPaste={handlePaste}
+            aria-label={`ספרה ${i + 1} מתוך 6`}
+            aria-required="true"
+            autoComplete={i === 0 ? "one-time-code" : "off"}
             style={{
               position: "absolute",
               left: i * 54,
@@ -425,44 +432,55 @@ export default function Auth() {
 
             {/* ── LOGIN ── */}
             <TabsContent value="login">
-              <form onSubmit={handleLogin} className="space-y-4" dir="rtl">
+              <form onSubmit={handleLogin} className="space-y-4" dir="rtl" noValidate aria-label="טופס התחברות">
                 <div className="space-y-2">
-                  <Label>אימייל</Label>
+                  <Label htmlFor="login-email">אימייל</Label>
                   <Input
+                    id="login-email"
                     type="email"
                     required
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
                     placeholder="you@example.com"
                     dir="ltr"
+                    autoComplete="email"
+                    aria-required="true"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>סיסמה</Label>
+                  <Label htmlFor="login-password">סיסמה</Label>
                   <div className="relative">
                     <Input
+                      id="login-password"
                       type={loginShowPwd ? "text" : "password"}
                       required
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
                       className="pr-10"
                       dir="ltr"
+                      autoComplete="current-password"
+                      aria-required="true"
                     />
                     <button
                       type="button"
                       onClick={() => setLoginShowPwd((v) => !v)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      aria-label={loginShowPwd ? "הסתר סיסמה" : "הצג סיסמה"}
                     >
                       {loginShowPwd ? (
-                        <EyeOff className="h-4 w-4" />
+                        <EyeOff className="h-4 w-4" aria-hidden="true" />
                       ) : (
-                        <Eye className="h-4 w-4" />
+                        <Eye className="h-4 w-4" aria-hidden="true" />
                       )}
                     </button>
                   </div>
                 </div>
                 {loginInactive && (
-                  <div className="rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800 space-y-1">
+                  <div
+                    role="alert"
+                    aria-live="assertive"
+                    className="rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800 space-y-1"
+                  >
                     <p className="font-semibold">החשבון שלך מושהה</p>
                     <p>לשאלות ולהפעלת החשבון, פנה אלינו במייל:</p>
                     <a
@@ -475,7 +493,7 @@ export default function Auth() {
                   </div>
                 )}
                 {loginError && (
-                  <p className="text-sm text-destructive">{loginError}</p>
+                  <p role="alert" aria-live="assertive" className="text-sm text-destructive">{loginError}</p>
                 )}
                 <Button
                   type="submit"
@@ -495,34 +513,41 @@ export default function Auth() {
             <TabsContent value="register">
               {/* STEP 1: Form */}
               {regStep === "form" && (
-                <form onSubmit={handleSendOtp} className="space-y-4" dir="rtl">
+                <form onSubmit={handleSendOtp} className="space-y-4" dir="rtl" noValidate aria-label="טופס הרשמה">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>
+                      <Label htmlFor="reg-first-name">
                         שם פרטי{" "}
-                        <span className="text-destructive font-bold">*</span>
+                        <span className="text-destructive font-bold" aria-hidden="true">*</span>
                       </Label>
                       <Input
+                        id="reg-first-name"
                         required
                         value={regFirstName}
                         onChange={(e) => setRegFirstName(e.target.value)}
                         placeholder="ישראל"
+                        autoComplete="given-name"
+                        aria-required="true"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>שם משפחה <span className="text-destructive font-bold">*</span></Label>
+                      <Label htmlFor="reg-last-name">שם משפחה <span className="text-destructive font-bold" aria-hidden="true">*</span></Label>
                       <Input
+                        id="reg-last-name"
                         required
                         value={regLastName}
                         onChange={(e) => setRegLastName(e.target.value)}
                         placeholder="ישראלי"
+                        autoComplete="family-name"
+                        aria-required="true"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label>אימייל <span className="text-destructive font-bold">*</span></Label>
+                    <Label htmlFor="reg-email">אימייל <span className="text-destructive font-bold" aria-hidden="true">*</span></Label>
                     <Input
+                      id="reg-email"
                       type="email"
                       required
                       value={regEmail}
@@ -533,6 +558,10 @@ export default function Auth() {
                       onBlur={checkEmail}
                       placeholder="you@example.com"
                       dir="ltr"
+                      autoComplete="email"
+                      aria-required="true"
+                      aria-describedby={regEmailError ? "reg-email-error" : undefined}
+                      aria-invalid={!!regEmailError}
                       className={
                         regEmailError
                           ? "border-destructive focus-visible:ring-destructive"
@@ -540,28 +569,32 @@ export default function Auth() {
                       }
                     />
                     {regEmailError && (
-                      <p className="text-xs text-destructive">
+                      <p id="reg-email-error" role="alert" className="text-xs text-destructive">
                         {regEmailError}
                       </p>
                     )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label>טלפון <span className="text-destructive font-bold">*</span></Label>
+                    <Label htmlFor="reg-phone">טלפון <span className="text-destructive font-bold" aria-hidden="true">*</span></Label>
                     <Input
+                      id="reg-phone"
                       type="tel"
                       required
                       value={regPhone}
                       onChange={(e) => setRegPhone(e.target.value)}
                       placeholder="050-0000000"
                       dir="ltr"
+                      autoComplete="tel"
+                      aria-required="true"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label>סיסמה <span className="text-destructive font-bold">*</span></Label>
+                    <Label htmlFor="reg-password">סיסמה <span className="text-destructive font-bold" aria-hidden="true">*</span></Label>
                     <div className="relative">
                       <Input
+                        id="reg-password"
                         type={showPwd ? "text" : "password"}
                         required
                         value={regPassword}
@@ -572,26 +605,33 @@ export default function Auth() {
                         className="pr-10"
                         dir="ltr"
                         placeholder="Aa1!••••"
+                        autoComplete="new-password"
+                        aria-required="true"
+                        aria-describedby="pwd-rules"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPwd((v) => !v)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        aria-label={showPwd ? "הסתר סיסמה" : "הצג סיסמה"}
                       >
                         {showPwd ? (
-                          <EyeOff className="h-4 w-4" />
+                          <EyeOff className="h-4 w-4" aria-hidden="true" />
                         ) : (
-                          <Eye className="h-4 w-4" />
+                          <Eye className="h-4 w-4" aria-hidden="true" />
                         )}
                       </button>
                     </div>
+                    <div id="pwd-rules" aria-live="polite">
                     {pwdRulesList}
+                    </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label>אימות סיסמה <span className="text-destructive font-bold">*</span></Label>
+                    <Label htmlFor="reg-confirm">אימות סיסמה <span className="text-destructive font-bold" aria-hidden="true">*</span></Label>
                     <div className="relative">
                       <Input
+                        id="reg-confirm"
                         type={showConfirm ? "text" : "password"}
                         required
                         value={regConfirm}
@@ -599,11 +639,14 @@ export default function Auth() {
                         className={`pr-10 ${regConfirm && regConfirm !== regPassword ? "border-destructive" : ""}`}
                         dir="ltr"
                         placeholder="הזן סיסמה שנית"
+                        autoComplete="new-password"
+                        aria-invalid={!!(regConfirm && regConfirm !== regPassword)}
                       />
                       <button
                         type="button"
                         onClick={() => setShowConfirm((v) => !v)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        aria-label={showConfirm ? "הסתר אימות סיסמה" : "הצג אימות סיסמה"}
                       >
                         {showConfirm ? (
                           <EyeOff className="h-4 w-4" />
@@ -613,7 +656,7 @@ export default function Auth() {
                       </button>
                     </div>
                     {regConfirm && regConfirm !== regPassword && (
-                      <p className="text-xs text-destructive">
+                      <p role="alert" className="text-xs text-destructive">
                         הסיסמאות אינן תואמות
                       </p>
                     )}
@@ -665,7 +708,7 @@ export default function Auth() {
                   </div>
 
                   {regError && (
-                    <p className="text-sm text-destructive">{regError}</p>
+                    <p role="alert" aria-live="assertive" className="text-sm text-destructive">{regError}</p>
                   )}
 
                   <Button

@@ -1,0 +1,143 @@
+You are a senior full-stack accessibility engineer.
+
+Upgrade my existing e-commerce website to be accessible for people with disabilities, with an implementation target of WCAG 2.2 AA wherever possible, while keeping the site visually clean, modern, mobile-friendly, and production-ready. The site is an online-only store with no physical branch. The site language is Hebrew and the layout is RTL.
+
+Goals:
+
+1. Improve accessibility across the full customer journey:
+
+   * homepage
+   * category pages
+   * product cards
+   * product details page
+   * cart
+   * checkout
+   * login/register
+   * personal area
+   * search
+   * filters/sort
+   * forms
+   * modals
+   * popups
+   * reviews
+   * footer and legal pages
+
+2. Do not break current business logic, design system, routing, API calls, auth, or checkout flow.
+
+3. Refactor existing code where needed, but keep the codebase maintainable and modular.
+
+4. Explain every important accessibility improvement you make in code comments and in a final summary.
+
+Accessibility requirements:
+
+* Ensure full keyboard accessibility for all interactive components.
+* Add visible focus indicators for all focusable elements.
+* Fix tab order and logical focus flow, especially for RTL layouts.
+* Add a “Skip to main content” link.
+* Use semantic HTML correctly: header, nav, main, section, article, aside, footer, button, form, label, fieldset, legend, table where appropriate.
+* Replace clickable divs/spans with proper buttons or links.
+* Ensure all form fields have proper labels, instructions, error messages, and aria-describedby where needed.
+* Add accessible validation and inline error states for forms.
+* Ensure screen-reader-friendly names for buttons, icons, inputs, dialogs, search, filters, quantity controls, wishlist, add-to-cart, remove-from-cart, coupon application, and checkout actions.
+* Add proper ARIA only where needed; prefer semantic HTML first.
+* Ensure all images have meaningful alt text. Decorative images must use empty alt attributes.
+* Product images must have useful alt text based on product name and variant.
+* Ensure headings follow a correct hierarchy.
+* Improve color contrast to meet accessibility requirements without redesigning the whole site.
+* Do not rely on color alone to communicate meaning.
+* Add accessible handling for loading states, error states, success messages, and empty states.
+* Add aria-live regions for dynamic content updates such as:
+
+  * item added to cart
+  * quantity changed
+  * coupon applied
+  * form saved
+  * login errors
+  * checkout status
+* Ensure dialogs/modals:
+
+  * trap focus
+  * restore focus on close
+  * close with Escape
+  * expose proper role and labels
+* Ensure dropdowns, accordions, tabs, carousels, and mobile menus are fully accessible.
+* Ensure product filters and sort controls are accessible by keyboard and screen readers.
+* Make pagination accessible.
+* Ensure checkbox, radio, toggle, and custom select components are accessible.
+* Add accessible breadcrumbs.
+* Add accessible table markup where data tables exist.
+* Ensure search suggestions/autocomplete is accessible if present.
+* Ensure review submission and display are accessible.
+* Ensure login, registration, password reset, and account forms are accessible.
+* Ensure checkout fields are grouped logically and errors are announced accessibly.
+* Ensure icons alone never carry the full meaning without text or accessible labels.
+* Respect prefers-reduced-motion and reduce unnecessary animations.
+* Avoid auto-playing moving content unless essential.
+* Ensure responsive accessibility on desktop, tablet, and mobile.
+* Ensure touch targets are large enough and spacing is comfortable.
+* Improve readability:
+
+  * sufficient font size
+  * adequate line height
+  * clear spacing
+  * no hidden critical text
+* Support browser zoom up to 200% without breaking content or functionality.
+* Avoid accessibility overlays or third-party “widget” shortcuts as the main solution. Use real code fixes.
+
+RTL and Hebrew requirements:
+
+* Preserve full RTL support.
+* Make keyboard navigation feel natural in RTL.
+* Ensure Hebrew labels, placeholders, validation messages, and buttons remain readable and properly aligned.
+* Keep numbers, prices, and mixed Hebrew/English content visually stable.
+
+E-commerce-specific requirements:
+
+* Product cards must expose product name, price, discount status, rating if exists, availability, and add-to-cart action accessibly.
+* Product detail pages must expose selected variant, stock status, shipping info, quantity selector, and purchase controls accessibly.
+* Cart must announce item changes and totals updates accessibly.
+* Checkout must clearly expose each step, required fields, payment section, shipping section, and final confirmation.
+* Coupon fields and loyalty/points UI must be accessible if they exist.
+* Reviews should be readable and navigable by keyboard and screen reader users.
+
+Accessibility statement:
+
+* Create a dedicated accessibility statement page in Hebrew.
+* Mention that the business operates an online store only and has no physical storefront.
+* Include placeholders for:
+
+  * business name
+  * contact email
+  * contact phone
+  * accessibility contact method
+  * date of last update
+* Keep the page professional and legally cautious, without making false compliance claims.
+
+Testing and QA:
+
+* Add automated accessibility checks where possible.
+* Run or prepare checks using tools such as axe/linting if supported in the stack.
+* Fix obvious violations found by automated checks.
+* Also do manual logic review for keyboard navigation, focus handling, forms, and dialogs.
+* At the end, provide:
+
+  1. a list of files changed
+  2. a summary of accessibility issues fixed
+  3. remaining recommended improvements
+  4. any components that still need manual product/business text input
+
+Implementation style:
+
+* Make focused, production-quality edits in the existing codebase.
+* Reuse existing components when practical.
+* Keep styling consistent with the current site.
+* Do not add unnecessary packages unless clearly justified.
+* If the current code uses custom UI components, refactor them to accessible patterns rather than replacing the whole app.
+* If something cannot be verified automatically, leave a clear TODO comment.
+
+Deliverables:
+
+* Updated codebase
+* Accessibility statement page in Hebrew
+* Short README section called “Accessibility Improvements”
+* Final summary of what was improved and what still needs manual review

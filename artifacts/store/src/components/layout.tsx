@@ -129,8 +129,11 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-[100dvh] flex flex-col bg-background font-sans text-foreground">
+      {/* ── Skip to main content link — visible only on focus ── */}
+      <a href="#main-content" className="skip-link">דלג לתוכן הראשי</a>
+
       {/* Top bar */}
-      <div className="bg-primary text-primary-foreground py-2 px-4 text-sm flex justify-between items-center">
+      <div role="banner" aria-label="מידע כללי" className="bg-primary text-primary-foreground py-2 px-4 text-sm flex justify-between items-center">
         <div>{siteSettings?.topbar_left ?? "שירות לקוחות: 077-1234577"}</div>
         <div className="hidden md:block">{siteSettings?.topbar_right ?? "משלוח חינם בקנייה מעל ₪299"}</div>
       </div>
@@ -144,7 +147,9 @@ export function Layout({ children }: { children: ReactNode }) {
             size="icon"
             className="md:hidden shrink-0"
             onClick={() => setMobileOpen(true)}
-            aria-label="פתח תפריט"
+            aria-label="פתח תפריט ניווט"
+            aria-expanded={mobileOpen}
+            aria-controls="mobile-nav-sheet"
             data-testid="btn-mobile-menu"
           >
             <Menu className="h-6 w-6" />
@@ -164,10 +169,14 @@ export function Layout({ children }: { children: ReactNode }) {
 
           {/* Desktop search */}
           <form
+            role="search"
+            aria-label="חיפוש מוצרים"
             onSubmit={handleSearch}
             className="flex-1 max-w-2xl hidden md:flex relative"
           >
+            <label htmlFor="desktop-search" className="sr-only">חיפוש מוצרים, מותגים וקטגוריות</label>
             <Input
+              id="desktop-search"
               placeholder="חפש מוצרים, מותגים וקטגוריות..."
               className="w-full pr-10 rounded-full bg-muted border-none"
               value={searchValue}
@@ -179,7 +188,7 @@ export function Layout({ children }: { children: ReactNode }) {
               className="absolute right-3 top-1/2 -translate-y-1/2"
               aria-label="חפש"
             >
-              <Search className="h-5 w-5 text-muted-foreground hover:text-primary transition-colors" />
+              <Search className="h-5 w-5 text-muted-foreground hover:text-primary transition-colors" aria-hidden="true" />
             </button>
           </form>
 
@@ -206,9 +215,9 @@ export function Layout({ children }: { children: ReactNode }) {
                       navigate("/");
                     }}
                     data-testid="btn-logout"
-                    title="התנתק"
+                    aria-label="התנתק מהחשבון"
                   >
-                    <LogOut className="h-5 w-5" />
+                    <LogOut className="h-5 w-5" aria-hidden="true" />
                   </Button>
                 </div>
               ) : (
@@ -222,32 +231,42 @@ export function Layout({ children }: { children: ReactNode }) {
               )}
             </div>
 
-            <Link href="/wishlist">
+            <Link
+              href="/wishlist"
+              aria-label={wishlist && wishlist.length > 0 ? `רשימת מועדפים, ${wishlist.length} פריטים` : "רשימת מועדפים"}
+            >
               <Button
                 variant="ghost"
                 size="icon"
                 className="relative"
                 data-testid="link-wishlist"
+                tabIndex={-1}
+                aria-hidden="true"
               >
-                <Heart className="h-5 w-5" />
+                <Heart className="h-5 w-5" aria-hidden="true" />
                 {wishlist && wishlist.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                  <span aria-hidden="true" className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                     {wishlist.length}
                   </span>
                 )}
               </Button>
             </Link>
 
-            <Link href="/cart">
+            <Link
+              href="/cart"
+              aria-label={cart && cart.itemCount > 0 ? `עגלת קניות, ${cart.itemCount} פריטים` : "עגלת קניות"}
+            >
               <Button
                 variant="ghost"
                 size="icon"
                 className="relative"
                 data-testid="link-cart"
+                tabIndex={-1}
+                aria-hidden="true"
               >
-                <ShoppingCart className="h-5 w-5" />
+                <ShoppingCart className="h-5 w-5" aria-hidden="true" />
                 {cart && cart.itemCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                  <span aria-hidden="true" className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                     {cart.itemCount}
                   </span>
                 )}
@@ -257,7 +276,7 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
 
         {/* Desktop Categories Menu */}
-        <div className="border-t border-border hidden md:block">
+        <nav aria-label="ניווט קטגוריות" className="border-t border-border hidden md:block">
           <div className="container mx-auto px-4">
             <ul className="flex items-center gap-6 py-3 text-sm font-medium overflow-x-auto">
               <li className="relative pb-0.5">
@@ -302,7 +321,7 @@ export function Layout({ children }: { children: ReactNode }) {
                 ))}
             </ul>
           </div>
-        </div>
+        </nav>
       </header>
 
       {/* Ad Banner Strip */}
@@ -343,7 +362,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
       {/* Mobile Drawer */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="right" className="w-72 p-0 flex flex-col" dir="rtl">
+        <SheetContent id="mobile-nav-sheet" side="right" className="w-72 p-0 flex flex-col" dir="rtl" aria-label="תפריט ניווט">
           <SheetHeader className="px-4 py-4 border-b">
             <SheetTitle>
               <img src="/logo.gif" alt="ביג-שווק" className="h-9 w-auto" />
@@ -352,22 +371,26 @@ export function Layout({ children }: { children: ReactNode }) {
 
           {/* Mobile search */}
           <form
+            role="search"
+            aria-label="חיפוש מוצרים"
             onSubmit={handleSearch}
             className="px-4 py-3 border-b flex gap-2"
           >
+            <label htmlFor="mobile-search" className="sr-only">חיפוש מוצרים</label>
             <Input
+              id="mobile-search"
               placeholder="חפש מוצרים..."
               className="flex-1"
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
             />
-            <Button type="submit" size="icon" variant="ghost">
-              <Search className="h-4 w-4" />
+            <Button type="submit" size="icon" variant="ghost" aria-label="חפש">
+              <Search className="h-4 w-4" aria-hidden="true" />
             </Button>
           </form>
 
           {/* Mobile nav links */}
-          <nav className="flex-1 overflow-y-auto">
+          <nav aria-label="ניווט ראשי" className="flex-1 overflow-y-auto">
             <div className="px-4 py-2">
               <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wide mb-2">
                 קטגוריות
@@ -480,7 +503,7 @@ export function Layout({ children }: { children: ReactNode }) {
         </SheetContent>
       </Sheet>
 
-      <main className="flex-1">{children}</main>
+      <main id="main-content" className="flex-1" tabIndex={-1}>{children}</main>
 
       <footer className="bg-muted py-12 border-t border-border mt-auto">
         <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-5 gap-8">

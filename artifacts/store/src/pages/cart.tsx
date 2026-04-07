@@ -233,14 +233,18 @@ export default function Cart() {
           {cart.items.map((item: any) => {
             const isPending = itemPending === item.productId;
             return (
-            <div key={item.productId} className={`flex items-center justify-between py-4 border-b border-border gap-4 transition-opacity ${isPending ? "opacity-50 pointer-events-none" : ""}`}>
+            <div
+              key={item.productId}
+              className={`flex items-center justify-between py-4 border-b border-border gap-4 transition-opacity ${isPending ? "opacity-50 pointer-events-none" : ""}`}
+              aria-busy={isPending}
+            >
               <div className="w-2/3 flex items-center gap-4">
-                <Link href={`/product/${item.productId}`}>
+                <Link href={`/product/${item.productId}`} aria-label={`צפה במוצר: ${item.product.nameHe}`}>
                   <div className="w-20 h-20 bg-white rounded-lg border border-border overflow-hidden shrink-0 flex items-center justify-center p-1">
                     {item.product.images && item.product.images[0] ? (
                       <img src={item.product.images[0]} alt={item.product.nameHe} className="max-w-full max-h-full object-contain" />
                     ) : (
-                      <span className="text-xs text-muted-foreground">תמונה</span>
+                      <span className="text-xs text-muted-foreground" aria-hidden="true">תמונה</span>
                     )}
                   </div>
                 </Link>
@@ -253,23 +257,48 @@ export default function Cart() {
               </div>
 
               <div className="w-1/6 flex justify-center">
-                <div className="flex items-center border border-border rounded-md bg-background w-fit">
+                <div
+                  role="group"
+                  aria-label={`כמות של ${item.product.nameHe}`}
+                  className="flex items-center border border-border rounded-md bg-background w-fit"
+                >
                   <button
                     className="px-2 py-1 hover:text-primary transition-colors"
                     onClick={() => handleUpdateCartItem(item.productId, item.quantity - 1)}
-                  >-</button>
-                  <span className="w-8 text-center font-medium text-sm">{item.quantity}</span>
+                    aria-label={`הפחת כמות של ${item.product.nameHe}`}
+                    disabled={item.quantity <= 1}
+                  >
+                    <span aria-hidden="true">-</span>
+                  </button>
+                  <span
+                    className="w-8 text-center font-medium text-sm"
+                    aria-live="polite"
+                    aria-label={`כמות: ${item.quantity}`}
+                  >
+                    {item.quantity}
+                  </span>
                   <button
                     className="px-2 py-1 hover:text-primary transition-colors"
                     onClick={() => handleUpdateCartItem(item.productId, item.quantity + 1)}
-                  >+</button>
+                    aria-label={`הגדל כמות של ${item.product.nameHe}`}
+                  >
+                    <span aria-hidden="true">+</span>
+                  </button>
                 </div>
               </div>
 
               <div className="w-1/6 flex items-center justify-between pl-0 text-left gap-4">
-                <span className="font-bold">{formatPrice(item.subtotal)}</span>
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive shrink-0" onClick={() => handleRemoveCartItem(item.productId)}>
-                  <Trash2 className="h-4 w-4" />
+                <span className="font-bold" aria-label={`סה"כ עבור ${item.product.nameHe}: ${formatPrice(item.subtotal)}`}>
+                  {formatPrice(item.subtotal)}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-muted-foreground hover:text-destructive shrink-0"
+                  onClick={() => handleRemoveCartItem(item.productId)}
+                  aria-label={`הסר ${item.product.nameHe} מהעגלה`}
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </div>
             </div>
@@ -349,26 +378,36 @@ export default function Cart() {
             <div className="border-t border-border pt-4 mb-6">
               <div className="flex justify-between items-end">
                 <span className="text-lg font-bold">סה"כ לתשלום</span>
-                <span className="text-2xl font-black text-primary">{formatPrice(cart.total)}</span>
+                <span
+                  className="text-2xl font-black text-primary"
+                  aria-live="polite"
+                  aria-atomic="true"
+                  aria-label={`סה"כ לתשלום: ${formatPrice(cart.total)}`}
+                >
+                  {formatPrice(cart.total)}
+                </span>
               </div>
             </div>
 
             {/* Coupon input — logged-in users only */}
             {user && (
               <div className="mb-6">
-                <label className="text-sm font-medium mb-2 block">קוד קופון</label>
+                <label htmlFor="coupon-code" className="text-sm font-medium mb-2 block">קוד קופון</label>
                 <div className="flex gap-2">
                   <Input
+                    id="coupon-code"
                     placeholder="הזן קוד..."
                     value={couponCode}
                     onChange={e => setCouponCode(e.target.value.toUpperCase())}
                     onKeyDown={handleKeyDown}
                     className="uppercase font-mono tracking-wider"
+                    aria-describedby="coupon-hint"
                   />
-                  <Button variant="secondary" onClick={handleApplyCoupon} disabled={!couponCode.trim() || applyCoupon.isPending}>
+                  <Button variant="secondary" onClick={handleApplyCoupon} disabled={!couponCode.trim() || applyCoupon.isPending} aria-label="הפעל קוד קופון">
                     {applyCoupon.isPending ? "..." : "הפעל"}
                   </Button>
                 </div>
+                <p id="coupon-hint" className="sr-only">הזן קוד קופון ולחץ הפעל להחלת ההנחה</p>
               </div>
             )}
 
@@ -394,7 +433,11 @@ export default function Cart() {
                   {Math.round(1 / shekelPerPoint).toLocaleString("he-IL")} נקודות = ₪1 · מינימום {minRedemptionPoints} נקודות
                 </p>
                 <div className="flex gap-2">
+                  <label htmlFor="loyalty-points-input" className="sr-only">
+                    כמות נקודות לממש (מינימום {minRedemptionPoints}, מקסימום {maxRedeemablePoints})
+                  </label>
                   <Input
+                    id="loyalty-points-input"
                     type="number"
                     placeholder={`עד ${maxRedeemablePoints.toLocaleString("he-IL")} נק׳`}
                     value={loyaltyInput}
@@ -408,16 +451,19 @@ export default function Cart() {
                     }}
                     onKeyDown={e => e.key === "Enter" && handleApplyLoyalty()}
                     className="text-sm"
+                    aria-describedby="loyalty-hint"
                   />
                   <Button
                     variant="secondary"
                     onClick={handleApplyLoyalty}
                     disabled={!loyaltyInput || loyaltyPending || parseInt(loyaltyInput) > maxRedeemablePoints}
                     className="shrink-0"
+                    aria-label="הפעל נקודות נאמנות"
                   >
                     {loyaltyPending ? "..." : "הפעל"}
                   </Button>
                 </div>
+                <p id="loyalty-hint" className="sr-only">הזן מספר נקודות לממש ולחץ הפעל</p>
                 {loyaltyInput && parseInt(loyaltyInput) >= minRedemptionPoints && (
                   <p className="text-xs text-amber-700 mt-2">
                     חיסכון: ₪{(parseInt(loyaltyInput) * shekelPerPoint).toFixed(2)}
