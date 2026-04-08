@@ -31,31 +31,27 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const addToCart = async ({ productId, quantity }: { productId: number; quantity: number }, options?: any) => {
-    return addToCartMutation.mutateAsync(
-      { data: { productId, quantity } },
-      { ...options, onSuccess: handleSuccess }
-    );
+    const result = await addToCartMutation.mutateAsync({ data: { productId, quantity } }, options);
+    handleSuccess();
+    return result;
   };
 
   const updateItem = async ({ productId, quantity }: { productId: number; quantity: number }, options?: any) => {
-    return updateItemMutation.mutateAsync(
-      { productId, data: { quantity } },
-      { ...options, onSuccess: handleSuccess }
-    );
+    const result = await updateItemMutation.mutateAsync({ productId, data: { quantity } }, options);
+    handleSuccess();
+    return result;
   };
 
   const removeItem = async ({ productId }: { productId: number }, options?: any) => {
-    return removeItemMutation.mutateAsync(
-      { productId },
-      { ...options, onSuccess: handleSuccess }
-    );
+    const result = await removeItemMutation.mutateAsync({ productId }, options);
+    handleSuccess();
+    return result;
   };
 
   const clearCart = async (options?: any) => {
-    return clearCartMutation.mutateAsync(
-      undefined,
-      { ...options, onSuccess: handleSuccess }
-    );
+    const result = await clearCartMutation.mutateAsync(undefined, options);
+    handleSuccess();
+    return result;
   };
 
   return (
