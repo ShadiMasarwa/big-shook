@@ -20,6 +20,7 @@ import storageRouter from "./storage.js";
 import mediaRouter from "./media.js";
 import adsRouter from "./ads.js";
 import siteSettingsRouter from "./siteSettings.js";
+import reviewsRouter from "./reviews.js";
 
 const router: IRouter = Router();
 
@@ -44,5 +45,6 @@ router.use(storageRouter);
 router.use(mediaRouter);
 router.use(adsRouter);
 router.use(siteSettingsRouter);
+router.use(reviewsRouter);
 
 export default router;
