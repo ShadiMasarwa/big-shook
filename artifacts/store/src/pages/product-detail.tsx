@@ -354,9 +354,11 @@ export default function ProductDetail() {
             {product.descriptionHe && (
               <div>
                 <h2 className="text-2xl font-bold mb-6 pb-2 border-b border-border">תיאור המוצר</h2>
-                <p className="text-base leading-relaxed text-muted-foreground whitespace-pre-line">
-                  {product.descriptionHe}
-                </p>
+                <div
+                  className="prose prose-sm max-w-none text-muted-foreground"
+                  dir="rtl"
+                  dangerouslySetInnerHTML={{ __html: product.descriptionHe }}
+                />
               </div>
             )}
 
