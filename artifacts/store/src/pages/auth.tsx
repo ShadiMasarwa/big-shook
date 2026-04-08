@@ -821,7 +821,7 @@ export default function Auth() {
                         >
                           מדיניות הפרטיות
                         </a>
-                        {" "}ומסכים/ת לתוכנם{" "}
+                        {" "}ומסכים/ה לתוכנם{" "}
                         <span className="text-destructive font-bold">*</span>
                       </span>
                     </label>

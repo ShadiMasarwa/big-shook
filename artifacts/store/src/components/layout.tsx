@@ -229,12 +229,13 @@ export function Layout({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-2 shrink-0">
             <div className="hidden md:flex items-center gap-1 text-sm mr-4">
               {user ? (
-                <div className="flex items-center gap-2">
+                <div className="flex items-top gap-2">
+                  <span className="font-medium">שלום, {user.firstName}</span>
                   <Link
                     href="/profile"
                     className="flex flex-col text-left hover:text-primary transition-colors"
                   >
-                    <span className="font-medium">שלום, {user.firstName}</span>
+                    <span className="font-medium">(איזור אישי)</span>
                     {user.loyaltyTier && (
                       <span className="text-xs text-amber-500 font-bold flex items-center justify-end gap-1">
                         <Star className="h-3 w-3" /> {user.loyaltyTier}

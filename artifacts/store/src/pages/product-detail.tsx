@@ -1,4 +1,4 @@
-import { useParams, useLocation } from "wouter";
+import { useParams, useLocation, Link } from "wouter";
 import { Layout } from "@/components/layout";
 import { 
   useGetProduct, 
@@ -150,10 +150,10 @@ export default function ProductDetail() {
   return (
     <Layout>
       <div className="bg-muted/30 py-4 border-b border-border">
-        <div className="container mx-auto px-4 text-sm text-muted-foreground flex gap-2">
-          <span>דף הבית</span>
+        <div className="container mx-auto px-4 text-sm text-muted-foreground flex gap-2 items-center">
+          <Link href="/" className="hover:text-foreground hover:underline transition-colors">דף הבית</Link>
           <span>/</span>
-          <span>קטלוג</span>
+          <Link href="/catalog" className="hover:text-foreground hover:underline transition-colors">קטלוג</Link>
           <span>/</span>
           <span className="text-foreground font-medium">{product.nameHe}</span>
         </div>
