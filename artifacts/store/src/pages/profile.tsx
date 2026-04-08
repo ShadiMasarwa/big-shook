@@ -72,6 +72,7 @@ export default function Profile() {
   const [street, setStreet]           = useState("");
   const [houseNumber, setHouseNumber] = useState("");
   const [zipCode, setZipCode]         = useState("");
+  const [addressNote, setAddressNote] = useState("");
   const [saving, setSaving]           = useState(false);
 
   // Orders
@@ -88,6 +89,7 @@ export default function Profile() {
     setStreet(user.street ?? "");
     setHouseNumber(user.houseNumber ?? "");
     setZipCode(user.zipCode ?? "");
+    setAddressNote(user.addressNote ?? "");
   }, [user]);
 
   // Load orders
@@ -144,7 +146,7 @@ export default function Profile() {
       const res = await fetch(`/api/users/${user.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ firstName, lastName, phone, city, street, houseNumber, zipCode }),
+        body: JSON.stringify({ firstName, lastName, phone, city, street, houseNumber, zipCode, addressNote }),
       });
       if (!res.ok) throw new Error("שגיאה בשמירה");
       if (refreshUser) await refreshUser();
@@ -227,6 +229,16 @@ export default function Profile() {
                         <Label>מיקוד</Label>
                         <Input value={zipCode} onChange={e => setZipCode(e.target.value)} placeholder="6100000" dir="ltr" />
                       </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>הערות לכתובת</Label>
+                      <textarea
+                        value={addressNote}
+                        onChange={e => setAddressNote(e.target.value)}
+                        placeholder="קומה, דירה, הוראות לשליח..."
+                        rows={2}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+                      />
                     </div>
                   </div>
                 </div>
