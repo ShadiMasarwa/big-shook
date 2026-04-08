@@ -1,8 +1,23 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+
+function hmrKeepAlive(): Plugin {
+  return {
+    name: "hmr-keep-alive",
+    apply: "serve",
+    configureServer(server) {
+      server.ws.on("connection", (socket: any) => {
+        const timer = setInterval(() => {
+          if (socket.readyState === 1) socket.ping();
+        }, 20_000);
+        socket.on("close", () => clearInterval(timer));
+      });
+    },
+  };
+}
 
 const rawPort = process.env.PORT;
 
@@ -32,6 +47,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     runtimeErrorOverlay(),
+    hmrKeepAlive(),
     ...(process.env.NODE_ENV !== "production" &&
     process.env.REPL_ID !== undefined
       ? [
