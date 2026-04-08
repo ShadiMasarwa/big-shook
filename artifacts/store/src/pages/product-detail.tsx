@@ -492,13 +492,13 @@ export default function ProductDetail() {
         )}
 
         {/* Related Products */}
-        {relatedProducts && relatedProducts.products?.length > 0 && (
+        {Array.isArray(relatedProducts) && relatedProducts.length > 0 && (
           <div>
             <h2 className="text-2xl font-bold mb-6">
               מוצרים שאולי יעניינו אותך
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-              {relatedProducts.products.map((rp) => (
+              {(relatedProducts as any[]).filter((rp) => rp.id !== productId).map((rp) => (
                 <ProductCard key={rp.id} product={rp} />
               ))}
             </div>
