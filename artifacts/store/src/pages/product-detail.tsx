@@ -341,6 +341,7 @@ export default function ProductDetail() {
 
             <div className="flex items-center gap-4 mb-6">
               <div className="flex items-center text-amber-500">
+                
                 {[...Array(5)].map((_, i) => (
                   <Star
                     key={i}
