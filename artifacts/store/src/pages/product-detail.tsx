@@ -297,10 +297,6 @@ export default function ProductDetail() {
               )}
             </div>
 
-            <p className="text-lg mb-8 leading-relaxed text-muted-foreground">
-              {product.descriptionHe}
-            </p>
-
             <div className="bg-muted p-6 rounded-xl mb-8 space-y-4 border border-border">
               <div className="flex items-center justify-between">
                 <span className="font-bold">זמינות:</span>
@@ -350,18 +346,35 @@ export default function ProductDetail() {
           </div>
         </div>
 
-        {/* Specs */}
-        {product.specs && Object.keys(product.specs as Record<string, any>).length > 0 && (
-          <div className="mb-16">
-            <h2 className="text-2xl font-bold mb-6 pb-2 border-b border-border">מפרט טכני</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
-              {Object.entries(product.specs as Record<string, string>).map(([key, value]) => (
-                <div key={key} className="flex justify-between py-3 border-b border-border/50">
-                  <span className="text-muted-foreground font-medium">{key}</span>
-                  <span className="font-bold text-left">{value}</span>
+        {/* Description + Specs side by side */}
+        {(product.descriptionHe || (product.specs && Object.keys(product.specs as Record<string, any>).length > 0)) && (
+          <div className="mb-16 grid grid-cols-1 md:grid-cols-2 gap-10 items-start">
+
+            {/* Description */}
+            {product.descriptionHe && (
+              <div>
+                <h2 className="text-2xl font-bold mb-6 pb-2 border-b border-border">תיאור המוצר</h2>
+                <p className="text-base leading-relaxed text-muted-foreground whitespace-pre-line">
+                  {product.descriptionHe}
+                </p>
+              </div>
+            )}
+
+            {/* Technical specs */}
+            {product.specs && Object.keys(product.specs as Record<string, any>).length > 0 && (
+              <div>
+                <h2 className="text-2xl font-bold mb-6 pb-2 border-b border-border">מפרט טכני</h2>
+                <div>
+                  {Object.entries(product.specs as Record<string, string>).map(([key, value]) => (
+                    <div key={key} className="flex justify-between py-3 border-b border-border/50">
+                      <span className="text-muted-foreground font-medium">{key}</span>
+                      <span className="font-bold text-left">{value}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
+
           </div>
         )}
 
