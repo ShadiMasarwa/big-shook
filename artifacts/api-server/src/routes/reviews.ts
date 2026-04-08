@@ -24,7 +24,7 @@ function getUserId(req: { headers: Record<string, string | string[] | undefined>
 }
 
 // GET /api/reviews/order/:orderId — fetch all reviews for an order (auth required)
-router.get("/api/reviews/order/:orderId", async (req, res) => {
+router.get("/reviews/order/:orderId", async (req, res) => {
   const userId = getUserId(req as any);
   if (!userId) return res.status(401).json({ error: "נדרשת התחברות" });
 
@@ -55,7 +55,7 @@ router.get("/api/reviews/order/:orderId", async (req, res) => {
 });
 
 // POST /api/reviews — submit a rating (auth required, order must be delivered)
-router.post("/api/reviews", async (req, res) => {
+router.post("/reviews", async (req, res) => {
   const userId = getUserId(req as any);
   if (!userId) return res.status(401).json({ error: "נדרשת התחברות" });
 
