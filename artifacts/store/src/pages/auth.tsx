@@ -16,6 +16,7 @@ import {
   Loader2,
   Mail,
   Gift,
+  Lock,
 } from "lucide-react";
 
 // ── Password validation ───────────────────────────────────────────────────────
@@ -162,6 +163,118 @@ function Countdown({
   );
 }
 
+// ── Forgot Password Dialog ────────────────────────────────────────────────────
+function ForgotPasswordDialog({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [sent, setSent] = useState(false);
+
+  function handleOpenChange(v: boolean) {
+    if (!v) {
+      onClose();
+      setTimeout(() => { setEmail(""); setError(""); setSent(false); setLoading(false); }, 300);
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    if (!email) { setError("אנא הזן כתובת אימייל"); return; }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error ?? "שגיאה בשליחת הבקשה"); return; }
+      setSent(true);
+    } catch {
+      setError("שגיאת תקשורת. אנא נסה שוב.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent
+        className="max-w-sm rounded-2xl"
+        dir="rtl"
+        aria-label="שחזור סיסמה"
+      >
+        <DialogTitle className="text-xl font-bold text-center">שכחתי סיסמה</DialogTitle>
+
+        {sent ? (
+          <div className="py-4 text-center space-y-3">
+            <div className="flex justify-center">
+              <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center text-green-600">
+                <Mail className="h-7 w-7" />
+              </div>
+            </div>
+            <p className="font-semibold text-green-700">הקישור נשלח!</p>
+            <p className="text-sm text-muted-foreground">
+              אם הכתובת <span dir="ltr" className="font-mono font-semibold">{email}</span> קיימת במערכת,
+              ישלח אליה קישור לאיפוס הסיסמה תוך מספר דקות.
+            </p>
+            <p className="text-xs text-muted-foreground">הקישור בתוקף ל-24 שעות.</p>
+            <Button className="w-full mt-2" onClick={onClose}>סגור</Button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4 py-2" noValidate>
+            <div className="flex justify-center mb-2">
+              <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                <Lock className="h-7 w-7" />
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground text-center">
+              הזן את כתובת האימייל של חשבונך ונשלח לך קישור לאיפוס הסיסמה.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="forgot-email">אימייל</Label>
+              <Input
+                id="forgot-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                dir="ltr"
+                autoComplete="email"
+                aria-required="true"
+              />
+            </div>
+            {error && (
+              <p className="text-sm text-destructive" role="alert" aria-live="assertive">
+                {error}
+              </p>
+            )}
+            <Button type="submit" className="w-full h-11 text-base" disabled={loading}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "שלח קישור לאיפוס"}
+            </Button>
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-sm text-muted-foreground hover:text-primary underline"
+              >
+                ביטול
+              </button>
+            </div>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function Auth() {
   const { login, user } = useAuth();
@@ -179,6 +292,9 @@ export default function Auth() {
       return "/";
     }
   })();
+
+  // Forgot password dialog
+  const [forgotOpen, setForgotOpen] = useState(false);
 
   // Login
   const [loginEmail, setLoginEmail] = useState("");
@@ -474,6 +590,15 @@ export default function Auth() {
                       )}
                     </button>
                   </div>
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setForgotOpen(true)}
+                    className="text-sm text-primary hover:underline focus-visible:outline-none focus-visible:underline"
+                  >
+                    שכחתי סיסמה
+                  </button>
                 </div>
                 {loginInactive && (
                   <div
@@ -851,6 +976,8 @@ export default function Auth() {
           </Button>
         </DialogContent>
       </Dialog>
+
+      <ForgotPasswordDialog open={forgotOpen} onClose={() => setForgotOpen(false)} />
     </Layout>
   );
 }

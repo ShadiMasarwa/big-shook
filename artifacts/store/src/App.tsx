@@ -18,6 +18,7 @@ import Wishlist from "@/pages/wishlist";
 import Compare from "@/pages/compare";
 import Profile from "@/pages/profile";
 import InfoPage from "@/pages/info-page";
+import ResetPassword from "@/pages/reset-password";
 
 // Admin
 import AdminDashboard from "@/pages/admin/dashboard";
@@ -59,6 +60,7 @@ function Router() {
       <Route path="/compare" component={Compare} />
       <Route path="/profile" component={Profile} />
       <Route path="/info/:slug" component={InfoPage} />
+      <Route path="/reset-password" component={ResetPassword} />
 
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/products" component={AdminProducts} />

@@ -14,3 +14,4 @@ export * from "./comparison";
 export * from "./media";
 export * from "./ads";
 export * from "./siteSettings";
+export * from "./passwordResetTokens";
