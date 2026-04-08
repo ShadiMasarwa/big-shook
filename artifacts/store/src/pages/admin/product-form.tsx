@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "@/components/rich-text-editor";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -244,7 +244,11 @@ export default function AdminProductForm() {
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label>תיאור המוצר</Label>
-                <Textarea className="h-28" value={formData.descriptionHe} onChange={e => setFormData({...formData, descriptionHe: e.target.value})} />
+                <RichTextEditor
+                  value={formData.descriptionHe}
+                  onChange={html => setFormData({...formData, descriptionHe: html})}
+                  placeholder="הזן תיאור מפורט של המוצר..."
+                />
               </div>
             </div>
           </CardContent>
