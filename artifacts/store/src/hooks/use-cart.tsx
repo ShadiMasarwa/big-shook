@@ -26,31 +26,32 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const removeItemMutation = useRemoveFromCart();
   const clearCartMutation = useClearCart();
 
-  const handleSuccess = () => {
+  const applyCart = (updatedCart: any) => {
+    queryClient.setQueryData(getGetCartQueryKey(), updatedCart);
     queryClient.invalidateQueries({ queryKey: getGetCartQueryKey() });
   };
 
   const addToCart = async ({ productId, quantity }: { productId: number; quantity: number }, options?: any) => {
     const result = await addToCartMutation.mutateAsync({ data: { productId, quantity } }, options);
-    handleSuccess();
+    applyCart(result);
     return result;
   };
 
   const updateItem = async ({ productId, quantity }: { productId: number; quantity: number }, options?: any) => {
     const result = await updateItemMutation.mutateAsync({ productId, data: { quantity } }, options);
-    handleSuccess();
+    applyCart(result);
     return result;
   };
 
   const removeItem = async ({ productId }: { productId: number }, options?: any) => {
     const result = await removeItemMutation.mutateAsync({ productId }, options);
-    handleSuccess();
+    applyCart(result);
     return result;
   };
 
   const clearCart = async (options?: any) => {
     const result = await clearCartMutation.mutateAsync(undefined, options);
-    handleSuccess();
+    applyCart(result);
     return result;
   };
 
