@@ -24,7 +24,13 @@ import {
 } from "@/components/ui/sheet";
 import { useListCategories, useGetWishlist } from "@workspace/api-client-react";
 
-type AdItem = { id: number; position: number; imageUrl: string; linkUrl?: string | null; title?: string | null };
+type AdItem = {
+  id: number;
+  position: number;
+  imageUrl: string;
+  linkUrl?: string | null;
+  title?: string | null;
+};
 
 function AdsCarousel({ ads }: { ads: AdItem[] }) {
   const [current, setCurrent] = useState(0);
@@ -34,10 +40,12 @@ function AdsCarousel({ ads }: { ads: AdItem[] }) {
   useEffect(() => {
     if (ads.length <= 1) return;
     const tick = () => {
-      if (!paused.current) setCurrent(i => (i + 1) % ads.length);
+      if (!paused.current) setCurrent((i) => (i + 1) % ads.length);
     };
     intervalRef.current = setInterval(tick, 4000);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, [ads.length]);
 
   const sorted = [...ads].sort((a, b) => a.position - b.position);
@@ -46,8 +54,12 @@ function AdsCarousel({ ads }: { ads: AdItem[] }) {
     <div
       className="relative overflow-hidden rounded-lg"
       style={{ aspectRatio: "2/1" }}
-      onMouseEnter={() => { paused.current = true; }}
-      onMouseLeave={() => { paused.current = false; }}
+      onMouseEnter={() => {
+        paused.current = true;
+      }}
+      onMouseLeave={() => {
+        paused.current = false;
+      }}
     >
       {/* Slides strip — LTR so translateX maths is straightforward */}
       <div
@@ -55,7 +67,7 @@ function AdsCarousel({ ads }: { ads: AdItem[] }) {
         className="flex h-full transition-transform duration-700 ease-in-out"
         style={{ transform: `translateX(-${current * 100}%)` }}
       >
-        {sorted.map(ad => {
+        {sorted.map((ad) => {
           const img = (
             <img
               src={ad.imageUrl}
@@ -66,10 +78,17 @@ function AdsCarousel({ ads }: { ads: AdItem[] }) {
           return (
             <div key={ad.id} className="w-full shrink-0 h-full">
               {ad.linkUrl ? (
-                <a href={ad.linkUrl} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
+                <a
+                  href={ad.linkUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full h-full"
+                >
                   {img}
                 </a>
-              ) : img}
+              ) : (
+                img
+              )}
             </div>
           );
         })}
@@ -130,12 +149,20 @@ export function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-[100dvh] flex flex-col bg-background font-sans text-foreground">
       {/* ── Skip to main content link — visible only on focus ── */}
-      <a href="#main-content" className="skip-link">דלג לתוכן הראשי</a>
+      <a href="#main-content" className="skip-link">
+        דלג לתוכן הראשי
+      </a>
 
       {/* Top bar */}
-      <div role="banner" aria-label="מידע כללי" className="bg-primary text-primary-foreground py-2 px-4 text-sm flex justify-between items-center">
+      <div
+        role="banner"
+        aria-label="מידע כללי"
+        className="bg-primary text-primary-foreground py-2 px-4 text-sm flex justify-between items-center"
+      >
         <div>{siteSettings?.topbar_left ?? "שירות לקוחות: 077-1234577"}</div>
-        <div className="hidden md:block">{siteSettings?.topbar_right ?? "משלוח חינם בקנייה מעל ₪299"}</div>
+        <div className="hidden md:block">
+          {siteSettings?.topbar_right ?? "משלוח חינם בקנייה מעל ₪299"}
+        </div>
       </div>
 
       {/* Main Header */}
@@ -163,7 +190,9 @@ export function Layout({ children }: { children: ReactNode }) {
             <img src="/logo.gif" alt="ביג-שווק" className="h-12 w-auto" />
             <div className="flex flex-col leading-tight">
               <span className="text-xl font-black text-primary">ביג שווק</span>
-              <span className="text-xs text-muted-foreground font-medium">חנות מבצעים</span>
+              <span className="text-xs text-muted-foreground font-medium">
+                חנות מבצעים
+              </span>
             </div>
           </Link>
 
@@ -174,7 +203,9 @@ export function Layout({ children }: { children: ReactNode }) {
             onSubmit={handleSearch}
             className="flex-1 max-w-2xl hidden md:flex relative"
           >
-            <label htmlFor="desktop-search" className="sr-only">חיפוש מוצרים, מותגים וקטגוריות</label>
+            <label htmlFor="desktop-search" className="sr-only">
+              חיפוש מוצרים, מותגים וקטגוריות
+            </label>
             <Input
               id="desktop-search"
               placeholder="חפש מוצרים, מותגים וקטגוריות..."
@@ -188,7 +219,10 @@ export function Layout({ children }: { children: ReactNode }) {
               className="absolute right-3 top-1/2 -translate-y-1/2"
               aria-label="חפש"
             >
-              <Search className="h-5 w-5 text-muted-foreground hover:text-primary transition-colors" aria-hidden="true" />
+              <Search
+                className="h-5 w-5 text-muted-foreground hover:text-primary transition-colors"
+                aria-hidden="true"
+              />
             </button>
           </form>
 
@@ -233,7 +267,11 @@ export function Layout({ children }: { children: ReactNode }) {
 
             <Link
               href="/wishlist"
-              aria-label={wishlist && wishlist.length > 0 ? `רשימת מועדפים, ${wishlist.length} פריטים` : "רשימת מועדפים"}
+              aria-label={
+                wishlist && wishlist.length > 0
+                  ? `רשימת מועדפים, ${wishlist.length} פריטים`
+                  : "רשימת מועדפים"
+              }
             >
               <Button
                 variant="ghost"
@@ -245,7 +283,10 @@ export function Layout({ children }: { children: ReactNode }) {
               >
                 <Heart className="h-5 w-5" aria-hidden="true" />
                 {wishlist && wishlist.length > 0 && (
-                  <span aria-hidden="true" className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                  <span
+                    aria-hidden="true"
+                    className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center"
+                  >
                     {wishlist.length}
                   </span>
                 )}
@@ -254,7 +295,11 @@ export function Layout({ children }: { children: ReactNode }) {
 
             <Link
               href="/cart"
-              aria-label={cart && cart.itemCount > 0 ? `עגלת קניות, ${cart.itemCount} פריטים` : "עגלת קניות"}
+              aria-label={
+                cart && cart.itemCount > 0
+                  ? `עגלת קניות, ${cart.itemCount} פריטים`
+                  : "עגלת קניות"
+              }
             >
               <Button
                 variant="ghost"
@@ -266,7 +311,10 @@ export function Layout({ children }: { children: ReactNode }) {
               >
                 <ShoppingCart className="h-5 w-5" aria-hidden="true" />
                 {cart && cart.itemCount > 0 && (
-                  <span aria-hidden="true" className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                  <span
+                    aria-hidden="true"
+                    className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center"
+                  >
                     {cart.itemCount}
                   </span>
                 )}
@@ -276,7 +324,10 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
 
         {/* Desktop Categories Menu */}
-        <nav aria-label="ניווט קטגוריות" className="border-t border-border hidden md:block">
+        <nav
+          aria-label="ניווט קטגוריות"
+          className="border-t border-border hidden md:block"
+        >
           <div className="container mx-auto px-4">
             <ul className="flex items-center gap-6 py-3 text-sm font-medium overflow-x-auto">
               <li className="relative pb-0.5">
@@ -332,9 +383,12 @@ export function Layout({ children }: { children: ReactNode }) {
             <div className="hidden lg:grid grid-cols-4 gap-3">
               {[...ads]
                 .sort((a, b) => a.position - b.position)
-                .map(ad => {
+                .map((ad) => {
                   const inner = (
-                    <div className="relative w-full overflow-hidden rounded-lg" style={{ aspectRatio: "2/1" }}>
+                    <div
+                      className="relative w-full overflow-hidden rounded-lg"
+                      style={{ aspectRatio: "2/1" }}
+                    >
                       <img
                         src={ad.imageUrl}
                         alt={ad.title ?? `מודעה ${ad.position}`}
@@ -343,7 +397,13 @@ export function Layout({ children }: { children: ReactNode }) {
                     </div>
                   );
                   return ad.linkUrl ? (
-                    <a key={ad.id} href={ad.linkUrl} target="_blank" rel="noopener noreferrer" className="block">
+                    <a
+                      key={ad.id}
+                      href={ad.linkUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block"
+                    >
                       {inner}
                     </a>
                   ) : (
@@ -362,7 +422,13 @@ export function Layout({ children }: { children: ReactNode }) {
 
       {/* Mobile Drawer */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent id="mobile-nav-sheet" side="right" className="w-72 p-0 flex flex-col" dir="rtl" aria-label="תפריט ניווט">
+        <SheetContent
+          id="mobile-nav-sheet"
+          side="right"
+          className="w-72 p-0 flex flex-col"
+          dir="rtl"
+          aria-label="תפריט ניווט"
+        >
           <SheetHeader className="px-4 py-4 border-b">
             <SheetTitle>
               <img src="/logo.gif" alt="ביג-שווק" className="h-9 w-auto" />
@@ -376,7 +442,9 @@ export function Layout({ children }: { children: ReactNode }) {
             onSubmit={handleSearch}
             className="px-4 py-3 border-b flex gap-2"
           >
-            <label htmlFor="mobile-search" className="sr-only">חיפוש מוצרים</label>
+            <label htmlFor="mobile-search" className="sr-only">
+              חיפוש מוצרים
+            </label>
             <Input
               id="mobile-search"
               placeholder="חפש מוצרים..."
@@ -503,7 +571,9 @@ export function Layout({ children }: { children: ReactNode }) {
         </SheetContent>
       </Sheet>
 
-      <main id="main-content" className="flex-1" tabIndex={-1}>{children}</main>
+      <main id="main-content" className="flex-1" tabIndex={-1}>
+        {children}
+      </main>
 
       <footer className="bg-muted py-12 border-t border-border mt-auto">
         <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-5 gap-8">
@@ -557,9 +627,9 @@ export function Layout({ children }: { children: ReactNode }) {
           <div>
             <h3 className="font-bold text-lg mb-4">צור קשר</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>טלפון: 077-1234567</li>
-              <li>דוא"ל: support@techstore.co.il</li>
-              <li>כתובת: רחוב הטכנולוגיה 1, תל אביב</li>
+              <li>טלפון: 051-5008661</li>
+              <li>דוא"ל: support@bigshook.com</li>
+              <li>כתובת: ת.ד. 3869, טייבה 4040000</li>
             </ul>
           </div>
           <div>

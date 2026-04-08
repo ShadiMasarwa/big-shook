@@ -789,7 +789,7 @@ export default function Auth() {
 
                   {/* ── Checkboxes ───────────────────────────── */}
                   <div className="space-y-3 pt-1">
-                    {/* 1. Terms — required */}
+                    {/* 1. Terms + Privacy — required */}
                     <label className="flex items-start gap-3 cursor-pointer group">
                       <input
                         type="checkbox"
@@ -803,15 +803,25 @@ export default function Auth() {
                       <span className="text-sm leading-snug">
                         אני מאשר/ת שקראתי את{" "}
                         <a
-                          href="/terms"
+                          href="/info/takanon"
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-primary underline underline-offset-2 hover:text-primary/80 font-medium"
                           onClick={(e) => e.stopPropagation()}
                         >
                           תקנון האתר
-                        </a>{" "}
-                        ואני מסכים/ה לתנאיו{" "}
+                        </a>
+                        {" "}ואת{" "}
+                        <a
+                          href="/info/privacy"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary underline underline-offset-2 hover:text-primary/80 font-medium"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          מדיניות הפרטיות
+                        </a>
+                        {" "}ומסכים/ת לתוכנם{" "}
                         <span className="text-destructive font-bold">*</span>
                       </span>
                     </label>
