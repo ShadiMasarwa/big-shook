@@ -212,6 +212,10 @@ export default function Cart() {
   const shekelPerPoint: number = (cart as any).shekelPerPoint ?? 0.01;
   const minRedemptionPoints: number = (cart as any).minRedemptionPoints ?? 100;
   const remainingPoints: number = userAvailablePoints - loyaltyPointsUsed;
+  const rawShipping: number = cart.items.reduce(
+    (sum: number, item: any) => sum + parseFloat(item.product?.deliveryCost ?? "0"),
+    0
+  );
 
   return (
     <Layout>
@@ -323,9 +327,14 @@ export default function Cart() {
                 <span className="font-medium">{formatPrice(cart.subtotal)}</span>
               </div>
 
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">משלוח</span>
-                <span className="font-medium">{cart.shipping > 0 ? formatPrice(cart.shipping) : 'חינם'}</span>
+                <span className="font-medium flex items-center gap-2">
+                  {rawShipping > 0 && (
+                    <span className="line-through text-muted-foreground text-xs">{formatPrice(rawShipping)}</span>
+                  )}
+                  <span className="text-green-600">חינם</span>
+                </span>
               </div>
 
               {/* Applied coupons list — one line per coupon */}

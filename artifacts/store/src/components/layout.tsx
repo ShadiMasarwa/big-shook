@@ -258,7 +258,7 @@ export function Layout({ children }: { children: ReactNode }) {
               ) : (
                 <Link
                   href="/auth"
-                  className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+                  className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
                 >
                   <User className="h-5 w-5" />
                   <span>התחבר / הרשם</span>
