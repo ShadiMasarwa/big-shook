@@ -1,14 +1,14 @@
 import { useParams, useLocation, Link } from "wouter";
 import { Layout } from "@/components/layout";
-import { 
-  useGetProduct, 
+import {
+  useGetProduct,
   useGetProductBySlug,
-  getGetProductQueryKey, 
+  getGetProductQueryKey,
   getGetProductBySlugQueryKey,
   useGetRelatedProducts,
   useAddToWishlist,
   useTrackProductView,
-  getGetWishlistQueryKey
+  getGetWishlistQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCart } from "@/hooks/use-cart";
@@ -16,7 +16,15 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShoppingCart, Heart, Check, Star, ChevronRight, ChevronLeft, Play } from "lucide-react";
+import {
+  ShoppingCart,
+  Heart,
+  Check,
+  Star,
+  ChevronRight,
+  ChevronLeft,
+  Play,
+} from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
 import { ToastAction } from "@/components/ui/toast";
@@ -26,36 +34,43 @@ export default function ProductDetail() {
   const params = useParams();
   const id = params.id ? Number(params.id) : null;
   const slug = params.slug;
-  
+
   // Use either ID or Slug based on route
   const { data: productById, isLoading: isLoadingId } = useGetProduct(id!, {
     query: {
       enabled: !!id,
-      queryKey: getGetProductQueryKey(id!)
-    }
+      queryKey: getGetProductQueryKey(id!),
+    },
   });
 
-  const { data: productBySlug, isLoading: isLoadingSlug } = useGetProductBySlug(slug!, {
-    query: {
-      enabled: !!slug,
-      queryKey: getGetProductBySlugQueryKey(slug!)
-    }
-  });
+  const { data: productBySlug, isLoading: isLoadingSlug } = useGetProductBySlug(
+    slug!,
+    {
+      query: {
+        enabled: !!slug,
+        queryKey: getGetProductBySlugQueryKey(slug!),
+      },
+    },
+  );
 
   const product = id ? productById : productBySlug;
   const isLoading = id ? isLoadingId : isLoadingSlug;
 
   const productId = product?.id;
-  const { data: relatedProducts } = useGetRelatedProducts(productId!, { limit: 4 }, {
-    query: { enabled: !!productId }
-  });
-  
+  const { data: relatedProducts } = useGetRelatedProducts(
+    productId!,
+    { limit: 4 },
+    {
+      query: { enabled: !!productId },
+    },
+  );
+
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const { addToCart } = useCart();
   const addToWishlistMutation = useAddToWishlist();
   const trackView = useTrackProductView();
-  
+
   const [quantity, setQuantity] = useState(1);
   const [activeIndex, setActiveIndex] = useState(0);
   const [direction, setDirection] = useState(0);
@@ -63,13 +78,15 @@ export default function ProductDetail() {
 
   useEffect(() => {
     if (product) {
-      trackView.mutateAsync({ data: { productId: product.id } }).catch(() => {});
+      trackView
+        .mutateAsync({ data: { productId: product.id } })
+        .catch(() => {});
       setActiveIndex(0);
     }
   }, [product?.id]);
 
   const images = product?.images ?? [];
-  const videos = (product as any)?.videos ?? [] as string[];
+  const videos = (product as any)?.videos ?? ([] as string[]);
   const mediaItems: { type: "image" | "video"; url: string }[] = [
     ...images.map((url: string) => ({ type: "image" as const, url })),
     ...videos.map((url: string) => ({ type: "video" as const, url })),
@@ -80,7 +97,11 @@ export default function ProductDetail() {
     const next = (idx + totalItems) % totalItems;
     setDirection(dir ?? (next > activeIndex ? -1 : 1));
     setActiveIndex(next);
-    thumbsRef.current?.children[next]?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    thumbsRef.current?.children[next]?.scrollIntoView({
+      behavior: "smooth",
+      inline: "center",
+      block: "nearest",
+    });
   };
 
   const goPrev = () => goTo(activeIndex - 1, 1);
@@ -93,7 +114,11 @@ export default function ProductDetail() {
       toast({
         title: "המוצר נוסף לעגלה בהצלחה",
         action: (
-          <ToastAction altText="עבור לעגלה" onClick={() => setLocation("/cart")} className="bg-green-600 text-white border-green-600 hover:bg-green-700 hover:border-green-700">
+          <ToastAction
+            altText="עבור לעגלה"
+            onClick={() => setLocation("/cart")}
+            className="bg-green-600 text-white border-green-600 hover:bg-green-700 hover:border-green-700"
+          >
             לעגלה
           </ToastAction>
         ),
@@ -106,7 +131,9 @@ export default function ProductDetail() {
   const handleAddToWishlist = async () => {
     if (!product) return;
     try {
-      await addToWishlistMutation.mutateAsync({ data: { productId: product.id } });
+      await addToWishlistMutation.mutateAsync({
+        data: { productId: product.id },
+      });
       queryClient.invalidateQueries({ queryKey: getGetWishlistQueryKey() });
       toast({ title: "המוצר נוסף למועדפים" });
     } catch (e) {
@@ -151,9 +178,19 @@ export default function ProductDetail() {
     <Layout>
       <div className="bg-muted/30 py-4 border-b border-border">
         <div className="container mx-auto px-4 text-sm text-muted-foreground flex gap-2 items-center">
-          <Link href="/" className="hover:text-foreground hover:underline transition-colors">דף הבית</Link>
+          <Link
+            href="/"
+            className="hover:text-foreground hover:underline transition-colors"
+          >
+            דף הבית
+          </Link>
           <span>/</span>
-          <Link href="/catalog" className="hover:text-foreground hover:underline transition-colors">קטלוג</Link>
+          <Link
+            href="/catalog"
+            className="hover:text-foreground hover:underline transition-colors"
+          >
+            קטלוג
+          </Link>
           <span>/</span>
           <span className="text-foreground font-medium">{product.nameHe}</span>
         </div>
@@ -165,7 +202,11 @@ export default function ProductDetail() {
           <div className="flex flex-col gap-4">
             {/* Main viewer */}
             <div className="relative aspect-square bg-white rounded-2xl border border-border overflow-hidden group">
-              <AnimatePresence initial={false} custom={direction} mode="popLayout">
+              <AnimatePresence
+                initial={false}
+                custom={direction}
+                mode="popLayout"
+              >
                 <motion.div
                   key={activeIndex}
                   custom={direction}
@@ -213,7 +254,10 @@ export default function ProductDetail() {
                   >
                     <ChevronRight className="h-5 w-5" />
                   </button>
-                  <div dir="ltr" className="absolute bottom-3 left-3 z-10 bg-black/50 text-white text-xs font-medium px-2 py-0.5 rounded-full">
+                  <div
+                    dir="ltr"
+                    className="absolute bottom-3 left-3 z-10 bg-black/50 text-white text-xs font-medium px-2 py-0.5 rounded-full"
+                  >
                     {activeIndex + 1} / {totalItems}
                   </div>
                 </>
@@ -222,7 +266,10 @@ export default function ProductDetail() {
 
             {/* Thumbnail strip */}
             {totalItems > 1 && (
-              <div ref={thumbsRef} className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+              <div
+                ref={thumbsRef}
+                className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide"
+              >
                 {mediaItems.map((item, idx) => (
                   <button
                     key={idx}
@@ -232,13 +279,21 @@ export default function ProductDetail() {
                         ? "border-primary shadow-md scale-105"
                         : "border-border hover:border-primary/50 opacity-70 hover:opacity-100"
                     }`}
-                    aria-label={item.type === "video" ? `סרטון ${idx + 1}` : `תמונה ${idx + 1}`}
+                    aria-label={
+                      item.type === "video"
+                        ? `סרטון ${idx + 1}`
+                        : `תמונה ${idx + 1}`
+                    }
                   >
                     {activeIndex === idx && (
                       <motion.span
                         layoutId="thumb-indicator"
                         className="absolute inset-0 rounded-lg ring-2 ring-primary/30"
-                        transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 500,
+                          damping: 35,
+                        }}
                       />
                     )}
                     {item.type === "video" ? (
@@ -271,26 +326,43 @@ export default function ProductDetail() {
           {/* Info */}
           <div className="flex flex-col">
             {product.isFeatured && (
-              <span className="bg-primary/10 text-primary text-xs font-bold px-3 py-1 rounded-full w-fit mb-4">מומלץ הצוות</span>
+              <span className="bg-primary/10 text-primary text-xs font-bold px-3 py-1 rounded-full w-fit mb-4">
+                מומלץ הצוות
+              </span>
             )}
-            <h1 className="text-3xl md:text-4xl font-black mb-2">{product.nameHe}</h1>
-            {product.nameEn && <p className="text-muted-foreground mb-4 font-mono text-sm">{product.nameEn}</p>}
-            
+            <h1 className="text-3xl md:text-4xl font-black mb-2">
+              {product.nameHe}
+            </h1>
+            {product.nameEn && (
+              <p className="text-muted-foreground mb-4 font-mono text-sm">
+                {product.nameEn}
+              </p>
+            )}
+
             <div className="flex items-center gap-4 mb-6">
               <div className="flex items-center text-amber-500">
                 {[...Array(5)].map((_, i) => (
-                  <Star key={i} className={`h-5 w-5 ${i < Math.round(product.ratingAverage) ? "fill-current" : "text-muted"}`} />
+                  <Star
+                    key={i}
+                    className={`h-5 w-5 ${i < Math.round(product.ratingAverage) ? "fill-current" : "text-muted"}`}
+                  />
                 ))}
-                <span className="ml-2 text-foreground font-medium text-sm">({product.ratingCount} דירוגים)</span>
+                <span className="ml-2 text-foreground font-medium text-sm">
+                  ({product.ratingCount} דירוגים)
+                </span>
               </div>
-              <span className="text-muted-foreground text-sm">מק"ט: {product.sku || product.id}</span>
+              <span className="text-muted-foreground text-sm">
+                מק"ט: {product.sku || product.id}
+              </span>
             </div>
 
             <div className="text-4xl font-black text-primary mb-6 flex items-baseline gap-3">
               {product.salePrice ? (
                 <>
                   <span>{formatPrice(product.salePrice)}</span>
-                  <span className="text-2xl text-muted-foreground line-through font-medium">{formatPrice(product.price)}</span>
+                  <span className="text-2xl text-muted-foreground line-through font-medium">
+                    {formatPrice(product.price)}
+                  </span>
                 </>
               ) : (
                 <span>{formatPrice(product.price)}</span>
@@ -305,22 +377,42 @@ export default function ProductDetail() {
                     <Check className="h-4 w-4" /> במלאי (זמין למשלוח מיידי)
                   </span>
                 ) : (
-                  <span className="text-destructive font-medium">אזל מהמלאי</span>
+                  <span className="text-destructive font-medium">
+                    אזל מהמלאי
+                  </span>
                 )}
               </div>
-              
+
               <div className="flex items-end gap-4 pt-4 border-t border-border/50">
                 <div className="w-24">
-                  <label className="text-xs font-bold text-muted-foreground mb-1 block">כמות</label>
+                  <label className="text-xs font-bold text-muted-foreground mb-1 block">
+                    כמות
+                  </label>
                   <div className="flex items-center border border-border rounded-lg bg-background">
-                    <button className="px-3 py-2 text-xl hover:text-primary transition-colors" onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</button>
-                    <span className="flex-1 text-center font-bold">{quantity}</span>
-                    <button className="px-3 py-2 text-xl hover:text-primary transition-colors" onClick={() => setQuantity(Math.min(product.stockQuantity, quantity + 1))}>+</button>
+                    <button
+                      className="px-3 py-2 text-xl hover:text-primary transition-colors"
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    >
+                      -
+                    </button>
+                    <span className="flex-1 text-center font-bold">
+                      {quantity}
+                    </span>
+                    <button
+                      className="px-3 py-2 text-xl hover:text-primary transition-colors"
+                      onClick={() =>
+                        setQuantity(
+                          Math.min(product.stockQuantity, quantity + 1),
+                        )
+                      }
+                    >
+                      +
+                    </button>
                   </div>
                 </div>
-                <Button 
-                  size="lg" 
-                  className="flex-1 text-lg font-bold h-[42px]" 
+                <Button
+                  size="lg"
+                  className="flex-1 text-lg font-bold h-[42px]"
                   disabled={product.stockQuantity <= 0}
                   onClick={handleAddToCart}
                 >
@@ -331,29 +423,40 @@ export default function ProductDetail() {
             </div>
 
             <div className="flex items-center gap-4">
-              <Button variant="outline" className="flex-1" onClick={handleAddToWishlist}>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={handleAddToWishlist}
+              >
                 <Heart className="ml-2 h-4 w-4" /> שמור למועדפים
               </Button>
             </div>
-            
+
             <div className="mt-8 bg-primary/5 border border-primary/20 rounded-xl p-4 flex items-start gap-4">
               <Star className="h-6 w-6 text-amber-500 shrink-0 mt-1" />
               <div>
                 <h4 className="font-bold">מועדון לקוחות טק-סטור</h4>
-                <p className="text-sm text-muted-foreground">רכוש מוצר זה וקבל {Math.floor((product.salePrice || product.price) * 0.1)} נקודות מועדון לשימוש בקנייה הבאה!</p>
+                <p className="text-sm text-muted-foreground">
+                  רכוש מוצר זה וקבל{" "}
+                  {Math.floor((product.salePrice || product.price) * 0.1)}{" "}
+                  נקודות מועדון לשימוש בקנייה הבאה!
+                </p>
               </div>
             </div>
           </div>
         </div>
 
         {/* Description + Specs side by side */}
-        {(product.descriptionHe || (product.specs && Object.keys(product.specs as Record<string, any>).length > 0)) && (
+        {(product.descriptionHe ||
+          (product.specs &&
+            Object.keys(product.specs as Record<string, any>).length > 0)) && (
           <div className="mb-16 grid grid-cols-1 md:grid-cols-2 gap-10 items-start">
-
             {/* Description */}
             {product.descriptionHe && (
-              <div>
-                <h2 className="text-2xl font-bold mb-6 pb-2 border-b border-border">תיאור המוצר</h2>
+              <div className="bg-muted p-6 rounded-xl">
+                <h2 className="text-2xl font-bold mb-6 pb-2 border-b border-border">
+                  תיאור המוצר
+                </h2>
                 <div
                   className="prose prose-sm max-w-none text-muted-foreground"
                   dir="rtl"
@@ -363,29 +466,39 @@ export default function ProductDetail() {
             )}
 
             {/* Technical specs */}
-            {product.specs && Object.keys(product.specs as Record<string, any>).length > 0 && (
-              <div>
-                <h2 className="text-2xl font-bold mb-6 pb-2 border-b border-border">מפרט טכני</h2>
-                <div>
-                  {Object.entries(product.specs as Record<string, string>).map(([key, value]) => (
-                    <div key={key} className="flex justify-between py-3 border-b border-border/50">
-                      <span className="text-muted-foreground font-medium">{key}</span>
-                      <span className="font-bold text-left">{value}</span>
-                    </div>
-                  ))}
+            {product.specs &&
+              Object.keys(product.specs as Record<string, any>).length > 0 && (
+                <div className="border border-border rounded-xl overflow-hidden">
+                  <h2 className="text-2xl font-bold px-6 py-4 bg-muted border-b border-border">
+                    מפרט טכני
+                  </h2>
+                  <div className="divide-y divide-border/60">
+                    {Object.entries(
+                      product.specs as Record<string, string>,
+                    ).map(([key, value], i) => (
+                      <div key={key} className="flex items-stretch">
+                        <span className={`w-1/4 shrink-0 px-4 py-3 text-sm font-medium text-muted-foreground flex items-center ${i % 2 === 0 ? "bg-muted/70" : "bg-muted/40"}`}>
+                          {key}
+                        </span>
+                        <span className="flex-1 px-4 py-3 font-medium text-right" dir="rtl">
+                          {value}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
-
+              )}
           </div>
         )}
 
         {/* Related Products */}
         {relatedProducts && relatedProducts.products?.length > 0 && (
           <div>
-            <h2 className="text-2xl font-bold mb-6">מוצרים שאולי יעניינו אותך</h2>
+            <h2 className="text-2xl font-bold mb-6">
+              מוצרים שאולי יעניינו אותך
+            </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-              {relatedProducts.products.map(rp => (
+              {relatedProducts.products.map((rp) => (
                 <ProductCard key={rp.id} product={rp} />
               ))}
             </div>
