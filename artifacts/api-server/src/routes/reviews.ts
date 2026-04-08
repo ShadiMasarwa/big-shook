@@ -1,10 +1,11 @@
 import { Router, type IRouter } from "express";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc, isNotNull } from "drizzle-orm";
 import {
   db,
   productReviewsTable,
   ordersTable,
   orderItemsTable,
+  usersTable,
 } from "@workspace/db";
 
 const router: IRouter = Router();
@@ -22,6 +23,41 @@ function getUserId(req: { headers: Record<string, string | string[] | undefined>
     return null;
   }
 }
+
+// GET /api/reviews/product/:productId — public list of reviews with comments
+router.get("/reviews/product/:productId", async (req, res) => {
+  const productId = parseInt(req.params.productId, 10);
+  if (!productId) return res.status(400).json({ error: "מזהה מוצר לא תקין" });
+
+  const rows = await db
+    .select({
+      id: productReviewsTable.id,
+      rating: productReviewsTable.rating,
+      comment: productReviewsTable.comment,
+      createdAt: productReviewsTable.createdAt,
+      firstName: usersTable.firstName,
+      lastName: usersTable.lastName,
+    })
+    .from(productReviewsTable)
+    .innerJoin(usersTable, eq(usersTable.id, productReviewsTable.userId))
+    .where(
+      and(
+        eq(productReviewsTable.productId, productId),
+        isNotNull(productReviewsTable.comment),
+      ),
+    )
+    .orderBy(desc(productReviewsTable.createdAt));
+
+  const reviews = rows.map((r) => ({
+    id: r.id,
+    rating: r.rating,
+    comment: r.comment,
+    createdAt: r.createdAt,
+    reviewerName: `${r.firstName} ${r.lastName.charAt(0)}.`,
+  }));
+
+  return res.json(reviews);
+});
 
 // GET /api/reviews/order/:orderId — fetch all reviews for an order (auth required)
 router.get("/reviews/order/:orderId", async (req, res) => {

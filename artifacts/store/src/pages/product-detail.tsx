@@ -10,7 +10,7 @@ import {
   useTrackProductView,
   getGetWishlistQueryKey,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useCart } from "@/hooks/use-cart";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -24,11 +24,33 @@ import {
   ChevronRight,
   ChevronLeft,
   Play,
+  MessageSquare,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { ProductCard } from "@/components/product-card";
+
+interface PublicReview {
+  id: number;
+  rating: number;
+  comment: string;
+  createdAt: string;
+  reviewerName: string;
+}
+
+function ReviewStars({ rating }: { rating: number }) {
+  return (
+    <div className="flex gap-0.5" dir="ltr">
+      {[1, 2, 3, 4, 5].map((s) => (
+        <Star
+          key={s}
+          className={`h-4 w-4 ${s <= rating ? "fill-amber-400 text-amber-400" : "fill-none text-muted-foreground/40"}`}
+        />
+      ))}
+    </div>
+  );
+}
 
 export default function ProductDetail() {
   const params = useParams();
@@ -70,6 +92,16 @@ export default function ProductDetail() {
   const { addToCart } = useCart();
   const addToWishlistMutation = useAddToWishlist();
   const trackView = useTrackProductView();
+
+  const { data: productReviews = [] } = useQuery<PublicReview[]>({
+    queryKey: ["product-reviews", productId],
+    queryFn: async () => {
+      const res = await fetch(`/api/reviews/product/${productId}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!productId,
+  });
 
   const [quantity, setQuantity] = useState(1);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -489,6 +521,78 @@ export default function ProductDetail() {
                   </div>
                 </div>
               )}
+          </div>
+        )}
+
+        {/* Customer Reviews */}
+        {productReviews.length > 0 && (
+          <div className="mb-16">
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+              <MessageSquare className="h-6 w-6 text-primary" />
+              ביקורות לקוחות
+              <span className="text-base font-normal text-muted-foreground">
+                ({productReviews.length})
+              </span>
+            </h2>
+
+            {/* Aggregate bar */}
+            {product.ratingCount > 0 && (
+              <div className="flex items-center gap-6 bg-muted/50 border border-border rounded-xl p-5 mb-6">
+                <div className="text-center shrink-0">
+                  <div className="text-5xl font-black text-foreground leading-none">
+                    {Number(product.ratingAverage).toFixed(1)}
+                  </div>
+                  <ReviewStars rating={Math.round(product.ratingAverage)} />
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {product.ratingCount} דירוגים
+                  </div>
+                </div>
+                <div className="flex-1 space-y-1.5">
+                  {[5, 4, 3, 2, 1].map((star) => {
+                    const count = productReviews.filter((r) => r.rating === star).length;
+                    const pct = productReviews.length > 0 ? (count / productReviews.length) * 100 : 0;
+                    return (
+                      <div key={star} className="flex items-center gap-2 text-xs">
+                        <span className="w-3 text-muted-foreground shrink-0">{star}</span>
+                        <Star className="h-3 w-3 fill-amber-400 text-amber-400 shrink-0" />
+                        <div className="flex-1 bg-border rounded-full h-2 overflow-hidden">
+                          <div
+                            className="h-full bg-amber-400 rounded-full transition-all"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <span className="w-6 text-muted-foreground shrink-0">{count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Review cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {productReviews.map((review) => (
+                <div key={review.id} className="bg-card border border-border rounded-xl p-5">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center shrink-0">
+                        {review.reviewerName.charAt(0)}
+                      </div>
+                      <div>
+                        <div className="font-semibold text-sm">{review.reviewerName}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(review.createdAt).toLocaleDateString("he-IL")}
+                        </div>
+                      </div>
+                    </div>
+                    <ReviewStars rating={review.rating} />
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    "{review.comment}"
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
