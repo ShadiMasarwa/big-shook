@@ -5,8 +5,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Link } from "wouter";
-import { Plus, Edit, Trash2, CheckCircle, XCircle, Search, X } from "lucide-react";
+import { Link, useLocation } from "wouter";
+import { Plus, Edit, Trash2, CheckCircle, XCircle, Search, X, Copy } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,6 +18,8 @@ const ALL = "all";
 
 export default function AdminProducts() {
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
+  const [duplicatingId, setDuplicatingId] = useState<number | null>(null);
 
   const [nameSearch, setNameSearch] = useState("");
   const [skuSearch, setSkuSearch] = useState("");
@@ -71,6 +73,26 @@ export default function AdminProducts() {
       } catch (e) {
         toast({ title: "שגיאה במחיקת מוצר", variant: "destructive" });
       }
+    }
+  };
+
+  const handleDuplicate = async (id: number) => {
+    setDuplicatingId(id);
+    try {
+      const token = localStorage.getItem("token") ?? "";
+      const res = await fetch(`/api/products/${id}/duplicate`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("שגיאה");
+      const newProduct = await res.json();
+      toast({ title: "המוצר שוכפל בהצלחה" });
+      queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
+      setLocation(`/admin/products/${newProduct.id}/edit`);
+    } catch (e) {
+      toast({ title: "שגיאה בשכפול מוצר", variant: "destructive" });
+    } finally {
+      setDuplicatingId(null);
     }
   };
 
@@ -254,8 +276,17 @@ export default function AdminProducts() {
                   </TableCell>
                   <TableCell className="text-left">
                     <div className="flex items-center justify-end gap-2">
-                      <Button variant="outline" size="icon" asChild>
+                      <Button variant="outline" size="icon" asChild title="עריכה">
                         <Link href={`/admin/products/${product.id}/edit`}><Edit className="h-4 w-4" /></Link>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        title="שכפל מוצר"
+                        disabled={duplicatingId === product.id}
+                        onClick={() => handleDuplicate(product.id)}
+                      >
+                        <Copy className="h-4 w-4" />
                       </Button>
                       <Button variant="outline" size="icon" className="text-destructive hover:bg-destructive hover:text-white" onClick={() => handleDelete(product.id)}>
                         <Trash2 className="h-4 w-4" />

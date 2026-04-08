@@ -152,6 +152,51 @@ router.get("/products", async (req, res): Promise<void> => {
   });
 });
 
+router.post("/products/:id/duplicate", async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [original] = await db.select().from(productsTable).where(eq(productsTable.id, id));
+  if (!original) { res.status(404).json({ error: "מוצר לא נמצא" }); return; }
+
+  // Build a unique slug
+  const baseSlug = `${original.slug}-copy`;
+  const [existing] = await db.select({ id: productsTable.id }).from(productsTable).where(eq(productsTable.slug, baseSlug));
+  const newSlug = existing ? `${baseSlug}-${Date.now()}` : baseSlug;
+
+  const [newProduct] = await db.insert(productsTable).values({
+    nameHe: `${original.nameHe} (copy)`,
+    nameEn: original.nameEn ?? null,
+    slug: newSlug,
+    descriptionHe: original.descriptionHe ?? null,
+    sku: null,
+    price: original.price,
+    salePrice: original.salePrice ?? null,
+    costPrice: original.costPrice ?? null,
+    categoryId: original.categoryId ?? null,
+    brandId: original.brandId ?? null,
+    supplierId: original.supplierId ?? null,
+    images: [],
+    videos: [],
+    tags: original.tags ?? [],
+    specs: original.specs ?? {},
+    stockQuantity: 0,
+    isActive: false,
+    isFeatured: false,
+    weight: original.weight ?? null,
+    metaTitle: original.metaTitle ?? null,
+    metaDescription: original.metaDescription ?? null,
+    viewsCount: 0,
+    salesCount: 100,
+    ratingAverage: "0",
+    ratingCount: 0,
+    deliveryCost: original.deliveryCost ?? null,
+  }).returning();
+
+  res.status(201).json(serializeProduct(newProduct));
+});
+
 router.post("/products", async (req, res): Promise<void> => {
   const {
     nameHe, nameEn, slug, descriptionHe, sku, price, salePrice, costPrice,
