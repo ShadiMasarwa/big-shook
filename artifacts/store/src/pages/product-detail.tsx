@@ -472,15 +472,15 @@ export default function ProductDetail() {
                   <h2 className="text-2xl font-bold px-6 py-4 bg-muted border-b border-border">
                     מפרט טכני
                   </h2>
-                  <div className="divide-y divide-border/60">
+                  <div className="divide-y divide-border">
                     {Object.entries(
                       product.specs as Record<string, string>,
                     ).map(([key, value], i) => (
-                      <div key={key} className="flex items-stretch">
-                        <span className={`w-1/4 shrink-0 px-4 py-3 text-sm font-medium text-muted-foreground flex items-center ${i % 2 === 0 ? "bg-muted/70" : "bg-muted/40"}`}>
+                      <div key={key} className="flex items-stretch min-h-[44px]">
+                        <span className={`w-1/4 shrink-0 px-4 py-3 text-sm font-semibold text-foreground flex items-center border-s border-border ${i % 2 === 0 ? "bg-muted" : "bg-muted/50"}`}>
                           {key}
                         </span>
-                        <span className="flex-1 px-4 py-3 font-medium text-right" dir="rtl">
+                        <span className="flex-1 px-4 py-3 text-sm font-medium text-foreground text-right" dir="rtl">
                           {value}
                         </span>
                       </div>
