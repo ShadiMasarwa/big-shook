@@ -211,58 +211,6 @@ export default function Catalog() {
           </form>
 
           <div>
-            <h3 className="font-bold mb-3 border-b border-border pb-2">קטגוריות</h3>
-            <ul className="space-y-1">
-              {/* All categories */}
-              <li>
-                <button
-                  className={`text-sm w-full text-right py-1 transition-colors ${!categoryId && !parentCategoryId ? "font-bold text-primary" : "text-muted-foreground hover:text-foreground"}`}
-                  onClick={() => handleCategoryClick(null)}
-                >
-                  כל הקטגוריות
-                </button>
-              </li>
-              {/* Parent categories with hover-expand children */}
-              {parentCategories.map((parent: any) => {
-                const children = childrenByParentId[parent.id] ?? [];
-                const isParentActive =
-                  parentCategoryId === parent.id ||
-                  children.some((c: any) => c.id === categoryId);
-                const isExpanded = hoveredParentId === parent.id || isParentActive;
-                return (
-                  <li key={parent.id}>
-                    <div
-                      onMouseEnter={() => setHoveredParentId(parent.id)}
-                      onMouseLeave={() => setHoveredParentId(null)}
-                    >
-                      <button
-                        className={`text-sm w-full text-right py-1 transition-colors font-medium ${isParentActive ? "text-primary" : "text-foreground hover:text-primary"}`}
-                        onClick={() => handleParentCategoryClick(parent.id)}
-                      >
-                        {parent.nameHe}
-                      </button>
-                      {isExpanded && children.length > 0 && (
-                        <ul className="me-3 mb-1 space-y-0.5 border-e-2 border-primary/30 pe-2">
-                          {children.map((child: any) => (
-                            <li key={child.id}>
-                              <button
-                                className={`text-sm w-full text-right py-0.5 transition-colors ${categoryId === child.id ? "font-bold text-primary" : "text-muted-foreground hover:text-foreground"}`}
-                                onClick={() => handleCategoryClick(child.id)}
-                              >
-                                {child.nameHe}
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-
-          <div>
             <h3 className="font-bold mb-3 border-b border-border pb-2">מותגים</h3>
             <ul className="space-y-2">
               <li>
