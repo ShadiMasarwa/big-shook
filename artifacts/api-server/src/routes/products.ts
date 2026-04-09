@@ -1,12 +1,12 @@
 import { Router, type IRouter } from "express";
 import { eq, and, gte, lte, ilike, desc, asc, gt, sql, inArray } from "drizzle-orm";
-import { db, productsTable, suppliersTable, categoriesTable } from "@workspace/db";
+import { db, productsTable, suppliersTable, categoriesTable, productCategoriesTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
 function serializeProduct(
   p: typeof productsTable.$inferSelect,
-  extra?: { supplierName?: string | null }
+  extra?: { supplierName?: string | null; categoryIds?: number[] }
 ) {
   return {
     ...p,
@@ -21,7 +21,18 @@ function serializeProduct(
     tags: p.tags ?? [],
     specs: p.specs ?? {},
     supplierName: extra?.supplierName ?? null,
+    categoryIds: extra?.categoryIds ?? (p.categoryId ? [p.categoryId] : []),
   };
+}
+
+/** Sync product_categories join table for a product */
+async function syncProductCategories(productId: number, categoryIds: number[]) {
+  await db.delete(productCategoriesTable).where(eq(productCategoriesTable.productId, productId));
+  if (categoryIds.length > 0) {
+    await db.insert(productCategoriesTable).values(
+      categoryIds.map((cid) => ({ productId, categoryId: cid }))
+    ).onConflictDoNothing();
+  }
 }
 
 router.get("/products/featured", async (req, res): Promise<void> => {
@@ -30,7 +41,7 @@ router.get("/products/featured", async (req, res): Promise<void> => {
     .where(and(eq(productsTable.isActive, true), eq(productsTable.isFeatured, true)))
     .orderBy(desc(productsTable.createdAt))
     .limit(limit);
-  res.json(products.map(serializeProduct));
+  res.json(products.map(p => serializeProduct(p)));
 });
 
 router.get("/products/top-selling", async (req, res): Promise<void> => {
@@ -39,7 +50,7 @@ router.get("/products/top-selling", async (req, res): Promise<void> => {
     .where(eq(productsTable.isActive, true))
     .orderBy(desc(productsTable.salesCount))
     .limit(limit);
-  res.json(products.map(serializeProduct));
+  res.json(products.map(p => serializeProduct(p)));
 });
 
 router.get("/products/slug/:slug", async (req, res): Promise<void> => {
@@ -50,7 +61,10 @@ router.get("/products/slug/:slug", async (req, res): Promise<void> => {
     return;
   }
   await db.update(productsTable).set({ viewsCount: product.viewsCount + 1 }).where(eq(productsTable.id, product.id));
-  res.json(serializeProduct({ ...product, viewsCount: product.viewsCount + 1 }));
+  const catRows = await db.select({ categoryId: productCategoriesTable.categoryId })
+    .from(productCategoriesTable).where(eq(productCategoriesTable.productId, product.id));
+  const categoryIds = catRows.map(r => r.categoryId);
+  res.json(serializeProduct({ ...product, viewsCount: product.viewsCount + 1 }, { categoryIds }));
 });
 
 router.get("/products/:id/related", async (req, res): Promise<void> => {
@@ -69,7 +83,7 @@ router.get("/products/:id/related", async (req, res): Promise<void> => {
     .where(and(...conditions))
     .orderBy(desc(productsTable.salesCount))
     .limit(limit + 1);
-  res.json(related.filter(p => p.id !== id).slice(0, limit).map(serializeProduct));
+  res.json(related.filter(p => p.id !== id).slice(0, limit).map(p => serializeProduct(p)));
 });
 
 router.get("/products/:id", async (req, res): Promise<void> => {
@@ -86,7 +100,10 @@ router.get("/products/:id", async (req, res): Promise<void> => {
   }
   const { product, supplierName } = row;
   await db.update(productsTable).set({ viewsCount: product.viewsCount + 1 }).where(eq(productsTable.id, id));
-  res.json(serializeProduct({ ...product, viewsCount: product.viewsCount + 1 }, { supplierName }));
+  const catRows = await db.select({ categoryId: productCategoriesTable.categoryId })
+    .from(productCategoriesTable).where(eq(productCategoriesTable.productId, id));
+  const categoryIds = catRows.map(r => r.categoryId);
+  res.json(serializeProduct({ ...product, viewsCount: product.viewsCount + 1 }, { supplierName, categoryIds }));
 });
 
 router.get("/products", async (req, res): Promise<void> => {
@@ -109,7 +126,10 @@ router.get("/products", async (req, res): Promise<void> => {
 
   if (categoryId) {
     const catId = parseInt(String(categoryId), 10);
-    if (!isNaN(catId)) conditions.push(eq(productsTable.categoryId, catId));
+    if (!isNaN(catId)) {
+      // Search both category_id (primary) and the join table
+      conditions.push(sql`(${productsTable.categoryId} = ${catId} OR EXISTS (SELECT 1 FROM product_categories pc WHERE pc.product_id = ${productsTable.id} AND pc.category_id = ${catId}))`);
+    }
   }
   if (parentCategoryId) {
     const parentId = parseInt(String(parentCategoryId), 10);
@@ -120,7 +140,7 @@ router.get("/products", async (req, res): Promise<void> => {
         .where(eq(categoriesTable.parentId, parentId));
       const childIds = childCats.map((c) => c.id);
       if (childIds.length > 0) {
-        conditions.push(inArray(productsTable.categoryId, childIds));
+        conditions.push(sql`(${productsTable.categoryId} = ANY(${childIds}::int[]) OR EXISTS (SELECT 1 FROM product_categories pc WHERE pc.product_id = ${productsTable.id} AND pc.category_id = ANY(${childIds}::int[])))`);
       } else {
         conditions.push(eq(productsTable.categoryId, parentId));
       }
@@ -159,7 +179,7 @@ router.get("/products", async (req, res): Promise<void> => {
   const products = await db.select().from(productsTable).where(whereClause).orderBy(orderBy).limit(limit).offset(offset);
 
   res.json({
-    products: products.map(serializeProduct),
+    products: products.map(p => serializeProduct(p)),
     total: count,
     page,
     limit,
@@ -175,7 +195,6 @@ router.post("/products/:id/duplicate", async (req, res): Promise<void> => {
   const [original] = await db.select().from(productsTable).where(eq(productsTable.id, id));
   if (!original) { res.status(404).json({ error: "מוצר לא נמצא" }); return; }
 
-  // Build a unique slug
   const baseSlug = `${original.slug}-copy`;
   const [existing] = await db.select({ id: productsTable.id }).from(productsTable).where(eq(productsTable.slug, baseSlug));
   const newSlug = existing ? `${baseSlug}-${Date.now()}` : baseSlug;
@@ -209,31 +228,51 @@ router.post("/products/:id/duplicate", async (req, res): Promise<void> => {
     deliveryCost: original.deliveryCost ?? null,
   }).returning();
 
+  // Copy categories from original
+  const origCats = await db.select({ categoryId: productCategoriesTable.categoryId })
+    .from(productCategoriesTable).where(eq(productCategoriesTable.productId, id));
+  if (origCats.length > 0) {
+    await db.insert(productCategoriesTable).values(
+      origCats.map(r => ({ productId: newProduct.id, categoryId: r.categoryId }))
+    ).onConflictDoNothing();
+  }
+
   res.status(201).json(serializeProduct(newProduct));
 });
 
 router.post("/products", async (req, res): Promise<void> => {
   const {
     nameHe, nameEn, slug, descriptionHe, sku, price, salePrice, costPrice,
-    categoryId, brandId, supplierId, images, videos, tags, specs, stockQuantity, isActive, isFeatured,
-    weight, metaTitle, metaDescription,
+    categoryId, categoryIds, brandId, supplierId, images, videos, tags, specs,
+    stockQuantity, isActive, isFeatured, weight, metaTitle, metaDescription,
+    deliveryCost,
   } = req.body;
   if (!nameHe || !slug || price === undefined || price === null) {
     res.status(400).json({ error: "nameHe, slug and price are required" });
     return;
   }
+
+  // Determine primary categoryId: first from categoryIds[], else from categoryId
+  const resolvedCategoryIds: number[] = Array.isArray(categoryIds) && categoryIds.length > 0
+    ? categoryIds.map(Number)
+    : categoryId ? [Number(categoryId)] : [];
+  const primaryCategoryId = resolvedCategoryIds[0] ?? null;
+
   const [product] = await db.insert(productsTable).values({
     nameHe, nameEn: nameEn ?? null, slug, descriptionHe: descriptionHe ?? null,
     sku: sku ?? null, price: String(price),
-    salePrice: salePrice != null ? String(salePrice) : null,
-    costPrice: costPrice != null ? String(costPrice) : null,
-    categoryId: categoryId ?? null, brandId: brandId ?? null, supplierId: supplierId ?? null,
+    salePrice: salePrice != null && salePrice !== 0 ? String(salePrice) : null,
+    costPrice: costPrice != null && costPrice !== 0 ? String(costPrice) : null,
+    categoryId: primaryCategoryId, brandId: brandId ?? null, supplierId: supplierId ?? null,
     images: images ?? [], videos: videos ?? [], tags: tags ?? [], specs: specs ?? {},
     stockQuantity: stockQuantity ?? 0, isActive: isActive ?? true,
     isFeatured: isFeatured ?? false, weight: weight != null ? String(weight) : null,
     metaTitle: metaTitle ?? null, metaDescription: metaDescription ?? null,
+    deliveryCost: deliveryCost != null && deliveryCost !== 0 ? String(deliveryCost) : null,
   }).returning();
-  res.status(201).json(serializeProduct(product));
+
+  await syncProductCategories(product.id, resolvedCategoryIds);
+  res.status(201).json(serializeProduct(product, { categoryIds: resolvedCategoryIds }));
 });
 
 router.patch("/products/:id", async (req, res): Promise<void> => {
@@ -241,7 +280,7 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
   const id = parseInt(raw, 10);
   const body = req.body;
   const updateData: Record<string, unknown> = {};
-  const fields = ["nameHe", "nameEn", "slug", "descriptionHe", "sku", "categoryId", "brandId", "supplierId",
+  const fields = ["nameHe", "nameEn", "slug", "descriptionHe", "sku", "brandId", "supplierId",
     "images", "videos", "tags", "specs", "stockQuantity", "isActive", "isFeatured", "weight", "metaTitle", "metaDescription"];
   for (const f of fields) {
     if (body[f] !== undefined) updateData[f] = body[f];
@@ -249,13 +288,33 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
   if (body.price !== undefined) updateData.price = String(body.price);
   if (body.salePrice !== undefined) updateData.salePrice = body.salePrice != null ? String(body.salePrice) : null;
   if (body.costPrice !== undefined) updateData.costPrice = body.costPrice != null ? String(body.costPrice) : null;
+  if (body.deliveryCost !== undefined) updateData.deliveryCost = body.deliveryCost != null ? String(body.deliveryCost) : null;
+
+  // Handle multi-category: categoryIds[] takes priority, else fall back to categoryId
+  let resolvedCategoryIds: number[] | null = null;
+  if (Array.isArray(body.categoryIds)) {
+    resolvedCategoryIds = body.categoryIds.map(Number);
+    updateData.categoryId = resolvedCategoryIds[0] ?? null;
+  } else if (body.categoryId !== undefined) {
+    updateData.categoryId = body.categoryId;
+    resolvedCategoryIds = body.categoryId ? [Number(body.categoryId)] : [];
+  }
 
   const [product] = await db.update(productsTable).set(updateData).where(eq(productsTable.id, id)).returning();
   if (!product) {
     res.status(404).json({ error: "מוצר לא נמצא" });
     return;
   }
-  res.json(serializeProduct(product));
+
+  if (resolvedCategoryIds !== null) {
+    await syncProductCategories(id, resolvedCategoryIds);
+  }
+
+  const catRows = await db.select({ categoryId: productCategoriesTable.categoryId })
+    .from(productCategoriesTable).where(eq(productCategoriesTable.productId, id));
+  const categoryIds = catRows.map(r => r.categoryId);
+
+  res.json(serializeProduct(product, { categoryIds }));
 });
 
 router.delete("/products/:id", async (req, res): Promise<void> => {

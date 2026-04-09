@@ -60,7 +60,7 @@ export default function AdminProductForm() {
     costPrice: 0,
     deliveryCost: 0,
     stockQuantity: 0,
-    categoryId: "",
+    categoryIds: [] as number[],
     brandId: "",
     supplierId: "",
     isActive: true,
@@ -80,6 +80,7 @@ export default function AdminProductForm() {
 
   useEffect(() => {
     if (product && isEditing) {
+      const productAny = product as any;
       setFormData({
         nameHe: product.nameHe,
         nameEn: product.nameEn || "",
@@ -88,16 +89,18 @@ export default function AdminProductForm() {
         sku: product.sku || "",
         price: product.price,
         salePrice: product.salePrice || 0,
-        costPrice: (product as any).costPrice || 0,
-        deliveryCost: (product as any).deliveryCost || 0,
+        costPrice: productAny.costPrice || 0,
+        deliveryCost: productAny.deliveryCost || 0,
         stockQuantity: product.stockQuantity,
-        categoryId: product.categoryId?.toString() || "",
+        categoryIds: Array.isArray(productAny.categoryIds) && productAny.categoryIds.length > 0
+          ? productAny.categoryIds.map(Number)
+          : product.categoryId ? [product.categoryId] : [],
         brandId: product.brandId?.toString() || "",
-        supplierId: (product as any).supplierId?.toString() || "",
+        supplierId: productAny.supplierId?.toString() || "",
         isActive: product.isActive,
         isFeatured: product.isFeatured,
         images: product.images || [],
-        videos: (product as any).videos || [],
+        videos: productAny.videos || [],
       });
       setTags(product.tags || []);
       const specsObj = (product.specs as Record<string, string>) || {};
@@ -110,14 +113,12 @@ export default function AdminProductForm() {
     }
   }, [product, isEditing]);
 
-  // Re-sync supplierId (and other relation fields) once reference data loads,
-  // in case it arrived after the product data and the Select showed blank.
+  // Re-sync relation fields once reference data loads
   useEffect(() => {
     if (product && isEditing && suppliers?.length) {
       setFormData((prev) => ({
         ...prev,
         supplierId: (product as any).supplierId?.toString() || prev.supplierId,
-        categoryId: product.categoryId?.toString() || prev.categoryId,
         brandId: product.brandId?.toString() || prev.brandId,
       }));
     }
@@ -175,7 +176,7 @@ export default function AdminProductForm() {
           ? Number(formData.deliveryCost)
           : null,
       stockQuantity: Number(formData.stockQuantity),
-      categoryId: formData.categoryId ? Number(formData.categoryId) : null,
+      categoryIds: formData.categoryIds,
       brandId: formData.brandId ? Number(formData.brandId) : null,
       supplierId: formData.supplierId ? Number(formData.supplierId) : null,
       isActive: formData.isActive,
@@ -268,30 +269,105 @@ export default function AdminProductForm() {
                   }
                 />
               </div>
-              <div className="space-y-2">
-                <Label>קטגוריה</Label>
+              <div className="space-y-2 md:col-span-2">
+                <Label>
+                  קטגוריות
+                  {formData.categoryIds.length > 0 && (
+                    <span className="ms-2 inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[11px] font-bold px-2 py-0.5 leading-none">
+                      {formData.categoryIds.length}
+                    </span>
+                  )}
+                </Label>
                 {!categories ? (
-                  <Skeleton className="h-9 w-full" />
-                ) : (
-                  <Select
-                    key={`cat-${formData.categoryId}`}
-                    value={formData.categoryId}
-                    onValueChange={(v) =>
-                      setFormData({ ...formData, categoryId: v })
+                  <Skeleton className="h-40 w-full" />
+                ) : (() => {
+                  // Build parent→children map, only child categories are selectable
+                  const parents = (categories ?? [])
+                    .filter((c: any) => !c.parentId)
+                    .sort((a: any, b: any) => (a.sortOrder ?? 99) - (b.sortOrder ?? 99) || a.nameHe.localeCompare(b.nameHe, "he"));
+                  const childrenByParent: Record<number, typeof categories> = {};
+                  (categories ?? []).forEach((c: any) => {
+                    if (c.parentId) {
+                      if (!childrenByParent[c.parentId]) childrenByParent[c.parentId] = [];
+                      childrenByParent[c.parentId].push(c);
                     }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="בחר קטגוריה" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((c) => (
-                        <SelectItem key={c.id} value={c.id.toString()}>
-                          {c.nameHe}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+                  });
+
+                  const toggleCat = (id: number) => {
+                    setFormData((prev) => ({
+                      ...prev,
+                      categoryIds: prev.categoryIds.includes(id)
+                        ? prev.categoryIds.filter((x) => x !== id)
+                        : [...prev.categoryIds, id],
+                    }));
+                  };
+
+                  return (
+                    <div className="border border-input rounded-md overflow-hidden">
+                      {/* Selected summary bar */}
+                      {formData.categoryIds.length > 0 && (
+                        <div className="bg-muted/60 px-3 py-1.5 border-b border-input flex flex-wrap gap-1.5">
+                          {formData.categoryIds.map((cid) => {
+                            const cat = (categories ?? []).find((c: any) => c.id === cid);
+                            return cat ? (
+                              <span
+                                key={cid}
+                                className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full"
+                              >
+                                {cat.nameHe}
+                                <button
+                                  type="button"
+                                  onClick={() => toggleCat(cid)}
+                                  className="hover:text-destructive"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </span>
+                            ) : null;
+                          })}
+                        </div>
+                      )}
+                      {/* Scrollable checkbox list */}
+                      <div className="max-h-56 overflow-y-auto overscroll-contain divide-y divide-border/50">
+                        {parents.map((parent: any) => {
+                          const kids = (childrenByParent[parent.id] ?? [])
+                            .sort((a: any, b: any) => (a.sortOrder ?? 99) - (b.sortOrder ?? 99) || a.nameHe.localeCompare(b.nameHe, "he"));
+                          return (
+                            <div key={parent.id}>
+                              {/* Parent header — not selectable */}
+                              <div className="flex items-center gap-2 px-3 py-2 bg-muted/40">
+                                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
+                                  {parent.nameHe}
+                                </span>
+                              </div>
+                              {/* Child checkboxes */}
+                              {kids.length === 0 ? (
+                                <div className="px-6 py-1.5 text-xs text-muted-foreground italic">אין תת-קטגוריות</div>
+                              ) : (
+                                kids.map((child: any) => {
+                                  const checked = formData.categoryIds.includes(child.id);
+                                  return (
+                                    <label
+                                      key={child.id}
+                                      className={`flex items-center gap-2.5 px-6 py-2 cursor-pointer hover:bg-accent/50 transition-colors select-none ${checked ? "bg-primary/5" : ""}`}
+                                    >
+                                      <Checkbox
+                                        checked={checked}
+                                        onCheckedChange={() => toggleCat(child.id)}
+                                        id={`cat-${child.id}`}
+                                      />
+                                      <span className="text-sm">{child.nameHe}</span>
+                                    </label>
+                                  );
+                                })
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
               <div className="space-y-2">
                 <Label>מותג</Label>
