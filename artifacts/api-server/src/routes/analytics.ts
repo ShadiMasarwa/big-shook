@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { desc, sql, eq, and } from "drizzle-orm";
+import { desc, sql, eq, and, lte } from "drizzle-orm";
 import { db, ordersTable, orderItemsTable, usersTable, productsTable, couponsTable, inventoryTable } from "@workspace/db";
 
 const router: IRouter = Router();
@@ -37,7 +37,7 @@ router.get("/analytics/dashboard", async (req, res): Promise<void> => {
   const [pendingOrdersRow] = await db.select({ count: sql<number>`count(*)::int` }).from(ordersTable).where(eq(ordersTable.status, "pending"));
   const [activeProductsRow] = await db.select({ count: sql<number>`count(*)::int` }).from(productsTable).where(eq(productsTable.isActive, true));
   const [activeCouponsRow] = await db.select({ count: sql<number>`count(*)::int` }).from(couponsTable).where(eq(couponsTable.isActive, true));
-  const [lowStockRow] = await db.select({ count: sql<number>`count(*)::int` }).from(inventoryTable).where(sql`quantity <= low_stock_threshold`);
+  const [lowStockRow] = await db.select({ count: sql<number>`count(*)::int` }).from(productsTable).where(lte(productsTable.stockQuantity, 10));
 
   const rawDashRevenue = parseFloat(String(totalRevenueRow.revenue)) || 0;
   const dashCancelledSub = parseFloat(String(dashCancelledRow.subtotal)) || 0;
