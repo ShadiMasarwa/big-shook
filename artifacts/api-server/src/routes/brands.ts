@@ -5,9 +5,9 @@ import { db, brandsTable, productsTable } from "@workspace/db";
 const router: IRouter = Router();
 
 router.get("/brands", async (req, res): Promise<void> => {
-  const { categoryId, search, minPrice, maxPrice, inStock } = req.query;
+  const { categoryId, parentCategoryId, search, minPrice, maxPrice, inStock } = req.query;
 
-  const hasProductFilters = categoryId || search || minPrice || maxPrice || inStock;
+  const hasProductFilters = categoryId || parentCategoryId || search || minPrice || maxPrice || inStock;
 
   if (!hasProductFilters) {
     const brands = await db.select().from(brandsTable).orderBy(brandsTable.nameHe);
@@ -22,8 +22,30 @@ router.get("/brands", async (req, res): Promise<void> => {
 
   if (categoryId) {
     const catId = parseInt(String(categoryId), 10);
-    if (!isNaN(catId)) productConditions.push(eq(productsTable.categoryId, catId));
+    if (!isNaN(catId)) {
+      // Check both primary column and join table
+      productConditions.push(sql`(
+        ${productsTable.categoryId} = ${catId}
+        OR EXISTS (SELECT 1 FROM product_categories pc WHERE pc.product_id = ${productsTable.id} AND pc.category_id = ${catId})
+      )`);
+    }
   }
+
+  if (parentCategoryId) {
+    const parentId = parseInt(String(parentCategoryId), 10);
+    if (!isNaN(parentId)) {
+      // Match products whose category is any child of this parent (primary col or join table)
+      productConditions.push(sql`(
+        ${productsTable.categoryId} IN (SELECT id FROM categories WHERE parent_id = ${parentId})
+        OR EXISTS (
+          SELECT 1 FROM product_categories pc
+          JOIN categories c ON pc.category_id = c.id
+          WHERE pc.product_id = ${productsTable.id} AND c.parent_id = ${parentId}
+        )
+      )`);
+    }
+  }
+
   if (search) productConditions.push(ilike(productsTable.nameHe, `%${search}%`));
   if (minPrice && !isNaN(parseFloat(String(minPrice)))) productConditions.push(gte(productsTable.price, String(minPrice)));
   if (maxPrice && !isNaN(parseFloat(String(maxPrice)))) productConditions.push(lte(productsTable.price, String(maxPrice)));
