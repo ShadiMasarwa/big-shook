@@ -393,7 +393,7 @@ export default function ProductDetail() {
                 <span className="ml-2 text-foreground font-medium text-sm">
                   ({product.ratingCount} דירוגים)
                 </span>
-              </diin v>
+              </div>
               <span className="text-muted-foreground text-sm">
                 מק"ט: {product.sku || product.id}
               </span>
