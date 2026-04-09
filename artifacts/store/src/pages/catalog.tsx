@@ -89,12 +89,26 @@ export default function Catalog() {
   }, [handleIntersect]);
 
   const { data: categories } = useQuery({
-    queryKey: ["/api/categories", "onlyWithProducts"],
-    queryFn: () => fetch("/api/categories?onlyWithProducts=true").then(r => r.json()),
+    queryKey: ["/api/categories"],
+    queryFn: () => fetch("/api/categories").then(r => r.json()),
   });
+
+  // Parse categories into parent / children structure
+  const parentCategories = (categories ?? []).filter((c: any) => c.parentId === null || c.parentId === undefined);
+  const childrenByParentId: Record<number, any[]> = {};
+  (categories ?? []).forEach((c: any) => {
+    if (c.parentId !== null && c.parentId !== undefined) {
+      if (!childrenByParentId[c.parentId]) childrenByParentId[c.parentId] = [];
+      childrenByParentId[c.parentId].push(c);
+    }
+  });
+
+  // Hover state for sidebar parent category expansion
+  const [hoveredParentId, setHoveredParentId] = useState<number | null>(null);
 
   const brandsParams = new URLSearchParams();
   if (categoryId) brandsParams.set("categoryId", String(categoryId));
+  if (parentCategoryId) brandsParams.set("parentCategoryId", String(parentCategoryId));
   if (search) brandsParams.set("search", search);
   if (minPrice) brandsParams.set("minPrice", String(minPrice));
   if (maxPrice) brandsParams.set("maxPrice", String(maxPrice));
@@ -136,6 +150,10 @@ export default function Catalog() {
     } else {
       navigate("/catalog");
     }
+  };
+
+  const handleParentCategoryClick = (parentId: number) => {
+    navigate(`/catalog?parentId=${parentId}`);
   };
 
   const isInitialLoading = isLoading && page === 1;
@@ -182,25 +200,53 @@ export default function Catalog() {
 
           <div>
             <h3 className="font-bold mb-3 border-b border-border pb-2">קטגוריות</h3>
-            <ul className="space-y-2">
+            <ul className="space-y-1">
+              {/* All categories */}
               <li>
                 <button
-                  className={`text-sm ${categoryId === null ? "font-bold text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                  className={`text-sm w-full text-right py-1 transition-colors ${!categoryId && !parentCategoryId ? "font-bold text-primary" : "text-muted-foreground hover:text-foreground"}`}
                   onClick={() => handleCategoryClick(null)}
                 >
                   כל הקטגוריות
                 </button>
               </li>
-              {categories?.filter(c => c.parentId !== null && c.parentId !== undefined).map(cat => (
-                <li key={cat.id}>
-                  <button
-                    className={`text-sm ${categoryId === cat.id ? "font-bold text-primary" : "text-muted-foreground hover:text-foreground"}`}
-                    onClick={() => handleCategoryClick(cat.id)}
-                  >
-                    {cat.nameHe}
-                  </button>
-                </li>
-              ))}
+              {/* Parent categories with hover-expand children */}
+              {parentCategories.map((parent: any) => {
+                const children = childrenByParentId[parent.id] ?? [];
+                const isParentActive =
+                  parentCategoryId === parent.id ||
+                  children.some((c: any) => c.id === categoryId);
+                const isExpanded = hoveredParentId === parent.id || isParentActive;
+                return (
+                  <li key={parent.id}>
+                    <div
+                      onMouseEnter={() => setHoveredParentId(parent.id)}
+                      onMouseLeave={() => setHoveredParentId(null)}
+                    >
+                      <button
+                        className={`text-sm w-full text-right py-1 transition-colors font-medium ${isParentActive ? "text-primary" : "text-foreground hover:text-primary"}`}
+                        onClick={() => handleParentCategoryClick(parent.id)}
+                      >
+                        {parent.nameHe}
+                      </button>
+                      {isExpanded && children.length > 0 && (
+                        <ul className="me-3 mb-1 space-y-0.5 border-e-2 border-primary/30 pe-2">
+                          {children.map((child: any) => (
+                            <li key={child.id}>
+                              <button
+                                className={`text-sm w-full text-right py-0.5 transition-colors ${categoryId === child.id ? "font-bold text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                                onClick={() => handleCategoryClick(child.id)}
+                              >
+                                {child.nameHe}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           </div>
 
