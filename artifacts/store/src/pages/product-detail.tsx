@@ -93,6 +93,16 @@ export default function ProductDetail() {
   const addToWishlistMutation = useAddToWishlist();
   const trackView = useTrackProductView();
 
+  const { data: loyaltyRules } = useQuery<{ pointsPerShekel: number }>({
+    queryKey: ["loyalty-rules"],
+    queryFn: async () => {
+      const res = await fetch("/api/loyalty/rules");
+      if (!res.ok) return { pointsPerShekel: 1 };
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   const { data: productReviews = [] } = useQuery<PublicReview[]>({
     queryKey: ["product-reviews", productId],
     queryFn: async () => {
@@ -383,7 +393,7 @@ export default function ProductDetail() {
                 <span className="ml-2 text-foreground font-medium text-sm">
                   ({product.ratingCount} דירוגים)
                 </span>
-              </div>
+              </diin v>
               <span className="text-muted-foreground text-sm">
                 מק"ט: {product.sku || product.id}
               </span>
@@ -471,7 +481,7 @@ export default function ProductDetail() {
                 <h4 className="font-bold">מועדון לקוחות טק-סטור</h4>
                 <p className="text-sm text-muted-foreground">
                   רכוש מוצר זה וקבל{" "}
-                  {Math.floor((product.salePrice || product.price) * 0.1)}{" "}
+                  {Math.floor((product.salePrice || product.price) * (loyaltyRules?.pointsPerShekel ?? 1))}{" "}
                   נקודות מועדון לשימוש בקנייה הבאה!
                 </p>
               </div>
