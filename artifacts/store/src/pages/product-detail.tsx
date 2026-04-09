@@ -526,7 +526,7 @@ export default function ProductDetail() {
 
         {/* Customer Reviews */}
         {productReviews.length > 0 && (
-          <div className="mb-16">
+          <div className="mb-16 w-full lg:w-1/2">
             <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
               <MessageSquare className="h-6 w-6 text-primary" />
               ביקורות לקוחות
@@ -570,7 +570,7 @@ export default function ProductDetail() {
             )}
 
             {/* Review cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               {productReviews.map((review) => (
                 <div key={review.id} className="bg-card border border-border rounded-xl p-5">
                   <div className="flex items-start justify-between gap-3 mb-3">
