@@ -186,6 +186,49 @@ router.get("/products", async (req, res): Promise<void> => {
   });
 });
 
+router.post("/products/bulk-update", async (req, res): Promise<void> => {
+  const { ids, patch } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    res.status(400).json({ error: "לא סופקו מוצרים" }); return;
+  }
+
+  const NUMERIC = ["price", "salePrice", "costPrice", "deliveryCost", "stockQuantity"] as const;
+  const INT_REL  = ["brandId", "supplierId", "categoryId"] as const;
+  const BOOL    = ["isActive", "isFeatured"] as const;
+
+  const updateData: Record<string, any> = {};
+
+  for (const f of NUMERIC) {
+    if (patch[f] !== undefined && patch[f] !== "" && patch[f] !== null) {
+      const v = parseFloat(String(patch[f]));
+      if (!isNaN(v)) updateData[f] = String(v);
+    }
+  }
+  for (const f of INT_REL) {
+    if (patch[f] !== undefined && patch[f] !== "" && patch[f] !== null) {
+      const v = parseInt(String(patch[f]), 10);
+      if (!isNaN(v)) updateData[f] = v;
+    }
+  }
+  for (const f of BOOL) {
+    if (patch[f] !== undefined && patch[f] !== "" && patch[f] !== null) {
+      updateData[f] = patch[f] === true || patch[f] === "true";
+    }
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    res.status(400).json({ error: "אין שדות לעדכון" }); return;
+  }
+
+  const numericIds = ids.map(Number).filter(n => !isNaN(n));
+  await db
+    .update(productsTable)
+    .set({ ...updateData, updatedAt: new Date() })
+    .where(inArray(productsTable.id, numericIds));
+
+  res.json({ updated: numericIds.length });
+});
+
 router.post("/products/:id/duplicate", async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
