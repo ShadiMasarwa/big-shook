@@ -6,13 +6,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link, useLocation } from "wouter";
-import { Plus, Edit, Trash2, CheckCircle, XCircle, Search, X, Copy } from "lucide-react";
+import { Plus, Edit, Trash2, CheckCircle, XCircle, Search, X, Copy, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSuppliers } from "@/hooks/use-suppliers";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useDebouncedCallback } from "use-debounce";
+
+type SortField = "nameHe" | "sku" | "price" | "stockQuantity" | "isActive";
+type SortDir = "asc" | "desc";
+
+function SortIcon({ field, sortField, sortDir }: { field: SortField; sortField: SortField; sortDir: SortDir }) {
+  if (sortField !== field) return <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground/50 inline-block ms-1" />;
+  return sortDir === "asc"
+    ? <ChevronUp className="h-3.5 w-3.5 text-primary inline-block ms-1" />
+    : <ChevronDown className="h-3.5 w-3.5 text-primary inline-block ms-1" />;
+}
 
 const ALL = "all";
 
@@ -27,6 +37,17 @@ export default function AdminProducts() {
   const [supplierId, setSupplierId] = useState(ALL);
   const [activeStatus, setActiveStatus] = useState(ALL);
   const [stockStatus, setStockStatus] = useState(ALL);
+  const [sortField, setSortField] = useState<SortField>("nameHe");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir("asc");
+    }
+  };
 
   const [debouncedName, setDebouncedName] = useState("");
   const [debouncedSku, setDebouncedSku] = useState("");
@@ -50,6 +71,36 @@ export default function AdminProducts() {
   const { data: suppliers } = useSuppliers();
   const { data: categories } = useListCategories();
   const supplierMap = Object.fromEntries((suppliers ?? []).map(s => [s.id, s]));
+
+  const sortedProducts = useMemo(() => {
+    const list = [...(data?.products ?? [])];
+    list.sort((a, b) => {
+      let av: any;
+      let bv: any;
+      if (sortField === "nameHe") {
+        av = a.nameHe ?? "";
+        bv = b.nameHe ?? "";
+        return sortDir === "asc" ? av.localeCompare(bv, "he") : bv.localeCompare(av, "he");
+      }
+      if (sortField === "sku") {
+        av = a.sku ?? "";
+        bv = b.sku ?? "";
+        return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+      }
+      if (sortField === "price") {
+        av = parseFloat(String(a.price)) || 0;
+        bv = parseFloat(String(b.price)) || 0;
+      } else if (sortField === "stockQuantity") {
+        av = a.stockQuantity ?? 0;
+        bv = b.stockQuantity ?? 0;
+      } else if (sortField === "isActive") {
+        av = a.isActive ? 1 : 0;
+        bv = b.isActive ? 1 : 0;
+      }
+      return sortDir === "asc" ? av - bv : bv - av;
+    });
+    return list;
+  }, [data?.products, sortField, sortDir]);
 
   const hasFilters = nameSearch || skuSearch || categoryId !== ALL || supplierId !== ALL || activeStatus !== ALL || stockStatus !== ALL;
 
@@ -200,12 +251,37 @@ export default function AdminProducts() {
           <TableHeader>
             <TableRow>
               <TableHead className="text-right">תמונה</TableHead>
-              <TableHead className="text-right">שם מוצר</TableHead>
-              <TableHead className="text-center">מק"ט</TableHead>
-              <TableHead className="text-center">מחיר</TableHead>
-              <TableHead className="text-center">מלאי</TableHead>
+              <TableHead
+                className="text-right cursor-pointer select-none hover:text-primary transition-colors"
+                onClick={() => toggleSort("nameHe")}
+              >
+                שם מוצר<SortIcon field="nameHe" sortField={sortField} sortDir={sortDir} />
+              </TableHead>
+              <TableHead
+                className="text-center cursor-pointer select-none hover:text-primary transition-colors"
+                onClick={() => toggleSort("sku")}
+              >
+                מק"ט<SortIcon field="sku" sortField={sortField} sortDir={sortDir} />
+              </TableHead>
+              <TableHead
+                className="text-center cursor-pointer select-none hover:text-primary transition-colors"
+                onClick={() => toggleSort("price")}
+              >
+                מחיר<SortIcon field="price" sortField={sortField} sortDir={sortDir} />
+              </TableHead>
+              <TableHead
+                className="text-center cursor-pointer select-none hover:text-primary transition-colors"
+                onClick={() => toggleSort("stockQuantity")}
+              >
+                מלאי<SortIcon field="stockQuantity" sortField={sortField} sortDir={sortDir} />
+              </TableHead>
               <TableHead className="text-center">ספק</TableHead>
-              <TableHead className="text-center">פעיל</TableHead>
+              <TableHead
+                className="text-center cursor-pointer select-none hover:text-primary transition-colors"
+                onClick={() => toggleSort("isActive")}
+              >
+                פעיל<SortIcon field="isActive" sortField={sortField} sortDir={sortDir} />
+              </TableHead>
               <TableHead className="text-left">פעולות</TableHead>
             </TableRow>
           </TableHeader>
@@ -223,14 +299,14 @@ export default function AdminProducts() {
                   <TableCell><Skeleton className="h-8 w-20" /></TableCell>
                 </TableRow>
               ))
-            ) : data?.products.length === 0 ? (
+            ) : sortedProducts.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
                   {hasFilters ? "לא נמצאו מוצרים התואמים לחיפוש" : "אין מוצרים. הוסף את המוצר הראשון שלך!"}
                 </TableCell>
               </TableRow>
             ) : (
-              data?.products.map((product) => (
+              sortedProducts.map((product) => (
                 <TableRow key={product.id} className={!product.isActive ? "opacity-50" : ""}>
                   <TableCell>
                     <div className="w-12 h-12 bg-white rounded border border-border flex items-center justify-center overflow-hidden">
