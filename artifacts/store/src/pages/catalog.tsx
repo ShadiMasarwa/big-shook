@@ -20,33 +20,55 @@ export default function Catalog() {
   const urlCategoryId = urlParams.get("categoryId") ? Number(urlParams.get("categoryId")) : null;
   const urlParentId = urlParams.get("parentId") ? Number(urlParams.get("parentId")) : null;
   const urlSearch = urlParams.get("q") ?? "";
+  const urlBrandId = urlParams.get("brandId") ? Number(urlParams.get("brandId")) : null;
+  const urlMinPrice = urlParams.get("minPrice") ? Number(urlParams.get("minPrice")) : null;
+  const urlMaxPrice = urlParams.get("maxPrice") ? Number(urlParams.get("maxPrice")) : null;
+  const urlInStock = urlParams.get("inStock") === "true";
+  const urlSort = urlParams.get("sort") ?? "popular";
 
+  // All filter values come from URL — no local state needed
   const categoryId = urlCategoryId;
   const parentCategoryId = urlParentId;
   const search = urlSearch;
+  const brandId = urlBrandId;
+  const minPrice = urlMinPrice;
+  const maxPrice = urlMaxPrice;
+  const inStock = urlInStock;
+  const sort = urlSort;
 
-  const [brandId, setBrandId] = useState<number | null>(null);
-  const [minPrice, setMinPrice] = useState<number | null>(null);
-  const [maxPrice, setMaxPrice] = useState<number | null>(null);
-  const [inStock, setInStock] = useState<boolean>(false);
-  const [sort, setSort] = useState<any>("popular");
   const [searchInput, setSearchInput] = useState(urlSearch);
+  // Controlled local state for price text inputs (navigate on Enter/blur)
+  const [minPriceInput, setMinPriceInput] = useState(urlMinPrice != null ? String(urlMinPrice) : "");
+  const [maxPriceInput, setMaxPriceInput] = useState(urlMaxPrice != null ? String(urlMaxPrice) : "");
 
   // Infinite scroll state
   const [page, setPage] = useState(1);
   const [allProducts, setAllProducts] = useState<any[]>([]);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  // Sync searchInput when URL search changes (e.g. from header)
+  // Sync controlled inputs when URL changes (e.g. mobile drawer navigation)
   useEffect(() => {
     setSearchInput(urlSearch);
+    setMinPriceInput(urlMinPrice != null ? String(urlMinPrice) : "");
+    setMaxPriceInput(urlMaxPrice != null ? String(urlMaxPrice) : "");
   }, [rawSearch]);
 
-  // Reset accumulated products + page whenever any filter changes
+  // Reset page whenever any filter changes (rawSearch covers everything)
   useEffect(() => {
     setPage(1);
     setAllProducts([]);
-  }, [categoryId, parentCategoryId, brandId, minPrice, maxPrice, inStock, sort, search]);
+  }, [rawSearch]);
+
+  // Helper: update one or more URL params, preserve the rest
+  const updateFilter = (updates: Record<string, string | null>) => {
+    const p = new URLSearchParams(rawSearch);
+    p.delete("page");
+    for (const [k, v] of Object.entries(updates)) {
+      if (v === null || v === "") p.delete(k);
+      else p.set(k, v);
+    }
+    navigate(`/catalog?${p.toString()}`);
+  };
 
   const { data: productsData, isLoading, isFetching } = (useListProducts as any)({
     categoryId: categoryId ?? undefined,
@@ -106,14 +128,12 @@ export default function Catalog() {
   // Hover state for sidebar parent category expansion
   const [hoveredParentId, setHoveredParentId] = useState<number | null>(null);
 
-  const brandsParams = new URLSearchParams();
-  if (categoryId) brandsParams.set("categoryId", String(categoryId));
-  if (parentCategoryId) brandsParams.set("parentCategoryId", String(parentCategoryId));
-  if (search) brandsParams.set("search", search);
-  if (minPrice) brandsParams.set("minPrice", String(minPrice));
-  if (maxPrice) brandsParams.set("maxPrice", String(maxPrice));
-  if (inStock) brandsParams.set("inStock", "true");
-  const brandsQs = brandsParams.toString();
+  // Brands query — filter by category context but NOT by current brandId
+  const brandsQp = new URLSearchParams();
+  if (categoryId) brandsQp.set("categoryId", String(categoryId));
+  if (parentCategoryId) brandsQp.set("parentCategoryId", String(parentCategoryId));
+  if (search) brandsQp.set("search", search);
+  const brandsQs = brandsQp.toString();
 
   const { data: brands } = useQuery({
     queryKey: ["/api/brands", brandsQs],
@@ -123,20 +143,11 @@ export default function Catalog() {
     },
   });
 
-  useEffect(() => {
-    if (brandId !== null && brands && !brands.some(b => b.id === brandId)) {
-      setBrandId(null);
-    }
-  }, [brands, brandId]);
-
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const q = searchInput.trim();
-    if (q) {
-      navigate(`/catalog?q=${encodeURIComponent(q)}`);
-    } else {
-      navigate("/catalog");
-    }
+    if (q) navigate(`/catalog?q=${encodeURIComponent(q)}`);
+    else navigate("/catalog");
   };
 
   const clearSearch = () => {
@@ -145,15 +156,16 @@ export default function Catalog() {
   };
 
   const handleCategoryClick = (id: number | null) => {
-    if (id) {
-      navigate(`/catalog?categoryId=${id}`);
-    } else {
-      navigate("/catalog");
-    }
+    if (id) navigate(`/catalog?categoryId=${id}`);
+    else navigate("/catalog");
   };
 
   const handleParentCategoryClick = (parentId: number) => {
     navigate(`/catalog?parentId=${parentId}`);
+  };
+
+  const handlePriceApply = () => {
+    updateFilter({ minPrice: minPriceInput || null, maxPrice: maxPriceInput || null });
   };
 
   const isInitialLoading = isLoading && page === 1;
@@ -265,7 +277,7 @@ export default function Catalog() {
                 <li key={brand.id}>
                   <button
                     className={`text-sm ${brandId === brand.id ? "font-bold text-primary" : "text-muted-foreground hover:text-foreground"}`}
-                    onClick={() => setBrandId(brand.id)}
+                    onClick={() => updateFilter({ brandId: brand.id === brandId ? null : String(brand.id) })}
                   >
                     {brand.nameHe}
                   </button>
@@ -281,16 +293,20 @@ export default function Catalog() {
                 type="number"
                 placeholder="מ-"
                 className="w-full"
-                value={minPrice || ""}
-                onChange={e => setMinPrice(e.target.value ? Number(e.target.value) : null)}
+                value={minPriceInput}
+                onChange={e => setMinPriceInput(e.target.value)}
+                onBlur={handlePriceApply}
+                onKeyDown={e => e.key === "Enter" && handlePriceApply()}
               />
               <span>-</span>
               <Input
                 type="number"
                 placeholder="עד"
                 className="w-full"
-                value={maxPrice || ""}
-                onChange={e => setMaxPrice(e.target.value ? Number(e.target.value) : null)}
+                value={maxPriceInput}
+                onChange={e => setMaxPriceInput(e.target.value)}
+                onBlur={handlePriceApply}
+                onKeyDown={e => e.key === "Enter" && handlePriceApply()}
               />
             </div>
           </div>
@@ -299,7 +315,7 @@ export default function Catalog() {
             <Checkbox
               id="inStock"
               checked={inStock}
-              onCheckedChange={c => setInStock(c === true)}
+              onCheckedChange={c => updateFilter({ inStock: c === true ? "true" : null })}
             />
             <Label htmlFor="inStock" className="cursor-pointer">במלאי בלבד</Label>
           </div>
@@ -316,7 +332,7 @@ export default function Catalog() {
             </p>
             <div className="flex items-center gap-2">
               <Label className="whitespace-nowrap">מיון לפי:</Label>
-              <Select value={sort} onValueChange={v => setSort(v)}>
+              <Select value={sort} onValueChange={v => updateFilter({ sort: v === "popular" ? null : v })}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="בחר מיון" />
                 </SelectTrigger>

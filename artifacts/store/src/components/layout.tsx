@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
   Sheet,
   SheetContent,
@@ -132,6 +134,41 @@ export function Layout({ children }: { children: ReactNode }) {
 
   // Mobile expandable parent state
   const [mobileExpandedId, setMobileExpandedId] = useState<number | null>(null);
+
+  // Mobile drawer filter state (synced from URL)
+  const [mobilePriceMin, setMobilePriceMin] = useState(searchParams.get("minPrice") ?? "");
+  const [mobilePriceMax, setMobilePriceMax] = useState(searchParams.get("maxPrice") ?? "");
+  const mobileInStock = searchParams.get("inStock") === "true";
+  const mobileBrandId = searchParams.get("brandId") ? Number(searchParams.get("brandId")) : null;
+
+  // Sync price inputs when URL changes
+  useEffect(() => {
+    setMobilePriceMin(searchParams.get("minPrice") ?? "");
+    setMobilePriceMax(searchParams.get("maxPrice") ?? "");
+  }, [search]);
+
+  // Helper to update catalog filter params without closing the drawer
+  const updateCatalogFilter = (updates: Record<string, string | null>) => {
+    const p = new URLSearchParams(search);
+    p.delete("page");
+    for (const [k, v] of Object.entries(updates)) {
+      if (v === null || v === "") p.delete(k);
+      else p.set(k, v);
+    }
+    navigate(`/catalog?${p.toString()}`);
+  };
+
+  // Brands for mobile drawer — filtered by current category context
+  const mobileBrandsQp = new URLSearchParams();
+  if (searchParams.get("categoryId")) mobileBrandsQp.set("categoryId", searchParams.get("categoryId")!);
+  if (searchParams.get("parentId")) mobileBrandsQp.set("parentCategoryId", searchParams.get("parentId")!);
+  const mobileBrandsQs = mobileBrandsQp.toString();
+  const { data: mobileBrands } = useQuery<{ id: number; nameHe: string }[]>({
+    queryKey: ["/api/brands", "mobile", mobileBrandsQs],
+    queryFn: () => fetch(`/api/brands${mobileBrandsQs ? `?${mobileBrandsQs}` : ""}`).then(r => r.json()),
+    enabled: isOnCatalog,
+    staleTime: 2 * 60 * 1000,
+  });
 
   const { data: ads } = useQuery<AdItem[]>({
     queryKey: ["ads"],
@@ -622,6 +659,108 @@ export function Layout({ children }: { children: ReactNode }) {
                 })}
               </ul>
             </div>
+
+            {/* Catalog-specific filters — only shown on catalog page */}
+            {isOnCatalog && (
+              <>
+                {/* Brands */}
+                {mobileBrands && mobileBrands.length > 0 && (
+                  <div className="px-4 py-2 border-t mt-1">
+                    <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wide mb-2">
+                      מותגים
+                    </p>
+                    <ul className="space-y-1">
+                      <li>
+                        <button
+                          className={`text-sm w-full text-right py-0.5 transition-colors ${mobileBrandId === null ? "font-bold text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                          onClick={() => updateCatalogFilter({ brandId: null })}
+                        >
+                          כל המותגים
+                        </button>
+                      </li>
+                      {mobileBrands.map((brand) => (
+                        <li key={brand.id}>
+                          <button
+                            className={`text-sm w-full text-right py-0.5 transition-colors ${mobileBrandId === brand.id ? "font-bold text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                            onClick={() =>
+                              updateCatalogFilter({
+                                brandId: brand.id === mobileBrandId ? null : String(brand.id),
+                              })
+                            }
+                          >
+                            {brand.nameHe}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Price range */}
+                <div className="px-4 py-2 border-t">
+                  <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wide mb-2">
+                    מחיר (₪)
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      placeholder="מ-"
+                      className="w-full h-8 text-sm"
+                      value={mobilePriceMin}
+                      onChange={(e) => setMobilePriceMin(e.target.value)}
+                      onBlur={() =>
+                        updateCatalogFilter({
+                          minPrice: mobilePriceMin || null,
+                          maxPrice: mobilePriceMax || null,
+                        })
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter")
+                          updateCatalogFilter({
+                            minPrice: mobilePriceMin || null,
+                            maxPrice: mobilePriceMax || null,
+                          });
+                      }}
+                    />
+                    <span className="text-muted-foreground text-sm shrink-0">-</span>
+                    <Input
+                      type="number"
+                      placeholder="עד"
+                      className="w-full h-8 text-sm"
+                      value={mobilePriceMax}
+                      onChange={(e) => setMobilePriceMax(e.target.value)}
+                      onBlur={() =>
+                        updateCatalogFilter({
+                          minPrice: mobilePriceMin || null,
+                          maxPrice: mobilePriceMax || null,
+                        })
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter")
+                          updateCatalogFilter({
+                            minPrice: mobilePriceMin || null,
+                            maxPrice: mobilePriceMax || null,
+                          });
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* In-stock */}
+                <div className="px-4 py-2 border-t flex items-center gap-2">
+                  <Checkbox
+                    id="mobile-inStock"
+                    checked={mobileInStock}
+                    onCheckedChange={(c) =>
+                      updateCatalogFilter({ inStock: c === true ? "true" : null })
+                    }
+                  />
+                  <Label htmlFor="mobile-inStock" className="cursor-pointer text-sm">
+                    במלאי בלבד
+                  </Label>
+                </div>
+              </>
+            )}
 
             <div className="px-4 py-2 border-t mt-2">
               <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wide mb-2">
