@@ -134,16 +134,15 @@ router.get("/products", async (req, res): Promise<void> => {
   if (parentCategoryId) {
     const parentId = parseInt(String(parentCategoryId), 10);
     if (!isNaN(parentId)) {
-      const childCats = await db
-        .select({ id: categoriesTable.id })
-        .from(categoriesTable)
-        .where(eq(categoriesTable.parentId, parentId));
-      const childIds = childCats.map((c) => c.id);
-      if (childIds.length > 0) {
-        conditions.push(sql`(${productsTable.categoryId} = ANY(${childIds}::int[]) OR EXISTS (SELECT 1 FROM product_categories pc WHERE pc.product_id = ${productsTable.id} AND pc.category_id = ANY(${childIds}::int[])))`);
-      } else {
-        conditions.push(eq(productsTable.categoryId, parentId));
-      }
+      // Use subqueries so the array never needs to be serialised by Drizzle
+      conditions.push(sql`(
+        ${productsTable.categoryId} IN (SELECT id FROM categories WHERE parent_id = ${parentId})
+        OR EXISTS (
+          SELECT 1 FROM product_categories pc
+          JOIN categories c ON pc.category_id = c.id
+          WHERE pc.product_id = ${productsTable.id} AND c.parent_id = ${parentId}
+        )
+      )`);
     }
   }
   if (brandId) {
