@@ -5,8 +5,11 @@ import {
   useUpdateProduct,
   useListCategories,
   useListBrands,
+  useCreateBrand,
   getGetProductQueryKey,
+  getListBrandsQueryKey,
 } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useSuppliers } from "@/hooks/use-suppliers";
 import { useParams, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -24,6 +27,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "@/components/ui/use-toast";
 import { X, Plus, ImageIcon, Video, GripVertical } from "lucide-react";
@@ -35,9 +41,11 @@ export default function AdminProductForm() {
   const productId = Number(id);
   const [_, setLocation] = useLocation();
 
+  const queryClient = useQueryClient();
   const { data: categories } = useListCategories();
   const { data: brands } = useListBrands();
   const { data: suppliers } = useSuppliers();
+  const createBrandMutation = useCreateBrand();
 
   const { data: product, isLoading: isLoadingProduct } = useGetProduct(
     productId,
@@ -71,6 +79,14 @@ export default function AdminProductForm() {
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
   const [videoPickerOpen, setVideoPickerOpen] = useState(false);
   const dragIndexRef = useRef<number | null>(null);
+
+  // Brand combobox
+  const [brandSearch, setBrandSearch] = useState("");
+  const [brandDropOpen, setBrandDropOpen] = useState(false);
+  const brandDropRef = useRef<HTMLDivElement>(null);
+  const [newBrandDialogOpen, setNewBrandDialogOpen] = useState(false);
+  const [newBrandName, setNewBrandName] = useState("");
+  const [isSavingBrand, setIsSavingBrand] = useState(false);
 
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
@@ -123,6 +139,39 @@ export default function AdminProductForm() {
       }));
     }
   }, [suppliers]);
+
+  // Close brand dropdown on outside click
+  useEffect(() => {
+    if (!brandDropOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (brandDropRef.current && !brandDropRef.current.contains(e.target as Node)) {
+        setBrandDropOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [brandDropOpen]);
+
+  // Create new brand from quick-add dialog
+  const handleSaveNewBrand = async () => {
+    const name = newBrandName.trim();
+    if (!name) return;
+    setIsSavingBrand(true);
+    try {
+      const slug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]/g, "").replace(/-+/g, "-");
+      const created = await createBrandMutation.mutateAsync({ nameHe: name, nameEn: name, slug, isActive: true } as any);
+      await queryClient.invalidateQueries({ queryKey: getListBrandsQueryKey() });
+      setFormData((prev) => ({ ...prev, brandId: String((created as any).id) }));
+      setBrandSearch(name);
+      setNewBrandDialogOpen(false);
+      setNewBrandName("");
+      toast({ title: "מותג נוצר", description: `המותג "${name}" נוסף בהצלחה` });
+    } catch {
+      toast({ title: "שגיאה", description: "לא ניתן היה ליצור את המותג", variant: "destructive" });
+    } finally {
+      setIsSavingBrand(false);
+    }
+  };
 
   const addTag = () => {
     const t = tagInput.trim();
@@ -373,26 +422,90 @@ export default function AdminProductForm() {
                 <Label>מותג</Label>
                 {!brands ? (
                   <Skeleton className="h-9 w-full" />
-                ) : (
-                  <Select
-                    key={`brand-${formData.brandId}`}
-                    value={formData.brandId}
-                    onValueChange={(v) =>
-                      setFormData({ ...formData, brandId: v })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="בחר מותג" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {brands.map((b) => (
-                        <SelectItem key={b.id} value={b.id.toString()}>
-                          {b.nameHe}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+                ) : (() => {
+                  const selectedBrand = brands.find((b: any) => b.id.toString() === formData.brandId);
+                  const q = brandSearch.trim().toLowerCase();
+                  const filtered = brands.filter((b: any) =>
+                    !q ||
+                    b.nameHe?.toLowerCase().includes(q) ||
+                    b.nameEn?.toLowerCase().includes(q)
+                  );
+                  const exactMatch = brands.some((b: any) =>
+                    b.nameHe?.toLowerCase() === q || b.nameEn?.toLowerCase() === q
+                  );
+                  return (
+                    <div ref={brandDropRef} className="relative">
+                      <div className="flex items-center gap-1 border border-input rounded-md px-3 py-2 bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+                        <input
+                          type="text"
+                          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground min-w-0"
+                          placeholder={selectedBrand ? selectedBrand.nameHe : "חפש או בחר מותג..."}
+                          value={brandDropOpen ? brandSearch : (selectedBrand ? selectedBrand.nameHe : "")}
+                          onFocus={() => {
+                            setBrandSearch("");
+                            setBrandDropOpen(true);
+                          }}
+                          onChange={(e) => {
+                            setBrandSearch(e.target.value);
+                            setBrandDropOpen(true);
+                          }}
+                        />
+                        {formData.brandId && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormData((prev) => ({ ...prev, brandId: "" }));
+                              setBrandSearch("");
+                            }}
+                            className="text-muted-foreground hover:text-destructive shrink-0"
+                            aria-label="נקה מותג"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      {brandDropOpen && (
+                        <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-md max-h-56 overflow-y-auto">
+                          {filtered.length === 0 && !q && (
+                            <div className="px-3 py-2 text-sm text-muted-foreground">אין מותגים</div>
+                          )}
+                          {filtered.map((b: any) => (
+                            <button
+                              key={b.id}
+                              type="button"
+                              className={`w-full text-right px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center justify-between ${formData.brandId === b.id.toString() ? "bg-accent font-medium" : ""}`}
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                setFormData((prev) => ({ ...prev, brandId: b.id.toString() }));
+                                setBrandSearch(b.nameHe);
+                                setBrandDropOpen(false);
+                              }}
+                            >
+                              <span>{b.nameHe}</span>
+                              {b.nameEn && <span className="text-xs text-muted-foreground">{b.nameEn}</span>}
+                            </button>
+                          ))}
+                          {q && !exactMatch && (
+                            <button
+                              type="button"
+                              className="w-full text-right px-3 py-2 text-sm text-primary hover:bg-primary/10 transition-colors flex items-center gap-2 border-t border-border"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                setBrandDropOpen(false);
+                                setNewBrandName(brandSearch.trim());
+                                setNewBrandDialogOpen(true);
+                              }}
+                            >
+                              <Plus className="h-3.5 w-3.5 shrink-0" />
+                              <span>הוסף מותג חדש: <strong>{brandSearch.trim()}</strong></span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
               <div className="space-y-2">
                 <Label>ספק</Label>
@@ -873,6 +986,36 @@ export default function AdminProductForm() {
           </Button>
         </div>
       </form>
+
+      {/* Quick-add brand dialog */}
+      <Dialog open={newBrandDialogOpen} onOpenChange={setNewBrandDialogOpen}>
+        <DialogContent className="max-w-sm" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>הוספת מותג חדש</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="new-brand-name">שם המותג</Label>
+              <Input
+                id="new-brand-name"
+                value={newBrandName}
+                onChange={(e) => setNewBrandName(e.target.value)}
+                placeholder="שם המותג..."
+                onKeyDown={(e) => e.key === "Enter" && handleSaveNewBrand()}
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 flex-row-reverse sm:flex-row-reverse">
+            <Button onClick={handleSaveNewBrand} disabled={!newBrandName.trim() || isSavingBrand}>
+              {isSavingBrand ? "שומר..." : "הוסף מותג"}
+            </Button>
+            <Button variant="outline" onClick={() => setNewBrandDialogOpen(false)}>
+              ביטול
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }
