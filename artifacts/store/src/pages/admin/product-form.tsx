@@ -35,6 +35,10 @@ import { toast } from "@/components/ui/use-toast";
 import { X, Plus, ImageIcon, Video, GripVertical } from "lucide-react";
 import { MediaPickerModal } from "@/components/media-picker";
 
+function toSlug(str: string) {
+  return str.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]/g, "").replace(/-+/g, "-");
+}
+
 export default function AdminProductForm() {
   const { id } = useParams();
   const isEditing = !!id && id !== "new";
@@ -212,7 +216,7 @@ export default function AdminProductForm() {
     const payload = {
       nameHe: formData.nameHe,
       nameEn: formData.nameEn || null,
-      slug: formData.slug || formData.nameHe.replace(/\s+/g, "-").toLowerCase(),
+      slug: formData.slug || toSlug(formData.nameEn || formData.nameHe),
       descriptionHe: formData.descriptionHe || null,
       sku: formData.sku || null,
       price: Number(formData.price),
@@ -292,9 +296,15 @@ export default function AdminProductForm() {
                 <Label>שם מוצר (אנגלית)</Label>
                 <Input
                   value={formData.nameEn}
-                  onChange={(e) =>
-                    setFormData({ ...formData, nameEn: e.target.value })
-                  }
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const autoSlug = formData.slug === "" || formData.slug === toSlug(formData.nameEn);
+                    setFormData({
+                      ...formData,
+                      nameEn: val,
+                      slug: autoSlug ? toSlug(val) : formData.slug,
+                    });
+                  }}
                 />
               </div>
               <div className="space-y-2">

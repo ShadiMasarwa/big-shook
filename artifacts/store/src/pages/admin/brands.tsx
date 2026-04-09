@@ -72,7 +72,11 @@ export default function AdminBrands() {
   };
 
   const handleNameHeChange = (val: string) => {
-    setForm((f) => ({ ...f, nameHe: val, slug: slugManual ? f.slug : toSlug(val) }));
+    setForm((f) => ({ ...f, nameHe: val }));
+  };
+
+  const handleNameEnChange = (val: string) => {
+    setForm((f) => ({ ...f, nameEn: val, slug: slugManual ? f.slug : toSlug(val) }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -225,7 +229,7 @@ export default function AdminBrands() {
                 <Label>שם באנגלית</Label>
                 <Input
                   value={form.nameEn}
-                  onChange={(e) => setForm((f) => ({ ...f, nameEn: e.target.value }))}
+                  onChange={(e) => handleNameEnChange(e.target.value)}
                   placeholder="Samsung"
                 />
               </div>
