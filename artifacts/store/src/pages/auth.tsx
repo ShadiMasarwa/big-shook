@@ -335,7 +335,7 @@ export default function Auth() {
   const [welcomePoints, setWelcomePoints] = useState(0);
 
   if (user) {
-    setLocation(user.role === "admin" ? "/admin" : redirectTo);
+    setLocation((user.role === "admin" || user.role === "manager") ? "/admin" : redirectTo);
     return null;
   }
 
@@ -361,7 +361,7 @@ export default function Auth() {
         return;
       }
       localStorage.setItem("token", data.token);
-      setLocation(data.user?.role === "admin" ? "/admin" : redirectTo);
+      setLocation((data.user?.role === "admin" || data.user?.role === "manager") ? "/admin" : redirectTo);
       window.location.reload();
     } catch {
       setLoginError("שגיאה בהתחברות. נסה שנית.");

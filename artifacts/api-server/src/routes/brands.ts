@@ -1,8 +1,10 @@
 import { Router, type IRouter } from "express";
 import { eq, and, gte, lte, ilike, gt, sql } from "drizzle-orm";
 import { db, brandsTable, productsTable } from "@workspace/db";
+import { requireManagerPrivilegeCheck } from "../lib/managerAuth.js";
 
 const router: IRouter = Router();
+const PRIV_DENIED = "אין לך הרשאה לבצע פעולה זו";
 
 router.get("/brands", async (req, res): Promise<void> => {
   const { categoryId, parentCategoryId, search, minPrice, maxPrice, inStock } = req.query;
@@ -64,6 +66,8 @@ router.get("/brands", async (req, res): Promise<void> => {
 });
 
 router.post("/brands", async (req, res): Promise<void> => {
+  const { allowed } = await requireManagerPrivilegeCheck(req, "brands", "write");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const { nameHe, nameEn, slug, logoUrl, description, isActive } = req.body;
   if (!nameHe || !slug) {
     res.status(400).json({ error: "nameHe and slug are required" });
@@ -78,6 +82,8 @@ router.post("/brands", async (req, res): Promise<void> => {
 });
 
 router.put("/brands/:id", async (req, res): Promise<void> => {
+  const { allowed } = await requireManagerPrivilegeCheck(req, "brands", "write");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   const { nameHe, nameEn, slug, logoUrl, description, isActive } = req.body;
@@ -92,6 +98,8 @@ router.put("/brands/:id", async (req, res): Promise<void> => {
 });
 
 router.delete("/brands/:id", async (req, res): Promise<void> => {
+  const { allowed } = await requireManagerPrivilegeCheck(req, "brands", "delete");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   await db.delete(brandsTable).where(eq(brandsTable.id, id));

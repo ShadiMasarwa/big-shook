@@ -1,12 +1,12 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { 
-  LayoutDashboard, 
-  Package, 
-  ShoppingCart, 
-  Users, 
-  LogOut, 
+import {
+  LayoutDashboard,
+  Package,
+  ShoppingCart,
+  Users,
+  LogOut,
   Tags,
   Percent,
   Star,
@@ -18,25 +18,27 @@ import {
   Megaphone,
   Images,
   Settings2,
+  UserCog,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const navItems = [
-  { href: "/admin", label: "לוח בקרה", icon: LayoutDashboard },
-  { href: "/admin/analytics", label: "דוחות וסטטיסטיקה", icon: LineChart },
-  { href: "/admin/orders", label: "הזמנות", icon: ShoppingCart },
-  { href: "/admin/products", label: "מוצרים", icon: Package },
-  { href: "/admin/categories", label: "קטגוריות", icon: Layers },
-  { href: "/admin/brands", label: "מותגים", icon: Award },
-  { href: "/admin/suppliers", label: "ספקים", icon: Truck },
-  { href: "/admin/inventory", label: "מלאי", icon: Tags },
-  { href: "/admin/customers", label: "לקוחות", icon: Users },
-  { href: "/admin/coupons", label: "קופונים", icon: Percent },
-  { href: "/admin/loyalty", label: "מועדון לקוחות", icon: Star },
-  { href: "/admin/import", label: "ייבוא וייצוא", icon: Download },
-  { href: "/admin/ads", label: "מודעות", icon: Megaphone },
-  { href: "/admin/media", label: "ספריית מדיה", icon: Images },
-  { href: "/admin/site-info", label: "מידע האתר", icon: Settings2 },
+const ALL_NAV_ITEMS = [
+  { href: "/admin", label: "לוח בקרה", icon: LayoutDashboard, section: null },
+  { href: "/admin/analytics", label: "דוחות וסטטיסטיקה", icon: LineChart, section: "analytics" },
+  { href: "/admin/orders", label: "הזמנות", icon: ShoppingCart, section: "orders" },
+  { href: "/admin/products", label: "מוצרים", icon: Package, section: "products" },
+  { href: "/admin/categories", label: "קטגוריות", icon: Layers, section: "categories" },
+  { href: "/admin/brands", label: "מותגים", icon: Award, section: "brands" },
+  { href: "/admin/suppliers", label: "ספקים", icon: Truck, section: "suppliers" },
+  { href: "/admin/inventory", label: "מלאי", icon: Tags, section: "inventory" },
+  { href: "/admin/customers", label: "לקוחות", icon: Users, section: "customers" },
+  { href: "/admin/coupons", label: "קופונים", icon: Percent, section: "coupons" },
+  { href: "/admin/loyalty", label: "מועדון לקוחות", icon: Star, section: "loyalty" },
+  { href: "/admin/import", label: "ייבוא וייצוא", icon: Download, section: "import" },
+  { href: "/admin/ads", label: "מודעות", icon: Megaphone, section: "ads" },
+  { href: "/admin/media", label: "ספריית מדיה", icon: Images, section: "media" },
+  { href: "/admin/site-info", label: "מידע האתר", icon: Settings2, section: "settings" },
+  { href: "/admin/managers", label: "ניהול מנהלים", icon: UserCog, section: "managers_only" },
 ];
 
 export function AdminLayout({ children }: { children: ReactNode }) {
@@ -63,7 +65,10 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  if (user.role !== "admin") {
+  const isAdmin = user.role === "admin";
+  const isManager = user.role === "manager";
+
+  if (!isAdmin && !isManager) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30">
         <div className="text-center bg-card border border-border rounded-2xl p-10 shadow-sm max-w-sm w-full mx-4">
@@ -80,6 +85,16 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     );
   }
 
+  const privileges = (user as any).privileges as Record<string, string> | null | undefined;
+
+  const navItems = ALL_NAV_ITEMS.filter((item) => {
+    if (item.section === "managers_only") return isAdmin;
+    if (item.section === null) return true;
+    if (isAdmin) return true;
+    const level = privileges?.[item.section];
+    return level === "read_only" || level === "read_write" || level === "all";
+  });
+
   return (
     <div className="min-h-[100dvh] flex bg-muted/30">
       {/* Sidebar */}
@@ -95,12 +110,12 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             const Icon = item.icon;
             const isActive = location === item.href || (item.href !== "/admin" && location.startsWith(item.href));
             return (
-              <Link 
-                key={item.href} 
+              <Link
+                key={item.href}
                 href={item.href}
                 className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActive 
-                    ? "bg-primary/10 text-primary" 
+                  isActive
+                    ? "bg-primary/10 text-primary"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
               >
@@ -117,7 +132,9 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-medium">{user.firstName} {user.lastName}</span>
-              <span className="text-xs text-muted-foreground">מנהל מערכת</span>
+              <span className="text-xs text-muted-foreground">
+                {isAdmin ? "מנהל מערכת" : "מנהל"}
+              </span>
             </div>
           </div>
           <Button variant="outline" className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => logout()}>

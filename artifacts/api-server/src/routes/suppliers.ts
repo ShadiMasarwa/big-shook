@@ -1,8 +1,10 @@
 import { Router, type IRouter } from "express";
 import { eq, desc } from "drizzle-orm";
 import { db, suppliersTable, productsTable } from "@workspace/db";
+import { requireManagerPrivilegeCheck } from "../lib/managerAuth.js";
 
 const router: IRouter = Router();
+const PRIV_DENIED = "אין לך הרשאה לבצע פעולה זו";
 
 function serializeSupplier(s: typeof suppliersTable.$inferSelect) {
   return {
@@ -47,6 +49,8 @@ router.get("/suppliers/:id/products", async (req, res): Promise<void> => {
 });
 
 router.post("/suppliers", async (req, res): Promise<void> => {
+  const { allowed } = await requireManagerPrivilegeCheck(req, "suppliers", "write");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const { companyName, contactPerson, taxId, phone1, phone2, address, city, email, website, notes, isActive } = req.body;
   if (!companyName) { res.status(400).json({ error: "שם חברה הוא שדה חובה" }); return; }
   const [supplier] = await db.insert(suppliersTable).values({
@@ -59,6 +63,8 @@ router.post("/suppliers", async (req, res): Promise<void> => {
 });
 
 router.patch("/suppliers/:id/status", async (req, res): Promise<void> => {
+  const { allowed } = await requireManagerPrivilegeCheck(req, "suppliers", "write");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "מזהה לא תקין" }); return; }
   const { isActive } = req.body;
@@ -69,6 +75,8 @@ router.patch("/suppliers/:id/status", async (req, res): Promise<void> => {
 });
 
 router.put("/suppliers/:id", async (req, res): Promise<void> => {
+  const { allowed } = await requireManagerPrivilegeCheck(req, "suppliers", "write");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "מזהה לא תקין" }); return; }
   const { companyName, contactPerson, taxId, phone1, phone2, address, city, email, website, notes, isActive } = req.body;
@@ -84,6 +92,8 @@ router.put("/suppliers/:id", async (req, res): Promise<void> => {
 });
 
 router.delete("/suppliers/:id", async (req, res): Promise<void> => {
+  const { allowed } = await requireManagerPrivilegeCheck(req, "suppliers", "delete");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "מזהה לא תקין" }); return; }
   await db.update(productsTable).set({ supplierId: null }).where(eq(productsTable.supplierId, id));

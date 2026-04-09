@@ -1,8 +1,10 @@
 import { Router, type IRouter } from "express";
 import { eq, and, sql } from "drizzle-orm";
 import { db, categoriesTable, productsTable } from "@workspace/db";
+import { requireManagerPrivilegeCheck } from "../lib/managerAuth.js";
 
 const router: IRouter = Router();
+const PRIV_DENIED = "אין לך הרשאה לבצע פעולה זו";
 
 router.get("/categories", async (req, res): Promise<void> => {
   const parentIdParam = req.query.parentId;
@@ -33,6 +35,8 @@ router.get("/categories", async (req, res): Promise<void> => {
 });
 
 router.post("/categories", async (req, res): Promise<void> => {
+  const { allowed } = await requireManagerPrivilegeCheck(req, "categories", "write");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const { nameHe, nameEn, slug, description, imageUrl, parentId, sortOrder, isActive, metaTitle, metaDescription } = req.body;
   if (!nameHe || !slug) {
     res.status(400).json({ error: "nameHe and slug are required" });
@@ -59,6 +63,8 @@ router.get("/categories/:id", async (req, res): Promise<void> => {
 });
 
 router.patch("/categories/:id", async (req, res): Promise<void> => {
+  const { allowed } = await requireManagerPrivilegeCheck(req, "categories", "write");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   const { nameHe, nameEn, slug, description, imageUrl, parentId, sortOrder, isActive, metaTitle, metaDescription } = req.body;
@@ -82,6 +88,8 @@ router.patch("/categories/:id", async (req, res): Promise<void> => {
 });
 
 router.delete("/categories/:id", async (req, res): Promise<void> => {
+  const { allowed } = await requireManagerPrivilegeCheck(req, "categories", "delete");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   await db.delete(categoriesTable).where(eq(categoriesTable.id, id));

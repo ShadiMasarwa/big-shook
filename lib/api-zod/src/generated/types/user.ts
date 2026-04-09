@@ -32,4 +32,6 @@ export interface User {
   ordersCount: number;
   isActive: boolean;
   createdAt: Date;
+  privileges?: Record<string, string> | null;
+  managerId?: number | null;
 }

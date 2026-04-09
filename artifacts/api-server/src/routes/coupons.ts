@@ -1,8 +1,10 @@
 import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
 import { db, couponsTable } from "@workspace/db";
+import { requireManagerPrivilegeCheck } from "../lib/managerAuth.js";
 
 const router: IRouter = Router();
+const PRIV_DENIED = "אין לך הרשאה לבצע פעולה זו";
 
 function serializeCoupon(c: typeof couponsTable.$inferSelect) {
   return {
@@ -28,6 +30,8 @@ router.get("/coupons", async (req, res): Promise<void> => {
 });
 
 router.post("/coupons", async (req, res): Promise<void> => {
+  const { allowed } = await requireManagerPrivilegeCheck(req, "coupons", "write");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const { code, type, value, minOrderAmount, maxDiscountAmount, applicableCategories,
     applicableBrands, usageLimit, usageLimitPerUser, isActive, isStackable, startsAt, expiresAt } = req.body;
   if (!code || !type || value === undefined) {
@@ -49,6 +53,8 @@ router.post("/coupons", async (req, res): Promise<void> => {
 });
 
 router.patch("/coupons/:id", async (req, res): Promise<void> => {
+  const { allowed } = await requireManagerPrivilegeCheck(req, "coupons", "write");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   const body = req.body;
@@ -68,6 +74,8 @@ router.patch("/coupons/:id", async (req, res): Promise<void> => {
 });
 
 router.delete("/coupons/:id", async (req, res): Promise<void> => {
+  const { allowed } = await requireManagerPrivilegeCheck(req, "coupons", "delete");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   await db.delete(couponsTable).where(eq(couponsTable.id, id));

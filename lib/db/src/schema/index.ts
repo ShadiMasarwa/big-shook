@@ -17,3 +17,4 @@ export * from "./siteSettings";
 export * from "./passwordResetTokens";
 export * from "./reviews";
 export * from "./productCategories";
+export * from "./managers";

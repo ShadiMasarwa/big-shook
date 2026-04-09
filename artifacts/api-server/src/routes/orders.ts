@@ -4,8 +4,10 @@ import { db, ordersTable, orderItemsTable, cartItemsTable, cartCouponsTable, pro
 import { getSessionId, getUserId, buildCart } from "./cart.js";
 import { getTierBySpent } from "./loyalty.js";
 import nodemailer from "nodemailer";
+import { requireManagerPrivilegeCheck } from "../lib/managerAuth.js";
 
 const router: IRouter = Router();
+const PRIV_DENIED = "אין לך הרשאה לבצע פעולה זו";
 
 function formatPrice(n: number) {
   return `₪${n.toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -492,6 +494,8 @@ router.get("/orders/:id", async (req, res): Promise<void> => {
 });
 
 router.patch("/orders/:id/status", async (req, res): Promise<void> => {
+  const { allowed } = await requireManagerPrivilegeCheck(req, "orders", "write");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   const { status, notes } = req.body;
@@ -583,6 +587,8 @@ router.patch("/orders/:id/status", async (req, res): Promise<void> => {
 });
 
 router.patch("/orders/:orderId/items/:itemId/status", async (req, res): Promise<void> => {
+  const { allowed } = await requireManagerPrivilegeCheck(req, "orders", "write");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const orderId = parseInt(req.params.orderId, 10);
   const itemId = parseInt(req.params.itemId, 10);
   const { itemStatus } = req.body;

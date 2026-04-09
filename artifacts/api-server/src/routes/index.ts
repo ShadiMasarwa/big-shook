@@ -21,6 +21,7 @@ import mediaRouter from "./media.js";
 import adsRouter from "./ads.js";
 import siteSettingsRouter from "./siteSettings.js";
 import reviewsRouter from "./reviews.js";
+import managersRouter from "./managers.js";
 
 const router: IRouter = Router();
 
@@ -46,5 +47,6 @@ router.use(mediaRouter);
 router.use(adsRouter);
 router.use(siteSettingsRouter);
 router.use(reviewsRouter);
+router.use(managersRouter);
 
 export default router;

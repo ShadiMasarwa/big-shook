@@ -1,8 +1,10 @@
 import { Router, type IRouter } from "express";
 import { eq, and, gte, lte, ilike, desc, asc, gt, sql, inArray } from "drizzle-orm";
 import { db, productsTable, suppliersTable, categoriesTable, productCategoriesTable } from "@workspace/db";
+import { requireManagerPrivilegeCheck } from "../lib/managerAuth.js";
 
 const router: IRouter = Router();
+const PRIV_DENIED = "אין לך הרשאה לבצע פעולה זו";
 
 function serializeProduct(
   p: typeof productsTable.$inferSelect,
@@ -187,6 +189,8 @@ router.get("/products", async (req, res): Promise<void> => {
 });
 
 router.post("/products/bulk-update", async (req, res): Promise<void> => {
+  const { allowed } = await requireManagerPrivilegeCheck(req, "products", "write");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const { ids, patch } = req.body;
   if (!Array.isArray(ids) || ids.length === 0) {
     res.status(400).json({ error: "לא סופקו מוצרים" }); return;
@@ -283,6 +287,8 @@ router.post("/products/:id/duplicate", async (req, res): Promise<void> => {
 });
 
 router.post("/products", async (req, res): Promise<void> => {
+  const { allowed } = await requireManagerPrivilegeCheck(req, "products", "write");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const {
     nameHe, nameEn, slug, descriptionHe, sku, price, salePrice, costPrice,
     categoryId, categoryIds, brandId, supplierId, images, videos, tags, specs,
@@ -318,6 +324,8 @@ router.post("/products", async (req, res): Promise<void> => {
 });
 
 router.patch("/products/:id", async (req, res): Promise<void> => {
+  const { allowed } = await requireManagerPrivilegeCheck(req, "products", "write");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   const body = req.body;
@@ -360,6 +368,8 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
 });
 
 router.delete("/products/:id", async (req, res): Promise<void> => {
+  const { allowed } = await requireManagerPrivilegeCheck(req, "products", "delete");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   await db.delete(productsTable).where(eq(productsTable.id, id));

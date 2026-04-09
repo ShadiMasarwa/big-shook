@@ -1,8 +1,14 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
-import { db, usersTable, passwordResetTokensTable } from "@workspace/db";
+import { db, usersTable, passwordResetTokensTable, managersTable } from "@workspace/db";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
+import {
+  isManagerToken,
+  parseManagerTokenId,
+  generateManagerToken,
+  serializeManager,
+} from "../lib/managerAuth.js";
 
 const router: IRouter = Router();
 
@@ -211,13 +217,31 @@ router.post("/auth/register", async (req, res): Promise<void> => {
 router.post("/auth/login", async (req, res): Promise<void> => {
   const { email, password } = req.body;
   if (!email || !password) { res.status(400).json({ error: "אימייל וסיסמה נדרשים" }); return; }
+
   const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
-  if (!user || user.passwordHash !== hashPassword(password)) {
-    res.status(401).json({ error: "פרטי התחברות שגויים" }); return;
+  if (user) {
+    if (user.passwordHash !== hashPassword(password)) {
+      res.status(401).json({ error: "פרטי התחברות שגויים" }); return;
+    }
+    if (!user.isActive) { res.status(403).json({ error: "account_inactive" }); return; }
+    const token = generateToken(user.id);
+    res.json({ user: serializeUser(user), token }); return;
   }
-  if (!user.isActive) { res.status(403).json({ error: "account_inactive" }); return; }
-  const token = generateToken(user.id);
-  res.json({ user: serializeUser(user), token });
+
+  const [manager] = await db.select().from(managersTable).where(eq(managersTable.email, String(email).toLowerCase()));
+  if (manager) {
+    if (!manager.passwordHash) {
+      res.status(403).json({ error: "password_not_set" }); return;
+    }
+    if (manager.passwordHash !== hashPassword(password)) {
+      res.status(401).json({ error: "פרטי התחברות שגויים" }); return;
+    }
+    if (!manager.isActive) { res.status(403).json({ error: "account_inactive" }); return; }
+    const token = generateManagerToken(manager.id);
+    res.json({ user: serializeManager(manager), token }); return;
+  }
+
+  res.status(401).json({ error: "פרטי התחברות שגויים" });
 });
 
 router.post("/auth/logout", async (_req, res): Promise<void> => {
@@ -229,6 +253,14 @@ router.get("/auth/me", async (req, res): Promise<void> => {
   if (!authHeader) { res.status(401).json({ error: "לא מחובר" }); return; }
   try {
     const token = authHeader.replace("Bearer ", "");
+    if (isManagerToken(token)) {
+      const managerId = parseManagerTokenId(token);
+      if (!managerId) { res.status(401).json({ error: "טוקן לא תקין" }); return; }
+      const [manager] = await db.select().from(managersTable).where(eq(managersTable.id, managerId));
+      if (!manager) { res.status(401).json({ error: "מנהל לא נמצא" }); return; }
+      if (!manager.isActive) { res.status(403).json({ error: "account_inactive" }); return; }
+      res.json(serializeManager(manager)); return;
+    }
     const decoded = Buffer.from(token, "base64").toString("utf-8");
     const userId = parseInt(decoded.split(":")[0], 10);
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));

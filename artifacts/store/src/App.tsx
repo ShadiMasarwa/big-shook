@@ -42,6 +42,8 @@ import AdminOrderDetail from "@/pages/admin/order-detail";
 import AdminAds from "@/pages/admin/ads";
 import AdminMedia from "@/pages/admin/media";
 import AdminSiteInfo from "@/pages/admin/site-info";
+import AdminManagers from "@/pages/admin/managers";
+import SetupManagerPassword from "@/pages/admin/setup-password";
 
 const queryClient = new QueryClient();
 
@@ -96,6 +98,8 @@ function Router() {
       <Route path="/admin/ads" component={AdminAds} />
       <Route path="/admin/media" component={AdminMedia} />
       <Route path="/admin/site-info" component={AdminSiteInfo} />
+      <Route path="/admin/managers" component={AdminManagers} />
+      <Route path="/setup-manager-password" component={SetupManagerPassword} />
 
       <Route component={NotFound} />
     </Switch>
