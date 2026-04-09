@@ -354,6 +354,24 @@ export function Layout({ children }: { children: ReactNode }) {
           >
             <div className="container mx-auto px-4">
               <ul className="flex items-center gap-1 py-2 overflow-x-auto scrollbar-hide">
+                <li>
+                  <button
+                    onMouseEnter={() => setOpenParentId(null)}
+                    onClick={() => navigate("/catalog")}
+                    className={`flex flex-col items-center gap-1 px-2 py-1.5 rounded-xl transition-all cursor-pointer ${
+                      isOnCatalog && !activeCategoryId && !activeParentId
+                        ? "ring-2 ring-primary bg-primary/5"
+                        : "hover:bg-muted"
+                    }`}
+                  >
+                    <div className="w-16 h-11 rounded-lg overflow-hidden bg-muted border border-border shrink-0 flex items-center justify-center">
+                      <Menu className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <span className="text-[11px] font-medium whitespace-nowrap leading-tight">
+                      כל הקטגוריות
+                    </span>
+                  </button>
+                </li>
                 {parents.map((parent) => {
                   const children = childrenByParent[parent.id] ?? [];
                   const isActive =
