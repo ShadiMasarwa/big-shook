@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { sql, eq, gte } from "drizzle-orm";
+import { sql, eq, gte, lte } from "drizzle-orm";
 import { db, ordersTable, usersTable, productsTable, couponsTable, inventoryTable, loyaltyTransactionsTable } from "@workspace/db";
 
 const router: IRouter = Router();
@@ -37,7 +37,7 @@ router.get("/admin/summary", async (_req, res): Promise<void> => {
   const [totalProductsRow] = await db.select({ count: sql<number>`count(*)::int` }).from(productsTable).where(eq(productsTable.isActive, true));
   const [totalCustomersRow] = await db.select({ count: sql<number>`count(*)::int` }).from(usersTable);
   const [pendingOrdersRow] = await db.select({ count: sql<number>`count(*)::int` }).from(ordersTable).where(eq(ordersTable.status, "pending"));
-  const [lowStockRow] = await db.select({ count: sql<number>`count(*)::int` }).from(inventoryTable).where(sql`quantity <= low_stock_threshold`);
+  const [lowStockRow] = await db.select({ count: sql<number>`count(*)::int` }).from(productsTable).where(lte(productsTable.stockQuantity, 10));
 
   const couponFields = {
     id: couponsTable.id,
