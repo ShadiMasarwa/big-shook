@@ -13,6 +13,7 @@ import {
   Star,
   X,
   LogOut,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -113,6 +114,24 @@ export function Layout({ children }: { children: ReactNode }) {
     location === "/catalog" || location.startsWith("/catalog");
 
   const { data: categories } = useListCategories();
+
+  // Parse categories into parent / children structure
+  const parents = (categories ?? []).filter((c) => c.parentId === null || c.parentId === undefined);
+  const childrenByParent: Record<number, typeof parents> = {};
+  (categories ?? []).forEach((c) => {
+    if (c.parentId !== null && c.parentId !== undefined) {
+      if (!childrenByParent[c.parentId]) childrenByParent[c.parentId] = [];
+      childrenByParent[c.parentId].push(c);
+    }
+  });
+
+  const activeParentId = searchParams.get("parentId") ? Number(searchParams.get("parentId")) : null;
+
+  // Desktop hover submenu state
+  const [openParentId, setOpenParentId] = useState<number | null>(null);
+
+  // Mobile expandable parent state
+  const [mobileExpandedId, setMobileExpandedId] = useState<number | null>(null);
 
   const { data: ads } = useQuery<AdItem[]>({
     queryKey: ["ads"],
@@ -324,54 +343,103 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
         </div>
 
-        {/* Desktop Categories Menu */}
+        {/* Desktop Categories Mega Menu */}
         <nav
           aria-label="ניווט קטגוריות"
           className="border-t border-border hidden md:block"
         >
-          <div className="container mx-auto px-4">
-            <ul className="flex items-center gap-6 py-3 text-sm font-medium overflow-x-auto">
-              <li className="relative pb-0.5">
-                <Link
-                  href="/catalog"
-                  className={`flex items-center gap-1 transition-colors duration-200 whitespace-nowrap ${isOnCatalog && !activeCategoryId ? "text-primary font-bold" : "hover:text-primary"}`}
-                >
-                  <Menu className="h-4 w-4" />
-                  כל הקטגוריות
-                </Link>
-                {isOnCatalog && !activeCategoryId && (
-                  <motion.span
-                    layoutId="desktop-cat-indicator"
-                    className="absolute bottom-0 right-0 left-0 h-0.5 bg-primary rounded-full"
-                    transition={{ type: "spring", stiffness: 500, damping: 35 }}
-                  />
-                )}
-              </li>
-              {categories
-                ?.filter((c) => c.parentId !== null && c.parentId !== undefined)
-                .slice(0, 8)
-                .map((category) => (
-                  <li key={category.id} className="relative pb-0.5">
-                    <Link
-                      href={`/catalog?categoryId=${category.id}`}
-                      className={`transition-colors duration-200 whitespace-nowrap ${activeCategoryId === category.id ? "text-primary font-bold" : "hover:text-primary"}`}
-                    >
-                      {category.nameHe}
-                    </Link>
-                    {activeCategoryId === category.id && (
-                      <motion.span
-                        layoutId="desktop-cat-indicator"
-                        className="absolute bottom-0 right-0 left-0 h-0.5 bg-primary rounded-full"
-                        transition={{
-                          type: "spring",
-                          stiffness: 500,
-                          damping: 35,
+          <div
+            className="relative"
+            onMouseLeave={() => setOpenParentId(null)}
+          >
+            <div className="container mx-auto px-4">
+              <ul className="flex items-center gap-1 py-2 overflow-x-auto scrollbar-hide">
+                {parents.map((parent) => {
+                  const children = childrenByParent[parent.id] ?? [];
+                  const isActive =
+                    activeParentId === parent.id ||
+                    children.some((c) => c.id === activeCategoryId);
+                  return (
+                    <li key={parent.id}>
+                      <button
+                        onMouseEnter={() => setOpenParentId(parent.id)}
+                        onClick={() => {
+                          navigate(`/catalog?parentId=${parent.id}`);
+                          setOpenParentId(null);
                         }}
-                      />
-                    )}
-                  </li>
-                ))}
-            </ul>
+                        className={`flex flex-col items-center gap-1 px-2 py-1.5 rounded-xl transition-all cursor-pointer ${
+                          isActive
+                            ? "ring-2 ring-primary bg-primary/5"
+                            : "hover:bg-muted"
+                        }`}
+                        aria-haspopup={children.length > 0}
+                        aria-expanded={openParentId === parent.id}
+                      >
+                        <div className="w-16 h-11 rounded-lg overflow-hidden bg-muted border border-border shrink-0">
+                          {parent.imageUrl ? (
+                            <img
+                              src={parent.imageUrl}
+                              alt=""
+                              aria-hidden="true"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-muted-foreground text-lg">
+                              🛍️
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-[11px] font-medium whitespace-nowrap max-w-[72px] truncate leading-tight">
+                          {parent.nameHe}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+
+            {/* Flyout submenu */}
+            {openParentId !== null &&
+              (childrenByParent[openParentId] ?? []).length > 0 && (
+                <div className="absolute top-full right-0 left-0 z-50 bg-background border-b border-border shadow-2xl">
+                  <div className="container mx-auto px-4 py-4">
+                    <ul className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide flex-wrap">
+                      {(childrenByParent[openParentId] ?? []).map((child) => (
+                        <li key={child.id}>
+                          <Link
+                            href={`/catalog?categoryId=${child.id}`}
+                            onClick={() => setOpenParentId(null)}
+                            className={`flex flex-col items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-muted transition-all group ${
+                              activeCategoryId === child.id
+                                ? "ring-2 ring-primary bg-primary/5"
+                                : ""
+                            }`}
+                          >
+                            <div className="w-20 h-14 rounded-lg overflow-hidden bg-muted border border-border">
+                              {child.imageUrl ? (
+                                <img
+                                  src={child.imageUrl}
+                                  alt=""
+                                  aria-hidden="true"
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-muted-foreground text-2xl">
+                                  📦
+                                </div>
+                              )}
+                            </div>
+                            <span className="text-xs font-medium text-center whitespace-nowrap">
+                              {child.nameHe}
+                            </span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
           </div>
         </nav>
       </header>
@@ -465,53 +533,75 @@ export function Layout({ children }: { children: ReactNode }) {
                 קטגוריות
               </p>
               <ul className="space-y-1">
-                <li className="relative">
-                  {isOnCatalog && !activeCategoryId && (
-                    <motion.span
-                      layoutId="mobile-cat-indicator"
-                      className="absolute inset-0 bg-primary/10 rounded-md"
-                      transition={{
-                        type: "spring",
-                        stiffness: 500,
-                        damping: 35,
-                      }}
-                    />
-                  )}
-                  <Link
-                    href="/catalog"
-                    onClick={handleCategoryClick}
-                    className={`relative flex items-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-colors duration-200 ${isOnCatalog && !activeCategoryId ? "text-primary font-bold" : "hover:bg-muted"}`}
-                  >
-                    <Menu className="h-4 w-4" />
-                    כל הקטגוריות
-                  </Link>
-                </li>
-                {categories
-                  ?.filter(
-                    (c) => c.parentId !== null && c.parentId !== undefined,
-                  )
-                  .map((category) => (
-                    <li key={category.id} className="relative">
-                      {activeCategoryId === category.id && (
-                        <motion.span
-                          layoutId="mobile-cat-indicator"
-                          className="absolute inset-0 bg-primary/10 rounded-md"
-                          transition={{
-                            type: "spring",
-                            stiffness: 500,
-                            damping: 35,
-                          }}
-                        />
+                {parents.map((parent) => {
+                  const children = childrenByParent[parent.id] ?? [];
+                  const isExpanded = mobileExpandedId === parent.id;
+                  const isActive =
+                    activeParentId === parent.id ||
+                    children.some((c) => c.id === activeCategoryId);
+                  return (
+                    <li key={parent.id}>
+                      <div className="flex items-center gap-1">
+                        <Link
+                          href={`/catalog?parentId=${parent.id}`}
+                          onClick={handleCategoryClick}
+                          className={`flex items-center gap-2 py-2 px-3 rounded-md text-sm font-medium flex-1 transition-colors duration-200 ${isActive ? "text-primary bg-primary/10" : "hover:bg-muted"}`}
+                        >
+                          {parent.imageUrl && (
+                            <img
+                              src={parent.imageUrl}
+                              alt=""
+                              aria-hidden="true"
+                              className="w-8 h-6 object-cover rounded shrink-0"
+                            />
+                          )}
+                          {parent.nameHe}
+                        </Link>
+                        {children.length > 0 && (
+                          <button
+                            onClick={() =>
+                              setMobileExpandedId(
+                                isExpanded ? null : parent.id,
+                              )
+                            }
+                            className="p-2 hover:bg-muted rounded-md shrink-0"
+                            aria-label={
+                              isExpanded ? "סגור קטגוריות משנה" : "פתח קטגוריות משנה"
+                            }
+                            aria-expanded={isExpanded}
+                          >
+                            <ChevronDown
+                              className={`h-4 w-4 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+                            />
+                          </button>
+                        )}
+                      </div>
+                      {isExpanded && children.length > 0 && (
+                        <ul className="me-4 mt-1 space-y-1 border-e border-border pe-2">
+                          {children.map((child) => (
+                            <li key={child.id}>
+                              <Link
+                                href={`/catalog?categoryId=${child.id}`}
+                                onClick={handleCategoryClick}
+                                className={`flex items-center gap-2 py-1.5 px-3 rounded-md text-sm transition-colors duration-200 ${activeCategoryId === child.id ? "text-primary font-bold bg-primary/10" : "hover:bg-muted"}`}
+                              >
+                                {child.imageUrl && (
+                                  <img
+                                    src={child.imageUrl}
+                                    alt=""
+                                    aria-hidden="true"
+                                    className="w-7 h-5 object-cover rounded shrink-0"
+                                  />
+                                )}
+                                {child.nameHe}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
                       )}
-                      <Link
-                        href={`/catalog?categoryId=${category.id}`}
-                        onClick={handleCategoryClick}
-                        className={`relative flex items-center py-2 px-3 rounded-md text-sm transition-colors duration-200 ${activeCategoryId === category.id ? "text-primary font-bold" : "hover:bg-muted"}`}
-                      >
-                        {category.nameHe}
-                      </Link>
                     </li>
-                  ))}
+                  );
+                })}
               </ul>
             </div>
 

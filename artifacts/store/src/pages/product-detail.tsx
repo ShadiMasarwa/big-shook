@@ -369,7 +369,7 @@ export default function ProductDetail() {
           <div className="flex flex-col">
             {product.isFeatured && (
               <span className="bg-primary/10 text-primary text-xs font-bold px-3 py-1 rounded-full w-fit mb-4">
-                מומלץ הצוות
+                מוצר מומלץ
               </span>
             )}
             <h1 className="text-3xl md:text-4xl font-black mb-2">
@@ -383,7 +383,6 @@ export default function ProductDetail() {
 
             <div className="flex items-center gap-4 mb-6">
               <div className="flex items-center text-amber-500">
-                
                 {[...Array(5)].map((_, i) => (
                   <Star
                     key={i}
@@ -481,7 +480,10 @@ export default function ProductDetail() {
                 <h4 className="font-bold">מועדון לקוחות טק-סטור</h4>
                 <p className="text-sm text-muted-foreground">
                   רכוש מוצר זה וקבל{" "}
-                  {Math.floor((product.salePrice || product.price) * (loyaltyRules?.pointsPerShekel ?? 1))}{" "}
+                  {Math.floor(
+                    (product.salePrice || product.price) *
+                      (loyaltyRules?.pointsPerShekel ?? 1),
+                  )}{" "}
                   נקודות מועדון לשימוש בקנייה הבאה!
                 </p>
               </div>
@@ -519,11 +521,19 @@ export default function ProductDetail() {
                     {Object.entries(
                       product.specs as Record<string, string>,
                     ).map(([key, value], i) => (
-                      <div key={key} className="flex items-stretch min-h-[44px]">
-                        <span className={`w-1/4 shrink-0 px-4 py-3 text-sm font-semibold text-foreground flex items-center border-s border-border ${i % 2 === 0 ? "bg-muted" : "bg-muted/50"}`}>
+                      <div
+                        key={key}
+                        className="flex items-stretch min-h-[44px]"
+                      >
+                        <span
+                          className={`w-1/4 shrink-0 px-4 py-3 text-sm font-semibold text-foreground flex items-center border-s border-border ${i % 2 === 0 ? "bg-muted" : "bg-muted/50"}`}
+                        >
                           {key}
                         </span>
-                        <span className="flex-1 px-4 py-3 text-sm font-medium text-foreground text-right" dir="rtl">
+                        <span
+                          className="flex-1 px-4 py-3 text-sm font-medium text-foreground text-right"
+                          dir="rtl"
+                        >
                           {value}
                         </span>
                       </div>
@@ -559,11 +569,21 @@ export default function ProductDetail() {
                 </div>
                 <div className="flex-1 space-y-1.5">
                   {[5, 4, 3, 2, 1].map((star) => {
-                    const count = productReviews.filter((r) => r.rating === star).length;
-                    const pct = productReviews.length > 0 ? (count / productReviews.length) * 100 : 0;
+                    const count = productReviews.filter(
+                      (r) => r.rating === star,
+                    ).length;
+                    const pct =
+                      productReviews.length > 0
+                        ? (count / productReviews.length) * 100
+                        : 0;
                     return (
-                      <div key={star} className="flex items-center gap-2 text-xs">
-                        <span className="w-3 text-muted-foreground shrink-0">{star}</span>
+                      <div
+                        key={star}
+                        className="flex items-center gap-2 text-xs"
+                      >
+                        <span className="w-3 text-muted-foreground shrink-0">
+                          {star}
+                        </span>
                         <Star className="h-3 w-3 fill-amber-400 text-amber-400 shrink-0" />
                         <div className="flex-1 bg-border rounded-full h-2 overflow-hidden">
                           <div
@@ -571,7 +591,9 @@ export default function ProductDetail() {
                             style={{ width: `${pct}%` }}
                           />
                         </div>
-                        <span className="w-6 text-muted-foreground shrink-0">{count}</span>
+                        <span className="w-6 text-muted-foreground shrink-0">
+                          {count}
+                        </span>
                       </div>
                     );
                   })}
@@ -582,16 +604,23 @@ export default function ProductDetail() {
             {/* Review cards */}
             <div className="grid grid-cols-1 gap-4">
               {productReviews.map((review) => (
-                <div key={review.id} className="bg-card border border-border rounded-xl p-5">
+                <div
+                  key={review.id}
+                  className="bg-card border border-border rounded-xl p-5"
+                >
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center shrink-0">
                         {review.reviewerName.charAt(0)}
                       </div>
                       <div>
-                        <div className="font-semibold text-sm">{review.reviewerName}</div>
+                        <div className="font-semibold text-sm">
+                          {review.reviewerName}
+                        </div>
                         <div className="text-xs text-muted-foreground">
-                          {new Date(review.createdAt).toLocaleDateString("he-IL")}
+                          {new Date(review.createdAt).toLocaleDateString(
+                            "he-IL",
+                          )}
                         </div>
                       </div>
                     </div>
@@ -613,9 +642,11 @@ export default function ProductDetail() {
               מוצרים שאולי יעניינו אותך
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-              {(relatedProducts as any[]).filter((rp) => rp.id !== productId).map((rp) => (
-                <ProductCard key={rp.id} product={rp} />
-              ))}
+              {(relatedProducts as any[])
+                .filter((rp) => rp.id !== productId)
+                .map((rp) => (
+                  <ProductCard key={rp.id} product={rp} />
+                ))}
             </div>
           </div>
         )}

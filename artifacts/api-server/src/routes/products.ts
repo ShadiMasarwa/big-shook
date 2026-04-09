@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, and, gte, lte, ilike, desc, asc, gt, sql } from "drizzle-orm";
-import { db, productsTable, suppliersTable } from "@workspace/db";
+import { eq, and, gte, lte, ilike, desc, asc, gt, sql, inArray } from "drizzle-orm";
+import { db, productsTable, suppliersTable, categoriesTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -90,7 +90,7 @@ router.get("/products/:id", async (req, res): Promise<void> => {
 });
 
 router.get("/products", async (req, res): Promise<void> => {
-  const { categoryId, brandId, search, minPrice, maxPrice, inStock, sort, tags, admin, supplierId, sku, outOfStock, isActive } = req.query;
+  const { categoryId, parentCategoryId, brandId, search, minPrice, maxPrice, inStock, sort, tags, admin, supplierId, sku, outOfStock, isActive } = req.query;
   const page = parseInt(String(req.query.page ?? "1"), 10);
   const limit = parseInt(String(req.query.limit ?? "20"), 10);
   const offset = (page - 1) * limit;
@@ -110,6 +110,21 @@ router.get("/products", async (req, res): Promise<void> => {
   if (categoryId) {
     const catId = parseInt(String(categoryId), 10);
     if (!isNaN(catId)) conditions.push(eq(productsTable.categoryId, catId));
+  }
+  if (parentCategoryId) {
+    const parentId = parseInt(String(parentCategoryId), 10);
+    if (!isNaN(parentId)) {
+      const childCats = await db
+        .select({ id: categoriesTable.id })
+        .from(categoriesTable)
+        .where(eq(categoriesTable.parentId, parentId));
+      const childIds = childCats.map((c) => c.id);
+      if (childIds.length > 0) {
+        conditions.push(inArray(productsTable.categoryId, childIds));
+      } else {
+        conditions.push(eq(productsTable.categoryId, parentId));
+      }
+    }
   }
   if (brandId) {
     const bId = parseInt(String(brandId), 10);

@@ -18,9 +18,11 @@ export default function Catalog() {
 
   const urlParams = new URLSearchParams(rawSearch);
   const urlCategoryId = urlParams.get("categoryId") ? Number(urlParams.get("categoryId")) : null;
+  const urlParentId = urlParams.get("parentId") ? Number(urlParams.get("parentId")) : null;
   const urlSearch = urlParams.get("q") ?? "";
 
   const categoryId = urlCategoryId;
+  const parentCategoryId = urlParentId;
   const search = urlSearch;
 
   const [brandId, setBrandId] = useState<number | null>(null);
@@ -44,10 +46,11 @@ export default function Catalog() {
   useEffect(() => {
     setPage(1);
     setAllProducts([]);
-  }, [categoryId, brandId, minPrice, maxPrice, inStock, sort, search]);
+  }, [categoryId, parentCategoryId, brandId, minPrice, maxPrice, inStock, sort, search]);
 
-  const { data: productsData, isLoading, isFetching } = useListProducts({
+  const { data: productsData, isLoading, isFetching } = (useListProducts as any)({
     categoryId: categoryId ?? undefined,
+    parentCategoryId: parentCategoryId ?? undefined,
     brandId: brandId ?? undefined,
     minPrice: minPrice ?? undefined,
     maxPrice: maxPrice ?? undefined,
