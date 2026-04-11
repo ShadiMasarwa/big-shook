@@ -422,15 +422,15 @@ export function Layout({ children }: { children: ReactNode }) {
                           navigate(`/catalog?parentId=${parent.id}`);
                           setOpenParentId(null);
                         }}
-                        className={`flex flex-col items-center gap-1 px-2 py-1.5 rounded-xl transition-all cursor-pointer ${
+                        className={`flex flex-col items-center gap-0 px-1 py-1 rounded-xl transition-all cursor-pointer ${
                           isActive
-                            ? "ring-2 ring-primary bg-primary/5"
-                            : "hover:bg-muted"
+                            ? "ring-2 ring-primary"
+                            : "hover:opacity-90"
                         }`}
                         aria-haspopup={children.length > 0}
                         aria-expanded={openParentId === parent.id}
                       >
-                        <div className="w-16 h-11 rounded-lg overflow-hidden bg-muted border border-border shrink-0">
+                        <div className="relative w-20 h-14 rounded-xl overflow-hidden bg-muted border border-border shrink-0">
                           {parent.imageUrl ? (
                             <img
                               src={parent.imageUrl}
@@ -443,10 +443,12 @@ export function Layout({ children }: { children: ReactNode }) {
                               🛍️
                             </div>
                           )}
+                          <div className="absolute inset-x-0 bottom-0 bg-black/55 px-1 py-0.5">
+                            <span className="block text-[10px] font-semibold text-white whitespace-nowrap truncate text-center leading-tight">
+                              {parent.nameHe}
+                            </span>
+                          </div>
                         </div>
-                        <span className="text-[11px] font-medium whitespace-nowrap max-w-[72px] truncate leading-tight">
-                          {parent.nameHe}
-                        </span>
                       </button>
                     </li>
                   );
@@ -465,13 +467,13 @@ export function Layout({ children }: { children: ReactNode }) {
                           <Link
                             href={`/catalog?categoryId=${child.id}`}
                             onClick={() => setOpenParentId(null)}
-                            className={`flex flex-col items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-muted transition-all group ${
+                            className={`flex flex-col items-center gap-0 rounded-xl transition-all group ${
                               activeCategoryId === child.id
-                                ? "ring-2 ring-primary bg-primary/5"
-                                : ""
+                                ? "ring-2 ring-primary"
+                                : "hover:opacity-90"
                             }`}
                           >
-                            <div className="w-20 h-14 rounded-lg overflow-hidden bg-muted border border-border">
+                            <div className="relative w-24 h-16 rounded-xl overflow-hidden bg-muted border border-border">
                               {child.imageUrl ? (
                                 <img
                                   src={child.imageUrl}
@@ -484,10 +486,12 @@ export function Layout({ children }: { children: ReactNode }) {
                                   📦
                                 </div>
                               )}
+                              <div className="absolute inset-x-0 bottom-0 bg-black/55 px-1.5 py-1">
+                                <span className="block text-[11px] font-semibold text-white text-center whitespace-nowrap truncate leading-tight">
+                                  {child.nameHe}
+                                </span>
+                              </div>
                             </div>
-                            <span className="text-xs font-medium text-center whitespace-nowrap">
-                              {child.nameHe}
-                            </span>
                           </Link>
                         </li>
                       ))}
