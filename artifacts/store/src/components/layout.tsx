@@ -413,7 +413,7 @@ export function Layout({ children }: { children: ReactNode }) {
                         : "hover:opacity-90"
                     }`}
                   >
-                    <div className="relative w-20 h-14 rounded-xl overflow-hidden bg-muted border border-border shrink-0">
+                    <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-muted border border-border shrink-0">
                       <img
                         src="/api/uploads/1775906900586-mpauoy903c.png"
                         alt=""
