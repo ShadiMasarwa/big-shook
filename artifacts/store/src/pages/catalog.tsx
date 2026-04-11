@@ -211,48 +211,6 @@ export default function Catalog() {
           </form>
 
           <div>
-            <h3 className="font-bold mb-3 border-b border-border pb-2">קטגוריות</h3>
-            <ul className="space-y-1">
-              <li>
-                <button
-                  className={`text-sm w-full text-start ${!categoryId && !parentCategoryId ? "font-bold text-primary" : "text-muted-foreground hover:text-foreground"}`}
-                  onClick={() => navigate("/catalog")}
-                >
-                  כל הקטגוריות
-                </button>
-              </li>
-              {parentCategories.map(parent => {
-                const children = childrenByParentId[parent.id] ?? [];
-                const isParentActive = parentCategoryId === parent.id || children.some(c => c.id === categoryId);
-                return (
-                  <li key={parent.id}>
-                    <button
-                      className={`text-sm w-full text-start ${isParentActive ? "font-bold text-primary" : "text-muted-foreground hover:text-foreground"}`}
-                      onClick={() => handleParentCategoryClick(parent.id)}
-                    >
-                      {parent.nameHe}
-                    </button>
-                    {isParentActive && children.length > 0 && (
-                      <ul className="me-3 mt-1 space-y-1 border-e border-border pe-2">
-                        {children.map(child => (
-                          <li key={child.id}>
-                            <button
-                              className={`text-xs w-full text-start ${categoryId === child.id ? "font-bold text-primary" : "text-muted-foreground hover:text-foreground"}`}
-                              onClick={() => handleCategoryClick(child.id)}
-                            >
-                              {child.nameHe}
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-
-          <div>
             <h3 className="font-bold mb-3 border-b border-border pb-2">מותגים</h3>
             <ul className="space-y-2">
               <li>
