@@ -402,7 +402,7 @@ export function Layout({ children }: { children: ReactNode }) {
         >
           <div className="relative" onMouseLeave={() => setOpenParentId(null)}>
             <div className="container mx-auto px-4">
-              <ul className="flex items-center gap-1 py-2 overflow-x-auto scrollbar-hide">
+              <ul className="flex items-center gap-1 py-2 ps-1 overflow-x-auto scrollbar-hide">
                 <li>
                   <button
                     onMouseEnter={() => setOpenParentId(null)}
