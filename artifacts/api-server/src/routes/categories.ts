@@ -9,6 +9,7 @@ const PRIV_DENIED = "אין לך הרשאה לבצע פעולה זו";
 router.get("/categories", async (req, res): Promise<void> => {
   const parentIdParam = req.query.parentId;
   const onlyWithProducts = req.query.onlyWithProducts === "true";
+  const isAdmin = req.query.admin === "true";
 
   const hasProductsCondition = sql`EXISTS (
     SELECT 1 FROM ${productsTable}
@@ -17,18 +18,23 @@ router.get("/categories", async (req, res): Promise<void> => {
       AND ${productsTable.stockQuantity} > 0
   )`;
 
+  const activeCondition = isAdmin ? undefined : eq(categoriesTable.isActive, true);
+
   let categories;
   if (parentIdParam !== undefined && parentIdParam !== null) {
     const parentId = parseInt(String(parentIdParam), 10);
-    const condition = onlyWithProducts
-      ? and(eq(categoriesTable.parentId, parentId), hasProductsCondition)
-      : eq(categoriesTable.parentId, parentId);
-    categories = await db.select().from(categoriesTable).where(condition);
+    const conditions = [eq(categoriesTable.parentId, parentId)];
+    if (activeCondition) conditions.push(activeCondition);
+    if (onlyWithProducts) conditions.push(hasProductsCondition);
+    categories = await db.select().from(categoriesTable).where(and(...conditions));
   } else {
+    const conditions = [];
+    if (activeCondition) conditions.push(activeCondition);
+    if (onlyWithProducts) conditions.push(hasProductsCondition);
     categories = await db
       .select()
       .from(categoriesTable)
-      .where(onlyWithProducts ? hasProductsCondition : undefined)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(categoriesTable.sortOrder);
   }
   res.json(categories.map(serializeCategory));

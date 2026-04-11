@@ -11,4 +11,5 @@ export type ListCategoriesParams = {
    * @nullable
    */
   parentId?: number | null;
+  admin?: boolean;
 };

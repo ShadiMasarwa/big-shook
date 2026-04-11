@@ -129,22 +129,38 @@ router.get("/products", async (req, res): Promise<void> => {
   if (categoryId) {
     const catId = parseInt(String(categoryId), 10);
     if (!isNaN(catId)) {
-      // Search both category_id (primary) and the join table
-      conditions.push(sql`(${productsTable.categoryId} = ${catId} OR EXISTS (SELECT 1 FROM product_categories pc WHERE pc.product_id = ${productsTable.id} AND pc.category_id = ${catId}))`);
+      if (isAdmin) {
+        conditions.push(sql`(${productsTable.categoryId} = ${catId} OR EXISTS (SELECT 1 FROM product_categories pc WHERE pc.product_id = ${productsTable.id} AND pc.category_id = ${catId}))`);
+      } else {
+        conditions.push(sql`(
+          (${productsTable.categoryId} = ${catId} AND EXISTS (SELECT 1 FROM categories WHERE id = ${catId} AND is_active = true))
+          OR EXISTS (SELECT 1 FROM product_categories pc JOIN categories c ON pc.category_id = c.id WHERE pc.product_id = ${productsTable.id} AND pc.category_id = ${catId} AND c.is_active = true)
+        )`);
+      }
     }
   }
   if (parentCategoryId) {
     const parentId = parseInt(String(parentCategoryId), 10);
     if (!isNaN(parentId)) {
-      // Use subqueries so the array never needs to be serialised by Drizzle
-      conditions.push(sql`(
-        ${productsTable.categoryId} IN (SELECT id FROM categories WHERE parent_id = ${parentId})
-        OR EXISTS (
-          SELECT 1 FROM product_categories pc
-          JOIN categories c ON pc.category_id = c.id
-          WHERE pc.product_id = ${productsTable.id} AND c.parent_id = ${parentId}
-        )
-      )`);
+      if (isAdmin) {
+        conditions.push(sql`(
+          ${productsTable.categoryId} IN (SELECT id FROM categories WHERE parent_id = ${parentId})
+          OR EXISTS (
+            SELECT 1 FROM product_categories pc
+            JOIN categories c ON pc.category_id = c.id
+            WHERE pc.product_id = ${productsTable.id} AND c.parent_id = ${parentId}
+          )
+        )`);
+      } else {
+        conditions.push(sql`(
+          ${productsTable.categoryId} IN (SELECT id FROM categories WHERE parent_id = ${parentId} AND is_active = true)
+          OR EXISTS (
+            SELECT 1 FROM product_categories pc
+            JOIN categories c ON pc.category_id = c.id
+            WHERE pc.product_id = ${productsTable.id} AND c.parent_id = ${parentId} AND c.is_active = true
+          )
+        )`);
+      }
     }
   }
   if (brandId) {

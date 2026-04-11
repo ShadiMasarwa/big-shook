@@ -65,7 +65,7 @@ function toSlug(str: string) {
 
 export default function AdminCategories() {
   const queryClient = useQueryClient();
-  const { data: categories = [], isLoading } = useListCategories();
+  const { data: categories = [], isLoading } = useListCategories({ admin: true });
   const createMutation = useCreateCategory();
   const updateMutation = useUpdateCategory();
   const deleteMutation = useDeleteCategory();
