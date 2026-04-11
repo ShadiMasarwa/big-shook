@@ -118,7 +118,9 @@ export function Layout({ children }: { children: ReactNode }) {
   const { data: categories } = useListCategories();
 
   // Parse categories into parent / children structure
-  const parents = (categories ?? []).filter((c) => c.parentId === null || c.parentId === undefined);
+  const parents = (categories ?? []).filter(
+    (c) => c.parentId === null || c.parentId === undefined,
+  );
   const childrenByParent: Record<number, typeof parents> = {};
   (categories ?? []).forEach((c) => {
     if (c.parentId !== null && c.parentId !== undefined) {
@@ -127,7 +129,9 @@ export function Layout({ children }: { children: ReactNode }) {
     }
   });
 
-  const activeParentId = searchParams.get("parentId") ? Number(searchParams.get("parentId")) : null;
+  const activeParentId = searchParams.get("parentId")
+    ? Number(searchParams.get("parentId"))
+    : null;
 
   // Desktop hover submenu state
   const [openParentId, setOpenParentId] = useState<number | null>(null);
@@ -136,10 +140,16 @@ export function Layout({ children }: { children: ReactNode }) {
   const [mobileExpandedId, setMobileExpandedId] = useState<number | null>(null);
 
   // Mobile drawer filter state (synced from URL)
-  const [mobilePriceMin, setMobilePriceMin] = useState(searchParams.get("minPrice") ?? "");
-  const [mobilePriceMax, setMobilePriceMax] = useState(searchParams.get("maxPrice") ?? "");
+  const [mobilePriceMin, setMobilePriceMin] = useState(
+    searchParams.get("minPrice") ?? "",
+  );
+  const [mobilePriceMax, setMobilePriceMax] = useState(
+    searchParams.get("maxPrice") ?? "",
+  );
   const mobileInStock = searchParams.get("inStock") === "true";
-  const mobileBrandId = searchParams.get("brandId") ? Number(searchParams.get("brandId")) : null;
+  const mobileBrandId = searchParams.get("brandId")
+    ? Number(searchParams.get("brandId"))
+    : null;
 
   // Sync price inputs when URL changes
   useEffect(() => {
@@ -160,12 +170,17 @@ export function Layout({ children }: { children: ReactNode }) {
 
   // Brands for mobile drawer — filtered by current category context
   const mobileBrandsQp = new URLSearchParams();
-  if (searchParams.get("categoryId")) mobileBrandsQp.set("categoryId", searchParams.get("categoryId")!);
-  if (searchParams.get("parentId")) mobileBrandsQp.set("parentCategoryId", searchParams.get("parentId")!);
+  if (searchParams.get("categoryId"))
+    mobileBrandsQp.set("categoryId", searchParams.get("categoryId")!);
+  if (searchParams.get("parentId"))
+    mobileBrandsQp.set("parentCategoryId", searchParams.get("parentId")!);
   const mobileBrandsQs = mobileBrandsQp.toString();
   const { data: mobileBrands } = useQuery<{ id: number; nameHe: string }[]>({
     queryKey: ["/api/brands", "mobile", mobileBrandsQs],
-    queryFn: () => fetch(`/api/brands${mobileBrandsQs ? `?${mobileBrandsQs}` : ""}`).then(r => r.json()),
+    queryFn: () =>
+      fetch(`/api/brands${mobileBrandsQs ? `?${mobileBrandsQs}` : ""}`).then(
+        (r) => r.json(),
+      ),
     enabled: isOnCatalog,
     staleTime: 2 * 60 * 1000,
   });
@@ -385,28 +400,32 @@ export function Layout({ children }: { children: ReactNode }) {
           aria-label="ניווט קטגוריות"
           className="border-t border-border hidden md:block"
         >
-          <div
-            className="relative"
-            onMouseLeave={() => setOpenParentId(null)}
-          >
+          <div className="relative" onMouseLeave={() => setOpenParentId(null)}>
             <div className="container mx-auto px-4">
               <ul className="flex items-center gap-1 py-2 overflow-x-auto scrollbar-hide">
                 <li>
                   <button
                     onMouseEnter={() => setOpenParentId(null)}
                     onClick={() => navigate("/catalog")}
-                    className={`flex flex-col items-center gap-1 px-2 py-1.5 rounded-xl transition-all cursor-pointer ${
+                    className={`flex flex-col items-center gap-0 px-1 py-1 rounded-xl transition-all cursor-pointer ${
                       isOnCatalog && !activeCategoryId && !activeParentId
-                        ? "ring-2 ring-primary bg-primary/5"
-                        : "hover:bg-muted"
+                        ? "ring-2 ring-primary"
+                        : "hover:opacity-90"
                     }`}
                   >
-                    <div className="w-16 h-11 rounded-lg overflow-hidden bg-muted border border-border shrink-0 flex items-center justify-center">
-                      <Menu className="h-6 w-6 text-muted-foreground" />
+                    <div className="relative w-20 h-14 rounded-xl overflow-hidden bg-muted border border-border shrink-0">
+                      <img
+                        src="/api/uploads/1775906900586-mpauoy903c.png"
+                        alt=""
+                        aria-hidden="true"
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-x-0 bottom-0 bg-black/55 px-1 py-0.5">
+                        <span className="block text-[10px] font-semibold text-white whitespace-nowrap truncate text-center leading-tight">
+                          כל הקטגוריות
+                        </span>
+                      </div>
                     </div>
-                    <span className="text-[11px] font-medium whitespace-nowrap leading-tight">
-                      כל הקטגוריות
-                    </span>
                   </button>
                 </li>
                 {parents.map((parent) => {
@@ -423,14 +442,12 @@ export function Layout({ children }: { children: ReactNode }) {
                           setOpenParentId(null);
                         }}
                         className={`flex flex-col items-center gap-0 px-1 py-1 rounded-xl transition-all cursor-pointer ${
-                          isActive
-                            ? "ring-2 ring-primary"
-                            : "hover:opacity-90"
+                          isActive ? "ring-2 ring-primary" : "hover:opacity-90"
                         }`}
                         aria-haspopup={children.length > 0}
                         aria-expanded={openParentId === parent.id}
                       >
-                        <div className="relative w-20 h-14 rounded-xl overflow-hidden bg-muted border border-border shrink-0">
+                        <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-muted border border-border shrink-0">
                           {parent.imageUrl ? (
                             <img
                               src={parent.imageUrl}
@@ -619,13 +636,13 @@ export function Layout({ children }: { children: ReactNode }) {
                         {children.length > 0 && (
                           <button
                             onClick={() =>
-                              setMobileExpandedId(
-                                isExpanded ? null : parent.id,
-                              )
+                              setMobileExpandedId(isExpanded ? null : parent.id)
                             }
                             className="p-2 hover:bg-muted rounded-md shrink-0"
                             aria-label={
-                              isExpanded ? "סגור קטגוריות משנה" : "פתח קטגוריות משנה"
+                              isExpanded
+                                ? "סגור קטגוריות משנה"
+                                : "פתח קטגוריות משנה"
                             }
                             aria-expanded={isExpanded}
                           >
@@ -688,7 +705,10 @@ export function Layout({ children }: { children: ReactNode }) {
                             className={`text-sm w-full text-right py-0.5 transition-colors ${mobileBrandId === brand.id ? "font-bold text-primary" : "text-muted-foreground hover:text-foreground"}`}
                             onClick={() =>
                               updateCatalogFilter({
-                                brandId: brand.id === mobileBrandId ? null : String(brand.id),
+                                brandId:
+                                  brand.id === mobileBrandId
+                                    ? null
+                                    : String(brand.id),
                               })
                             }
                           >
@@ -726,7 +746,9 @@ export function Layout({ children }: { children: ReactNode }) {
                           });
                       }}
                     />
-                    <span className="text-muted-foreground text-sm shrink-0">-</span>
+                    <span className="text-muted-foreground text-sm shrink-0">
+                      -
+                    </span>
                     <Input
                       type="number"
                       placeholder="עד"
@@ -756,10 +778,15 @@ export function Layout({ children }: { children: ReactNode }) {
                     id="mobile-inStock"
                     checked={mobileInStock}
                     onCheckedChange={(c) =>
-                      updateCatalogFilter({ inStock: c === true ? "true" : null })
+                      updateCatalogFilter({
+                        inStock: c === true ? "true" : null,
+                      })
                     }
                   />
-                  <Label htmlFor="mobile-inStock" className="cursor-pointer text-sm">
+                  <Label
+                    htmlFor="mobile-inStock"
+                    className="cursor-pointer text-sm"
+                  >
                     במלאי בלבד
                   </Label>
                 </div>
