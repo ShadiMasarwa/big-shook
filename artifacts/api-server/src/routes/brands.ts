@@ -9,14 +9,6 @@ const PRIV_DENIED = "אין לך הרשאה לבצע פעולה זו";
 router.get("/brands", async (req, res): Promise<void> => {
   const { categoryId, parentCategoryId, search, minPrice, maxPrice, inStock } = req.query;
 
-  const hasProductFilters = categoryId || parentCategoryId || search || minPrice || maxPrice || inStock;
-
-  if (!hasProductFilters) {
-    const brands = await db.select().from(brandsTable).orderBy(brandsTable.nameHe);
-    res.json(brands.map(serializeBrand));
-    return;
-  }
-
   const productConditions = [
     eq(productsTable.isActive, true),
     sql`(${productsTable.supplierId} IS NULL OR EXISTS (SELECT 1 FROM suppliers WHERE suppliers.id = ${productsTable.supplierId} AND suppliers.is_active = true))`,

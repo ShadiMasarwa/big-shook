@@ -128,11 +128,14 @@ export default function Catalog() {
   // Hover state for sidebar parent category expansion
   const [hoveredParentId, setHoveredParentId] = useState<number | null>(null);
 
-  // Brands query — filter by category context but NOT by current brandId
+  // Brands query — filter by all active filters except brandId itself
   const brandsQp = new URLSearchParams();
   if (categoryId) brandsQp.set("categoryId", String(categoryId));
   if (parentCategoryId) brandsQp.set("parentCategoryId", String(parentCategoryId));
   if (search) brandsQp.set("search", search);
+  if (minPrice !== null) brandsQp.set("minPrice", String(minPrice));
+  if (maxPrice !== null) brandsQp.set("maxPrice", String(maxPrice));
+  if (inStock) brandsQp.set("inStock", "true");
   const brandsQs = brandsQp.toString();
 
   const { data: brands } = useQuery({
