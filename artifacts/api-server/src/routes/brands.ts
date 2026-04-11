@@ -12,6 +12,21 @@ router.get("/brands", async (req, res): Promise<void> => {
   const productConditions = [
     eq(productsTable.isActive, true),
     sql`(${productsTable.supplierId} IS NULL OR EXISTS (SELECT 1 FROM suppliers WHERE suppliers.id = ${productsTable.supplierId} AND suppliers.is_active = true))`,
+    sql`(
+      ${productsTable.categoryId} IS NULL
+      OR EXISTS (
+        SELECT 1 FROM categories cat
+        WHERE cat.id = ${productsTable.categoryId}
+          AND cat.is_active = true
+          AND (
+            cat.parent_id IS NULL
+            OR EXISTS (
+              SELECT 1 FROM categories parent
+              WHERE parent.id = cat.parent_id AND parent.is_active = true
+            )
+          )
+      )
+    )`,
   ];
 
   if (categoryId) {
