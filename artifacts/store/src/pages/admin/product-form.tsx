@@ -965,6 +965,20 @@ export default function AdminProductForm() {
           </Card>
         )}
 
+        {formData.productType === "variable" ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>מחיר ומלאי</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                המחיר והמלאי של מוצר עם וריאציות מחושבים אוטומטית מתוך הוריאציות —
+                אין צורך להזין כאן ערכים. הצרכן יראה טווח מחירים בקטלוג, והמלאי הוא סכום
+                המלאי של כל הוריאציות.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
         <Card>
           <CardHeader>
             <CardTitle>מחיר ומלאי</CardTitle>
@@ -1052,6 +1066,7 @@ export default function AdminProductForm() {
             </div>
           </CardContent>
         </Card>
+        )}
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">

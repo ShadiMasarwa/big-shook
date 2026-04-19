@@ -1,7 +1,41 @@
 import { Router, type IRouter } from "express";
 import { eq, and, gte, lte, ilike, desc, asc, gt, sql, inArray } from "drizzle-orm";
-import { db, productsTable, suppliersTable, categoriesTable, productCategoriesTable } from "@workspace/db";
+import { db, productsTable, suppliersTable, categoriesTable, productCategoriesTable, productVariationsTable } from "@workspace/db";
 import { requireManagerPrivilegeCheck } from "../lib/managerAuth.js";
+
+/**
+ * For each product whose productType === "variable", fetch its variations and
+ * compute aggregate fields (priceRange, totalStock). Mutates the input array.
+ */
+async function attachVariationAggregates(products: any[]): Promise<void> {
+  const variableIds = products
+    .filter((p) => p.productType === "variable")
+    .map((p) => p.id);
+  if (variableIds.length === 0) return;
+  const rows = await db
+    .select()
+    .from(productVariationsTable)
+    .where(inArray(productVariationsTable.productId, variableIds));
+  const byProduct = new Map<number, typeof rows>();
+  for (const r of rows) {
+    if (!byProduct.has(r.productId)) byProduct.set(r.productId, []);
+    byProduct.get(r.productId)!.push(r);
+  }
+  for (const p of products) {
+    if (p.productType !== "variable") continue;
+    const vars = byProduct.get(p.id) ?? [];
+    const active = vars.filter((v) => v.isActive);
+    const prices = active.map((v) =>
+      v.salePrice ? parseFloat(v.salePrice) : parseFloat(v.price),
+    );
+    const totalStock = active.reduce((s, v) => s + (v.stockQuantity ?? 0), 0);
+    p.priceRange = prices.length
+      ? { min: Math.min(...prices), max: Math.max(...prices) }
+      : null;
+    p.totalStock = totalStock;
+    p.variationCount = active.length;
+  }
+}
 
 const router: IRouter = Router();
 const PRIV_DENIED = "אין לך הרשאה לבצע פעולה זו";
@@ -43,7 +77,9 @@ router.get("/products/featured", async (req, res): Promise<void> => {
     .where(and(eq(productsTable.isActive, true), eq(productsTable.isFeatured, true)))
     .orderBy(desc(productsTable.createdAt))
     .limit(limit);
-  res.json(products.map(p => serializeProduct(p)));
+  const out = products.map(p => serializeProduct(p));
+  await attachVariationAggregates(out);
+  res.json(out);
 });
 
 router.get("/products/top-selling", async (req, res): Promise<void> => {
@@ -52,7 +88,9 @@ router.get("/products/top-selling", async (req, res): Promise<void> => {
     .where(eq(productsTable.isActive, true))
     .orderBy(desc(productsTable.salesCount))
     .limit(limit);
-  res.json(products.map(p => serializeProduct(p)));
+  const out = products.map(p => serializeProduct(p));
+  await attachVariationAggregates(out);
+  res.json(out);
 });
 
 router.get("/products/slug/:slug", async (req, res): Promise<void> => {
@@ -66,7 +104,10 @@ router.get("/products/slug/:slug", async (req, res): Promise<void> => {
   const catRows = await db.select({ categoryId: productCategoriesTable.categoryId })
     .from(productCategoriesTable).where(eq(productCategoriesTable.productId, product.id));
   const categoryIds = catRows.map(r => r.categoryId);
-  res.json(serializeProduct({ ...product, viewsCount: product.viewsCount + 1 }, { categoryIds }));
+  const slugOut = serializeProduct({ ...product, viewsCount: product.viewsCount + 1 }, { categoryIds });
+  const slugArr = [slugOut];
+  await attachVariationAggregates(slugArr);
+  res.json(slugArr[0]);
 });
 
 router.get("/products/:id/related", async (req, res): Promise<void> => {
@@ -85,7 +126,9 @@ router.get("/products/:id/related", async (req, res): Promise<void> => {
     .where(and(...conditions))
     .orderBy(desc(productsTable.salesCount))
     .limit(limit + 1);
-  res.json(related.filter(p => p.id !== id).slice(0, limit).map(p => serializeProduct(p)));
+  const relatedOut = related.filter(p => p.id !== id).slice(0, limit).map(p => serializeProduct(p));
+  await attachVariationAggregates(relatedOut);
+  res.json(relatedOut);
 });
 
 router.get("/products/:id", async (req, res): Promise<void> => {
@@ -105,7 +148,10 @@ router.get("/products/:id", async (req, res): Promise<void> => {
   const catRows = await db.select({ categoryId: productCategoriesTable.categoryId })
     .from(productCategoriesTable).where(eq(productCategoriesTable.productId, id));
   const categoryIds = catRows.map(r => r.categoryId);
-  res.json(serializeProduct({ ...product, viewsCount: product.viewsCount + 1 }, { supplierName, categoryIds }));
+  const idOut = serializeProduct({ ...product, viewsCount: product.viewsCount + 1 }, { supplierName, categoryIds });
+  const idArr = [idOut];
+  await attachVariationAggregates(idArr);
+  res.json(idArr[0]);
 });
 
 router.get("/products", async (req, res): Promise<void> => {
@@ -211,8 +257,10 @@ router.get("/products", async (req, res): Promise<void> => {
   const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(productsTable).where(whereClause);
   const products = await db.select().from(productsTable).where(whereClause).orderBy(orderBy).limit(limit).offset(offset);
 
+  const listOut = products.map(p => serializeProduct(p));
+  await attachVariationAggregates(listOut);
   res.json({
-    products: products.map(p => serializeProduct(p)),
+    products: listOut,
     total: count,
     page,
     limit,

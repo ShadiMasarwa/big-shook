@@ -42,7 +42,11 @@ export function ProductCard({ product }: ProductCardProps) {
       .catch(() => toast({ title: "שגיאה בהוספה למועדפים", variant: "destructive" }));
   };
 
-  const hasDiscount = Boolean(product.salePrice);
+  const productAny = product as any;
+  const isVariable = productAny.productType === "variable";
+  const priceRange = productAny.priceRange as { min: number; max: number } | null | undefined;
+  const hasRange = isVariable && priceRange && priceRange.min !== priceRange.max;
+  const hasDiscount = !isVariable && Boolean(product.salePrice);
   const displayPrice = product.salePrice ?? product.price;
 
   return (
@@ -93,8 +97,23 @@ export function ProductCard({ product }: ProductCardProps) {
         <div className="text-sm text-muted-foreground mb-2 flex-1" aria-hidden="true">
           {product.descriptionHe?.substring(0, 60)}...
         </div>
-        <div className="flex items-baseline gap-2 mt-auto" aria-label={hasDiscount ? `מחיר מבצע: ${formatPrice(displayPrice)}, מחיר מקורי: ${formatPrice(product.price)}` : `מחיר: ${formatPrice(product.price)}`}>
-          {hasDiscount ? (
+        <div
+          className="flex items-baseline gap-2 mt-auto"
+          aria-label={
+            hasRange
+              ? `טווח מחירים: ${formatPrice(priceRange!.min)} עד ${formatPrice(priceRange!.max)}`
+              : hasDiscount
+              ? `מחיר מבצע: ${formatPrice(displayPrice)}, מחיר מקורי: ${formatPrice(product.price)}`
+              : `מחיר: ${formatPrice(product.price)}`
+          }
+        >
+          {hasRange ? (
+            <span className="text-xl font-bold" aria-hidden="true" dir="ltr">
+              {formatPrice(priceRange!.min)} - {formatPrice(priceRange!.max)}
+            </span>
+          ) : isVariable && priceRange ? (
+            <span className="text-xl font-bold" aria-hidden="true">{formatPrice(priceRange.min)}</span>
+          ) : hasDiscount ? (
             <>
               <span className="text-xl font-bold text-destructive" aria-hidden="true">{formatPrice(displayPrice)}</span>
               <span className="text-sm text-muted-foreground line-through" aria-hidden="true">{formatPrice(product.price)}</span>

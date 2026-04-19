@@ -157,14 +157,24 @@ export default function ProductDetail() {
     !isVariable ||
     productAttributes.every((a) => selectedAttrs[a.name]);
 
+  const priceRange = (product as any)?.priceRange as
+    | { min: number; max: number }
+    | null
+    | undefined;
+  const showRange =
+    isVariable && !matchedVariation && priceRange && priceRange.min !== priceRange.max;
   const displayPrice = matchedVariation
     ? (matchedVariation.salePrice ?? matchedVariation.price)
+    : isVariable
+    ? (priceRange?.min ?? 0)
     : (product?.salePrice ?? product?.price ?? 0);
   const displayOriginalPrice = matchedVariation
     ? (matchedVariation.salePrice ? matchedVariation.price : null)
-    : (product?.salePrice ? product?.price : null);
+    : (!isVariable && product?.salePrice ? product?.price : null);
   const displayStock = isVariable
-    ? (matchedVariation?.stockQuantity ?? 0)
+    ? matchedVariation
+      ? matchedVariation.stockQuantity
+      : (product as any)?.totalStock ?? 0
     : (product?.stockQuantity ?? 0);
 
   const [quantity, setQuantity] = useState(1);
@@ -467,7 +477,13 @@ export default function ProductDetail() {
             </div>
 
             <div className="text-4xl font-black text-primary mb-6 flex items-baseline gap-3">
-              <span>{formatPrice(displayPrice)}</span>
+              {showRange ? (
+                <span dir="ltr">
+                  {formatPrice(priceRange!.min)} - {formatPrice(priceRange!.max)}
+                </span>
+              ) : (
+                <span>{formatPrice(displayPrice)}</span>
+              )}
               {displayOriginalPrice && (
                 <span className="text-2xl text-muted-foreground line-through font-medium">
                   {formatPrice(displayOriginalPrice)}
