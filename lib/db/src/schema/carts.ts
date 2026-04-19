@@ -5,6 +5,7 @@ import {
   integer,
   timestamp,
   numeric,
+  jsonb,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
@@ -15,6 +16,8 @@ export const cartItemsTable = pgTable("cart_items", {
   sessionId: text("session_id").notNull(),
   userId: integer("user_id"),
   productId: integer("product_id").notNull(),
+  variationId: integer("variation_id"),
+  variationAttributes: jsonb("variation_attributes").notNull().default({}),
   quantity: integer("quantity").notNull().default(1),
   price: numeric("price", { precision: 10, scale: 2 }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

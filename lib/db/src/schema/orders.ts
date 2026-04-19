@@ -41,6 +41,8 @@ export const orderItemsTable = pgTable("order_items", {
   id: serial("id").primaryKey(),
   orderId: integer("order_id").notNull(),
   productId: integer("product_id").notNull(),
+  variationId: integer("variation_id"),
+  variationAttributes: jsonb("variation_attributes").notNull().default({}),
   productName: text("product_name").notNull(),
   productSku: text("product_sku"),
   quantity: integer("quantity").notNull(),

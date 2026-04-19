@@ -113,6 +113,60 @@ export default function ProductDetail() {
     enabled: !!productId,
   });
 
+  type Variation = {
+    id: number;
+    sku: string | null;
+    price: number;
+    salePrice: number | null;
+    stockQuantity: number;
+    image: string | null;
+    attributes: Record<string, string>;
+    isActive: boolean;
+  };
+  const isVariable = (product as any)?.productType === "variable";
+  const productAttributes: Array<{ name: string; values: string[] }> =
+    (product as any)?.attributes ?? [];
+
+  const { data: variations = [] } = useQuery<Variation[]>({
+    queryKey: ["product-variations", productId],
+    queryFn: async () => {
+      const res = await fetch(`/api/products/${productId}/variations`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!productId && isVariable,
+  });
+
+  const [selectedAttrs, setSelectedAttrs] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    setSelectedAttrs({});
+  }, [productId]);
+
+  const matchedVariation: Variation | null = isVariable
+    ? variations.find(
+        (v) =>
+          v.isActive &&
+          productAttributes.every(
+            (a) => selectedAttrs[a.name] && v.attributes[a.name] === selectedAttrs[a.name],
+          ),
+      ) ?? null
+    : null;
+
+  const allAttrsSelected =
+    !isVariable ||
+    productAttributes.every((a) => selectedAttrs[a.name]);
+
+  const displayPrice = matchedVariation
+    ? (matchedVariation.salePrice ?? matchedVariation.price)
+    : (product?.salePrice ?? product?.price ?? 0);
+  const displayOriginalPrice = matchedVariation
+    ? (matchedVariation.salePrice ? matchedVariation.price : null)
+    : (product?.salePrice ? product?.price : null);
+  const displayStock = isVariable
+    ? (matchedVariation?.stockQuantity ?? 0)
+    : (product?.stockQuantity ?? 0);
+
   const [quantity, setQuantity] = useState(1);
   const [activeIndex, setActiveIndex] = useState(0);
   const [direction, setDirection] = useState(0);
@@ -151,8 +205,22 @@ export default function ProductDetail() {
 
   const handleAddToCart = async () => {
     if (!product) return;
+    if (isVariable) {
+      if (!allAttrsSelected) {
+        toast({ title: "יש לבחור את כל האפשרויות", variant: "destructive" });
+        return;
+      }
+      if (!matchedVariation) {
+        toast({ title: "השילוב שנבחר אינו זמין", variant: "destructive" });
+        return;
+      }
+    }
     try {
-      await addToCart({ productId: product.id, quantity });
+      await addToCart({
+        productId: product.id,
+        quantity,
+        ...(matchedVariation ? { variationId: matchedVariation.id } : {}),
+      } as any);
       toast({
         title: "המוצר נוסף לעגלה בהצלחה",
         action: (
@@ -399,22 +467,79 @@ export default function ProductDetail() {
             </div>
 
             <div className="text-4xl font-black text-primary mb-6 flex items-baseline gap-3">
-              {product.salePrice ? (
-                <>
-                  <span>{formatPrice(product.salePrice)}</span>
-                  <span className="text-2xl text-muted-foreground line-through font-medium">
-                    {formatPrice(product.price)}
-                  </span>
-                </>
-              ) : (
-                <span>{formatPrice(product.price)}</span>
+              <span>{formatPrice(displayPrice)}</span>
+              {displayOriginalPrice && (
+                <span className="text-2xl text-muted-foreground line-through font-medium">
+                  {formatPrice(displayOriginalPrice)}
+                </span>
               )}
             </div>
+
+            {isVariable && productAttributes.length > 0 && (
+              <div className="bg-background border border-border rounded-xl p-4 mb-6 space-y-4">
+                {productAttributes.map((attr) => {
+                  const otherSelected = Object.fromEntries(
+                    Object.entries(selectedAttrs).filter(([k]) => k !== attr.name),
+                  );
+                  const availableValues = new Set(
+                    variations
+                      .filter(
+                        (v) =>
+                          v.isActive &&
+                          v.stockQuantity > 0 &&
+                          Object.entries(otherSelected).every(
+                            ([k, val]) => v.attributes[k] === val,
+                          ),
+                      )
+                      .map((v) => v.attributes[attr.name]),
+                  );
+                  return (
+                    <div key={attr.name}>
+                      <div className="text-sm font-bold mb-2">{attr.name}</div>
+                      <div className="flex flex-wrap gap-2">
+                        {attr.values.map((val) => {
+                          const selected = selectedAttrs[attr.name] === val;
+                          const available = availableValues.has(val);
+                          return (
+                            <button
+                              key={val}
+                              type="button"
+                              onClick={() =>
+                                setSelectedAttrs((prev) =>
+                                  prev[attr.name] === val
+                                    ? { ...prev, [attr.name]: "" }
+                                    : { ...prev, [attr.name]: val },
+                                )
+                              }
+                              className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                                selected
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : available
+                                    ? "border-border bg-background hover:border-primary"
+                                    : "border-border/50 bg-muted text-muted-foreground line-through cursor-not-allowed opacity-60"
+                              }`}
+                              disabled={!available && !selected}
+                              aria-pressed={selected}
+                            >
+                              {val}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             <div className="bg-muted p-6 rounded-xl mb-8 space-y-4 border border-border">
               <div className="flex items-center justify-between">
                 <span className="font-bold">זמינות:</span>
-                {product.stockQuantity > 0 ? (
+                {isVariable && !allAttrsSelected ? (
+                  <span className="text-muted-foreground font-medium">
+                    יש לבחור אפשרויות
+                  </span>
+                ) : displayStock > 0 ? (
                   <span className="text-green-600 flex items-center gap-1 font-medium">
                     <Check className="h-4 w-4" /> במלאי (זמין למשלוח מיידי)
                   </span>
@@ -444,7 +569,7 @@ export default function ProductDetail() {
                       className="px-3 py-2 text-xl hover:text-primary transition-colors"
                       onClick={() =>
                         setQuantity(
-                          Math.min(product.stockQuantity, quantity + 1),
+                          Math.min(displayStock || 1, quantity + 1),
                         )
                       }
                     >
@@ -455,7 +580,9 @@ export default function ProductDetail() {
                 <Button
                   size="lg"
                   className="flex-1 text-lg font-bold h-[42px]"
-                  disabled={product.stockQuantity <= 0}
+                  disabled={
+                    displayStock <= 0 || (isVariable && !allAttrsSelected)
+                  }
                   onClick={handleAddToCart}
                 >
                   <ShoppingCart className="ml-2 h-5 w-5" />

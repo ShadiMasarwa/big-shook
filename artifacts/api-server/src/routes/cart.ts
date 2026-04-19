@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, sql } from "drizzle-orm";
-import { db, cartItemsTable, cartCouponsTable, cartLoyaltyTable, productsTable, couponsTable, couponUsagesTable, loyaltyRulesTable, usersTable } from "@workspace/db";
+import { db, cartItemsTable, cartCouponsTable, cartLoyaltyTable, productsTable, productVariationsTable, couponsTable, couponUsagesTable, loyaltyRulesTable, usersTable } from "@workspace/db";
 import { getShekelPerPointForTier } from "./loyalty.js";
 
 const router: IRouter = Router();
@@ -55,10 +55,25 @@ async function buildCart(sessionId: string, callerUserId?: number | null) {
   }
 
   const productMap = new Map(products.map(p => [p.id, p]));
+
+  const variationIds = items.map(i => i.variationId).filter((v): v is number => v != null);
+  let variations: typeof productVariationsTable.$inferSelect[] = [];
+  if (variationIds.length > 0) {
+    variations = await db.select().from(productVariationsTable).where(
+      sql`${productVariationsTable.id} = ANY(ARRAY[${sql.join(variationIds.map(id => sql`${id}`), sql`, `)}]::int[])`
+    );
+  }
+  const variationMap = new Map(variations.map(v => [v.id, v]));
+
   const cartItems = items.map(item => {
     const product = productMap.get(item.productId);
+    const variation = item.variationId ? variationMap.get(item.variationId) ?? null : null;
     return {
       productId: item.productId,
+      variationId: item.variationId,
+      variationAttributes: (item.variationAttributes ?? {}) as Record<string, string>,
+      variationImage: variation?.image ?? null,
+      variationSku: variation?.sku ?? null,
       product: product ? serializeProduct(product) : null,
       quantity: item.quantity,
       price: parseFloat(item.price),
@@ -66,6 +81,10 @@ async function buildCart(sessionId: string, callerUserId?: number | null) {
     };
   }).filter(i => i.product !== null) as {
     productId: number;
+    variationId: number | null;
+    variationAttributes: Record<string, string>;
+    variationImage: string | null;
+    variationSku: string | null;
     product: ReturnType<typeof serializeProduct>;
     quantity: number;
     price: number;
@@ -273,7 +292,7 @@ router.get("/cart", async (req, res): Promise<void> => {
 router.post("/cart/items", async (req, res): Promise<void> => {
   const sessionId = getSessionId(req as Parameters<typeof getSessionId>[0]);
   const userId = getUserId(req as Parameters<typeof getUserId>[0]);
-  const { productId, quantity } = req.body;
+  const { productId, quantity, variationId } = req.body;
   if (!productId || !quantity) {
     res.status(400).json({ error: "productId and quantity are required" });
     return;
@@ -283,17 +302,58 @@ router.post("/cart/items", async (req, res): Promise<void> => {
     res.status(404).json({ error: "מוצר לא נמצא" });
     return;
   }
-  const [existing] = await db.select().from(cartItemsTable)
-    .where(and(eq(cartItemsTable.sessionId, sessionId), eq(cartItemsTable.productId, productId)));
 
-  const effectivePrice = product.salePrice ?? product.price;
+  let effectivePrice: string;
+  let resolvedVariationId: number | null = null;
+  let variationAttributes: Record<string, string> = {};
+
+  if (product.productType === "variable") {
+    if (!variationId) {
+      res.status(400).json({ error: "יש לבחור וריאציה" });
+      return;
+    }
+    const [variation] = await db.select().from(productVariationsTable)
+      .where(and(eq(productVariationsTable.id, variationId), eq(productVariationsTable.productId, productId)));
+    if (!variation || !variation.isActive) {
+      res.status(404).json({ error: "וריאציה לא נמצאה" });
+      return;
+    }
+    if (variation.stockQuantity < quantity) {
+      res.status(400).json({ error: "המלאי לא מספיק" });
+      return;
+    }
+    effectivePrice = variation.salePrice ?? variation.price;
+    resolvedVariationId = variation.id;
+    variationAttributes = (variation.attributes ?? {}) as Record<string, string>;
+  } else {
+    effectivePrice = product.salePrice ?? product.price;
+  }
+
+  const matchConds = [
+    eq(cartItemsTable.sessionId, sessionId),
+    eq(cartItemsTable.productId, productId),
+  ];
+  if (resolvedVariationId != null) {
+    matchConds.push(eq(cartItemsTable.variationId, resolvedVariationId));
+  } else {
+    matchConds.push(sql`${cartItemsTable.variationId} IS NULL`);
+  }
+  const [existing] = await db.select().from(cartItemsTable).where(and(...matchConds));
 
   if (existing) {
     await db.update(cartItemsTable)
       .set({ quantity: existing.quantity + quantity, ...(userId ? { userId } : {}) })
       .where(eq(cartItemsTable.id, existing.id));
   } else {
-    await db.insert(cartItemsTable).values({ sessionId, productId, quantity, price: effectivePrice, ...(userId ? { userId } : {}) });
+    await db.insert(cartItemsTable).values({
+      sessionId,
+      productId,
+      variationId: resolvedVariationId,
+      variationAttributes,
+      quantity,
+      price: effectivePrice,
+      ...(userId ? { userId } : {}),
+    });
   }
   const cart = await buildCart(sessionId, userId);
   res.json(cart);
@@ -304,11 +364,14 @@ router.patch("/cart/items/:productId", async (req, res): Promise<void> => {
   const userId = getUserId(req as Parameters<typeof getUserId>[0]);
   const raw = Array.isArray(req.params.productId) ? req.params.productId[0] : req.params.productId;
   const productId = parseInt(raw, 10);
-  const { quantity } = req.body;
+  const { quantity, variationId } = req.body;
+  const variationCond = variationId != null
+    ? eq(cartItemsTable.variationId, Number(variationId))
+    : sql`${cartItemsTable.variationId} IS NULL`;
   if (quantity <= 0) {
-    await db.delete(cartItemsTable).where(and(eq(cartItemsTable.sessionId, sessionId), eq(cartItemsTable.productId, productId)));
+    await db.delete(cartItemsTable).where(and(eq(cartItemsTable.sessionId, sessionId), eq(cartItemsTable.productId, productId), variationCond));
   } else {
-    await db.update(cartItemsTable).set({ quantity }).where(and(eq(cartItemsTable.sessionId, sessionId), eq(cartItemsTable.productId, productId)));
+    await db.update(cartItemsTable).set({ quantity }).where(and(eq(cartItemsTable.sessionId, sessionId), eq(cartItemsTable.productId, productId), variationCond));
   }
   const remaining = await db.select().from(cartItemsTable).where(eq(cartItemsTable.sessionId, sessionId));
   if (remaining.length === 0) {
@@ -328,7 +391,11 @@ router.delete("/cart/items/:productId", async (req, res): Promise<void> => {
   const userId = getUserId(req as Parameters<typeof getUserId>[0]);
   const raw = Array.isArray(req.params.productId) ? req.params.productId[0] : req.params.productId;
   const productId = parseInt(raw, 10);
-  await db.delete(cartItemsTable).where(and(eq(cartItemsTable.sessionId, sessionId), eq(cartItemsTable.productId, productId)));
+  const variationIdRaw = req.query.variationId ?? req.body?.variationId;
+  const variationCond = variationIdRaw != null && variationIdRaw !== ""
+    ? eq(cartItemsTable.variationId, Number(variationIdRaw))
+    : sql`${cartItemsTable.variationId} IS NULL`;
+  await db.delete(cartItemsTable).where(and(eq(cartItemsTable.sessionId, sessionId), eq(cartItemsTable.productId, productId), variationCond));
   const remaining = await db.select().from(cartItemsTable).where(eq(cartItemsTable.sessionId, sessionId));
   if (remaining.length === 0) {
     await db.delete(cartCouponsTable).where(eq(cartCouponsTable.sessionId, sessionId));

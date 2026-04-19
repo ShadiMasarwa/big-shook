@@ -325,7 +325,7 @@ router.post("/products", async (req, res): Promise<void> => {
     nameHe, nameEn, slug, descriptionHe, sku, price, salePrice, costPrice,
     categoryId, categoryIds, brandId, supplierId, images, videos, tags, specs,
     stockQuantity, isActive, isFeatured, weight, metaTitle, metaDescription,
-    deliveryCost,
+    deliveryCost, productType, attributes,
   } = req.body;
   if (!nameHe || !slug || price === undefined || price === null) {
     res.status(400).json({ error: "nameHe, slug and price are required" });
@@ -349,6 +349,8 @@ router.post("/products", async (req, res): Promise<void> => {
     isFeatured: isFeatured ?? false, weight: weight != null ? String(weight) : null,
     metaTitle: metaTitle ?? null, metaDescription: metaDescription ?? null,
     deliveryCost: deliveryCost != null && deliveryCost !== 0 ? String(deliveryCost) : null,
+    productType: productType === "variable" ? "variable" : "simple",
+    attributes: Array.isArray(attributes) ? attributes : [],
   }).returning();
 
   await syncProductCategories(product.id, resolvedCategoryIds);
@@ -363,7 +365,8 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
   const body = req.body;
   const updateData: Record<string, unknown> = {};
   const fields = ["nameHe", "nameEn", "slug", "descriptionHe", "sku", "brandId", "supplierId",
-    "images", "videos", "tags", "specs", "stockQuantity", "isActive", "isFeatured", "weight", "metaTitle", "metaDescription"];
+    "images", "videos", "tags", "specs", "stockQuantity", "isActive", "isFeatured", "weight", "metaTitle", "metaDescription",
+    "productType", "attributes"];
   for (const f of fields) {
     if (body[f] !== undefined) updateData[f] = body[f];
   }

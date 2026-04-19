@@ -256,6 +256,13 @@ export default function Cart() {
                   <Link href={`/product/${item.productId}`} className="font-bold hover:text-primary transition-colors line-clamp-2">
                     {item.product.nameHe}
                   </Link>
+                  {item.variationAttributes && Object.keys(item.variationAttributes).length > 0 && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {Object.entries(item.variationAttributes)
+                        .map(([k, v]) => `${k}: ${v}`)
+                        .join(" · ")}
+                    </p>
+                  )}
                   <p className="text-sm text-muted-foreground mt-1">{formatPrice(item.price)}</p>
                 </div>
               </div>

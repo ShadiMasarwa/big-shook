@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
-import { db, ordersTable, orderItemsTable, cartItemsTable, cartCouponsTable, productsTable, usersTable, loyaltyTransactionsTable, couponsTable, couponUsagesTable, suppliersTable } from "@workspace/db";
+import { db, ordersTable, orderItemsTable, cartItemsTable, cartCouponsTable, productsTable, productVariationsTable, usersTable, loyaltyTransactionsTable, couponsTable, couponUsagesTable, suppliersTable } from "@workspace/db";
 import { getSessionId, getUserId, buildCart } from "./cart.js";
 import { getTierBySpent } from "./loyalty.js";
 import nodemailer from "nodemailer";
@@ -312,21 +312,36 @@ router.post("/orders", async (req, res): Promise<void> => {
   const cartItems = await db.select().from(cartItemsTable).where(eq(cartItemsTable.sessionId, sessionId));
 
   // ── Stock check before charging ──────────────────────────────────────────
-  {
-    const productIds = cartItems.map(i => i.productId);
-    const stockRows = productIds.length > 0
-      ? await db.select({ id: productsTable.id, nameHe: productsTable.nameHe, stockQuantity: productsTable.stockQuantity })
-          .from(productsTable)
-          .where(sql`${productsTable.id} = ANY(ARRAY[${sql.join(productIds.map(id => sql`${id}`), sql`, `)}]::int[])`)
-      : [];
-    const stockMap = new Map(stockRows.map(p => [p.id, p]));
+  const productIds = cartItems.map(i => i.productId);
+  const stockRows = productIds.length > 0
+    ? await db.select({ id: productsTable.id, nameHe: productsTable.nameHe, stockQuantity: productsTable.stockQuantity, productType: productsTable.productType })
+        .from(productsTable)
+        .where(sql`${productsTable.id} = ANY(ARRAY[${sql.join(productIds.map(id => sql`${id}`), sql`, `)}]::int[])`)
+    : [];
+  const stockMap = new Map(stockRows.map(p => [p.id, p]));
 
+  const variationIds = cartItems.map(i => i.variationId).filter((v): v is number => v != null);
+  const variationStockRows = variationIds.length > 0
+    ? await db.select().from(productVariationsTable)
+        .where(sql`${productVariationsTable.id} = ANY(ARRAY[${sql.join(variationIds.map(id => sql`${id}`), sql`, `)}]::int[])`)
+    : [];
+  const variationStockMap = new Map(variationStockRows.map(v => [v.id, v]));
+
+  {
     const outOfStock: { productId: number; productName: string; requested: number; available: number }[] = [];
     for (const item of cartItems) {
       const p = stockMap.get(item.productId);
-      const available = p?.stockQuantity ?? 0;
-      if (available < item.quantity) {
-        outOfStock.push({ productId: item.productId, productName: p?.nameHe ?? "מוצר", requested: item.quantity, available });
+      if (item.variationId != null) {
+        const v = variationStockMap.get(item.variationId);
+        const available = v?.stockQuantity ?? 0;
+        if (available < item.quantity) {
+          outOfStock.push({ productId: item.productId, productName: p?.nameHe ?? "מוצר", requested: item.quantity, available });
+        }
+      } else {
+        const available = p?.stockQuantity ?? 0;
+        if (available < item.quantity) {
+          outOfStock.push({ productId: item.productId, productName: p?.nameHe ?? "מוצר", requested: item.quantity, available });
+        }
       }
     }
     if (outOfStock.length > 0) {
@@ -358,7 +373,6 @@ router.post("/orders", async (req, res): Promise<void> => {
   }).returning();
 
   // Insert order items
-  const productIds = cartItems.map(i => i.productId);
   const products = productIds.length > 0
     ? await db.select().from(productsTable).where(
         sql`${productsTable.id} = ANY(ARRAY[${sql.join(productIds.map(id => sql`${id}`), sql`, `)}]::int[])`
@@ -366,29 +380,56 @@ router.post("/orders", async (req, res): Promise<void> => {
     : [];
   const productMap = new Map(products.map(p => [p.id, p]));
 
+  function buildAttrLabel(attrs: Record<string, string>) {
+    return Object.entries(attrs).map(([k, v]) => `${k}: ${v}`).join(", ");
+  }
+
   await Promise.all(cartItems.map(async (item) => {
     const p = productMap.get(item.productId);
     if (!p) return;
-    const price = parseFloat(p.salePrice ?? p.price);
+    const variation = item.variationId != null ? variationStockMap.get(item.variationId) : null;
+    const itemAttrs = (item.variationAttributes ?? {}) as Record<string, string>;
+    const price = variation
+      ? parseFloat(variation.salePrice ?? variation.price)
+      : parseFloat(p.salePrice ?? p.price);
+    const productName = variation && Object.keys(itemAttrs).length > 0
+      ? `${p.nameHe} – ${buildAttrLabel(itemAttrs)}`
+      : p.nameHe;
     await db.insert(orderItemsTable).values({
-      orderId: order.id, productId: item.productId,
-      productName: p.nameHe, productSku: p.sku ?? null,
+      orderId: order.id,
+      productId: item.productId,
+      variationId: variation?.id ?? null,
+      variationAttributes: itemAttrs,
+      productName,
+      productSku: variation?.sku ?? p.sku ?? null,
       quantity: item.quantity, price: String(price),
       subtotal: String(price * item.quantity),
-      costPrice: String(parseFloat(p.costPrice ?? "0")),
+      costPrice: String(parseFloat((variation?.costPrice ?? p.costPrice) ?? "0")),
       deliveryCost: String(parseFloat(p.deliveryCost ?? "0")),
       itemStatus: "pending",
     });
   }));
 
-  // Update product sales counts and deduct stock
-  await Promise.all(cartItems.map(item => {
+  // Update product sales counts and deduct stock (variation stock for variable products)
+  await Promise.all(cartItems.map(async (item) => {
     const p = productMap.get(item.productId);
-    if (!p) return Promise.resolve();
-    return db.update(productsTable).set({
-      salesCount: p.salesCount + item.quantity,
-      stockQuantity: Math.max(0, p.stockQuantity - item.quantity),
-    }).where(eq(productsTable.id, item.productId));
+    if (!p) return;
+    if (item.variationId != null) {
+      const v = variationStockMap.get(item.variationId);
+      if (v) {
+        await db.update(productVariationsTable).set({
+          stockQuantity: Math.max(0, v.stockQuantity - item.quantity),
+        }).where(eq(productVariationsTable.id, item.variationId));
+      }
+      await db.update(productsTable).set({
+        salesCount: p.salesCount + item.quantity,
+      }).where(eq(productsTable.id, item.productId));
+    } else {
+      await db.update(productsTable).set({
+        salesCount: p.salesCount + item.quantity,
+        stockQuantity: Math.max(0, p.stockQuantity - item.quantity),
+      }).where(eq(productsTable.id, item.productId));
+    }
   }));
 
   // Clear cart

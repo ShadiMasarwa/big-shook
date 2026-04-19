@@ -79,7 +79,24 @@ export default function AdminProductForm() {
     isFeatured: false,
     images: [] as string[],
     videos: [] as string[],
+    productType: "simple" as "simple" | "variable",
+    attributes: [] as Array<{ name: string; values: string[] }>,
   });
+
+  type VariationDraft = {
+    id?: number;
+    sku: string;
+    price: number;
+    salePrice: number | "";
+    costPrice: number | "";
+    stockQuantity: number;
+    image: string | null;
+    attributes: Record<string, string>;
+    isActive: boolean;
+  };
+  const [variations, setVariations] = useState<VariationDraft[]>([]);
+  const [newAttrName, setNewAttrName] = useState("");
+  const [newAttrValues, setNewAttrValues] = useState<Record<string, string>>({});
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
   const [videoPickerOpen, setVideoPickerOpen] = useState(false);
   const dragIndexRef = useRef<number | null>(null);
@@ -121,6 +138,8 @@ export default function AdminProductForm() {
         isFeatured: product.isFeatured,
         images: product.images || [],
         videos: productAny.videos || [],
+        productType: productAny.productType === "variable" ? "variable" : "simple",
+        attributes: Array.isArray(productAny.attributes) ? productAny.attributes : [],
       });
       setTags(product.tags || []);
       const specsObj = (product.specs as Record<string, string>) || {};
@@ -238,20 +257,149 @@ export default function AdminProductForm() {
       videos: formData.videos,
       tags,
       specs: specsObj,
+      productType: formData.productType,
+      attributes: formData.attributes,
     };
 
     try {
+      let savedProduct: any;
       if (isEditing) {
-        await updateMutation.mutateAsync({ id: productId, data: payload });
-        toast({ title: "המוצר עודכן בהצלחה" });
+        savedProduct = await updateMutation.mutateAsync({ id: productId, data: payload });
       } else {
-        await createMutation.mutateAsync({ data: payload });
-        toast({ title: "המוצר נוצר בהצלחה" });
+        savedProduct = await createMutation.mutateAsync({ data: payload });
       }
+      const targetId = (savedProduct as any)?.id ?? productId;
+      if (formData.productType === "variable" && targetId) {
+        await fetch(`/api/products/${targetId}/variations/bulk`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeaders() },
+          body: JSON.stringify({
+            variations: variations.map((v, idx) => ({
+              sku: v.sku || null,
+              price: v.price,
+              salePrice: v.salePrice === "" ? null : v.salePrice,
+              costPrice: v.costPrice === "" ? null : v.costPrice,
+              stockQuantity: v.stockQuantity,
+              image: v.image,
+              attributes: v.attributes,
+              isActive: v.isActive,
+              sortOrder: idx,
+            })),
+          }),
+        });
+      }
+      toast({ title: isEditing ? "המוצר עודכן בהצלחה" : "המוצר נוצר בהצלחה" });
       setLocation("/admin/products");
     } catch (err) {
       toast({ title: "שגיאה בשמירת המוצר", variant: "destructive" });
     }
+  };
+
+  function authHeaders(): Record<string, string> {
+    const token = typeof window !== "undefined" ? localStorage.getItem("manager_token") : null;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
+  // Load existing variations when editing
+  useEffect(() => {
+    if (!isEditing || !productId) return;
+    (async () => {
+      const res = await fetch(`/api/products/${productId}/variations`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setVariations(
+        (data as any[]).map((v) => ({
+          id: v.id,
+          sku: v.sku ?? "",
+          price: v.price,
+          salePrice: v.salePrice ?? "",
+          costPrice: v.costPrice ?? "",
+          stockQuantity: v.stockQuantity,
+          image: v.image,
+          attributes: v.attributes ?? {},
+          isActive: v.isActive,
+        })),
+      );
+    })();
+  }, [isEditing, productId]);
+
+  // Generate cartesian product of all attribute combinations
+  const generateAllVariations = () => {
+    if (formData.attributes.length === 0) return;
+    const attrs = formData.attributes.filter((a) => a.values.length > 0);
+    if (attrs.length === 0) return;
+    const combos: Record<string, string>[] = [{}];
+    for (const attr of attrs) {
+      const next: Record<string, string>[] = [];
+      for (const c of combos) {
+        for (const v of attr.values) {
+          next.push({ ...c, [attr.name]: v });
+        }
+      }
+      combos.length = 0;
+      combos.push(...next);
+    }
+    setVariations((prev) => {
+      const existingByKey = new Map(
+        prev.map((v) => [JSON.stringify(v.attributes), v]),
+      );
+      return combos.map((attrs) => {
+        const key = JSON.stringify(attrs);
+        const existing = existingByKey.get(key);
+        if (existing) return existing;
+        return {
+          sku: "",
+          price: formData.price || 0,
+          salePrice: "" as const,
+          costPrice: "" as const,
+          stockQuantity: 0,
+          image: null,
+          attributes: attrs,
+          isActive: true,
+        };
+      });
+    });
+  };
+
+  const addAttribute = () => {
+    const name = newAttrName.trim();
+    if (!name) return;
+    if (formData.attributes.some((a) => a.name === name)) return;
+    setFormData({
+      ...formData,
+      attributes: [...formData.attributes, { name, values: [] }],
+    });
+    setNewAttrName("");
+  };
+
+  const removeAttribute = (name: string) => {
+    setFormData({
+      ...formData,
+      attributes: formData.attributes.filter((a) => a.name !== name),
+    });
+  };
+
+  const addAttributeValue = (attrName: string) => {
+    const val = (newAttrValues[attrName] ?? "").trim();
+    if (!val) return;
+    setFormData({
+      ...formData,
+      attributes: formData.attributes.map((a) =>
+        a.name === attrName && !a.values.includes(val)
+          ? { ...a, values: [...a.values, val] }
+          : a,
+      ),
+    });
+    setNewAttrValues({ ...newAttrValues, [attrName]: "" });
+  };
+
+  const removeAttributeValue = (attrName: string, val: string) => {
+    setFormData({
+      ...formData,
+      attributes: formData.attributes.map((a) =>
+        a.name === attrName ? { ...a, values: a.values.filter((v) => v !== val) } : a,
+      ),
+    });
   };
 
   if (isEditing && isLoadingProduct)
@@ -559,6 +707,254 @@ export default function AdminProductForm() {
             </div>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>סוג מוצר</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-6">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="productType"
+                  value="simple"
+                  checked={formData.productType === "simple"}
+                  onChange={() => setFormData({ ...formData, productType: "simple" })}
+                />
+                <span className="font-medium">מוצר רגיל</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="productType"
+                  value="variable"
+                  checked={formData.productType === "variable"}
+                  onChange={() => setFormData({ ...formData, productType: "variable" })}
+                />
+                <span className="font-medium">מוצר עם וריאציות</span>
+              </label>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              מוצר עם וריאציות מאפשר ללקוח לבחור מאפיינים (כגון צבע, מידה) לפני הוספה לעגלה.
+            </p>
+          </CardContent>
+        </Card>
+
+        {formData.productType === "variable" && (
+          <Card>
+            <CardHeader>
+              <CardTitle>מאפיינים ווריאציות</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div>
+                <Label className="mb-2 block">הוסף מאפיין (כגון צבע, מידה)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={newAttrName}
+                    onChange={(e) => setNewAttrName(e.target.value)}
+                    placeholder="שם המאפיין"
+                  />
+                  <Button type="button" variant="secondary" onClick={addAttribute}>
+                    הוסף מאפיין
+                  </Button>
+                </div>
+              </div>
+
+              {formData.attributes.length > 0 && (
+                <div className="space-y-3">
+                  {formData.attributes.map((attr) => (
+                    <div key={attr.name} className="border border-border rounded-lg p-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="font-bold">{attr.name}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive"
+                          onClick={() => removeAttribute(attr.name)}
+                        >
+                          הסר מאפיין
+                        </Button>
+                      </div>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {attr.values.map((v) => (
+                          <span
+                            key={v}
+                            className="inline-flex items-center gap-1 px-3 py-1 bg-muted rounded-full text-sm"
+                          >
+                            {v}
+                            <button
+                              type="button"
+                              onClick={() => removeAttributeValue(attr.name, v)}
+                              className="text-muted-foreground hover:text-destructive"
+                              aria-label={`הסר ${v}`}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <Input
+                          value={newAttrValues[attr.name] ?? ""}
+                          onChange={(e) =>
+                            setNewAttrValues({ ...newAttrValues, [attr.name]: e.target.value })
+                          }
+                          placeholder="ערך חדש"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              addAttributeValue(attr.name);
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => addAttributeValue(attr.name)}
+                        >
+                          הוסף ערך
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex justify-between items-center pt-4 border-t border-border">
+                <span className="font-bold">וריאציות ({variations.length})</span>
+                <Button type="button" variant="default" onClick={generateAllVariations}>
+                  צור את כל הצירופים
+                </Button>
+              </div>
+
+              {variations.length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="bg-muted text-right">
+                        <th className="p-2 border border-border">מאפיינים</th>
+                        <th className="p-2 border border-border">SKU</th>
+                        <th className="p-2 border border-border">מחיר</th>
+                        <th className="p-2 border border-border">מבצע</th>
+                        <th className="p-2 border border-border">עלות</th>
+                        <th className="p-2 border border-border">מלאי</th>
+                        <th className="p-2 border border-border">פעיל</th>
+                        <th className="p-2 border border-border"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {variations.map((v, idx) => (
+                        <tr key={idx}>
+                          <td className="p-2 border border-border whitespace-nowrap">
+                            {Object.entries(v.attributes)
+                              .map(([k, val]) => `${k}: ${val}`)
+                              .join(" · ")}
+                          </td>
+                          <td className="p-2 border border-border">
+                            <Input
+                              value={v.sku}
+                              onChange={(e) => {
+                                const next = [...variations];
+                                next[idx] = { ...v, sku: e.target.value };
+                                setVariations(next);
+                              }}
+                              className="h-8"
+                            />
+                          </td>
+                          <td className="p-2 border border-border">
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={v.price}
+                              onChange={(e) => {
+                                const next = [...variations];
+                                next[idx] = { ...v, price: Number(e.target.value) };
+                                setVariations(next);
+                              }}
+                              className="h-8 w-24"
+                            />
+                          </td>
+                          <td className="p-2 border border-border">
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={v.salePrice}
+                              onChange={(e) => {
+                                const next = [...variations];
+                                next[idx] = {
+                                  ...v,
+                                  salePrice: e.target.value === "" ? "" : Number(e.target.value),
+                                };
+                                setVariations(next);
+                              }}
+                              className="h-8 w-24"
+                            />
+                          </td>
+                          <td className="p-2 border border-border">
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={v.costPrice}
+                              onChange={(e) => {
+                                const next = [...variations];
+                                next[idx] = {
+                                  ...v,
+                                  costPrice: e.target.value === "" ? "" : Number(e.target.value),
+                                };
+                                setVariations(next);
+                              }}
+                              className="h-8 w-24"
+                            />
+                          </td>
+                          <td className="p-2 border border-border">
+                            <Input
+                              type="number"
+                              min="0"
+                              value={v.stockQuantity}
+                              onChange={(e) => {
+                                const next = [...variations];
+                                next[idx] = { ...v, stockQuantity: Number(e.target.value) };
+                                setVariations(next);
+                              }}
+                              className="h-8 w-20"
+                            />
+                          </td>
+                          <td className="p-2 border border-border text-center">
+                            <input
+                              type="checkbox"
+                              checked={v.isActive}
+                              onChange={(e) => {
+                                const next = [...variations];
+                                next[idx] = { ...v, isActive: e.target.checked };
+                                setVariations(next);
+                              }}
+                            />
+                          </td>
+                          <td className="p-2 border border-border text-center">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive"
+                              onClick={() => setVariations(variations.filter((_, i) => i !== idx))}
+                            >
+                              ×
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>

@@ -1,0 +1,179 @@
+Upgrade my online store to support product variations exactly like WooCommerce variable products.
+
+Project context:
+- This is a multi-category online store built in Replit.
+- Products can belong to one or more child categories.
+- A single product may have multiple variations such as model, color, size, RAM, SSD, CPU, storage, material, package type, etc.
+- Different variation combinations may have different prices, stock quantities, SKU values, images, and availability.
+- Right now, the site only supports one basic product price and no variation selection.
+- I want a full upgrade so that both the admin panel and the product page support variable products in a WooCommerce-like way.
+
+Main goal:
+Implement a complete “product variations” system so that:
+1. In the admin dashboard, each product can be configured either as:
+   - Simple product
+   - Variable product
+2. For variable products, the admin can define attributes such as:
+   - Model
+   - Color
+   - Size
+   - RAM
+   - SSD
+   - CPU
+   - Or any custom attribute name
+3. The admin can create multiple variation combinations from these attributes.
+4. Each variation combination can have its own:
+   - price
+   - sale price
+   - stock quantity
+   - SKU
+   - image
+   - enabled/disabled state
+5. On the product page, the user can select the available options from dropdowns, color swatches, buttons, or selectors.
+6. The displayed price, stock status, image, SKU, and availability must update dynamically according to the selected variation combination.
+7. The Add to Cart button must only add the exact selected variation, not just the base product.
+8. If no valid variation combination is selected, Add to Cart must stay disabled and the UI must clearly ask the user to choose required options.
+9. The behavior should feel similar to WordPress + WooCommerce variable products.
+
+Technical requirements:
+- Analyze the current project structure first and integrate the feature into the existing codebase without breaking current functionality.
+- Refactor carefully and keep the code clean and modular.
+- Preserve existing design language as much as possible.
+- Use best practices for maintainability.
+- Make the feature production-ready.
+- If the project already has a database, extend the existing schema rather than replacing the whole system.
+- If the project does not yet have a proper product schema for variations, create one in a clean scalable way.
+- Keep backward compatibility with existing simple products.
+
+Data model requirements:
+Create or extend the product structure to support:
+- productType: "simple" | "variable"
+- base fields for the main product
+- attributes: list of attribute definitions, for example:
+  [
+    {
+      name: "Color",
+      type: "select",
+      values: ["Black", "Silver", "Blue"]
+    },
+    {
+      name: "RAM",
+      type: "select",
+      values: ["8GB", "16GB", "32GB"]
+    }
+  ]
+- variations: list of generated or manual combinations, for example:
+  [
+    {
+      id: "...",
+      attributes: {
+        Color: "Black",
+        RAM: "16GB"
+      },
+      price: 2999,
+      salePrice: 2799,
+      sku: "LAPTOP-BLK-16",
+      stock: 5,
+      image: "...",
+      enabled: true
+    }
+  ]
+
+Admin panel requirements:
+Add WooCommerce-like variation management inside each product edit page:
+1. Product type selector: Simple / Variable
+2. Section to define attributes
+   - add attribute name
+   - add attribute values
+   - support custom attributes
+   - allow removing/editing attributes
+3. Section to generate variation combinations from the defined attributes
+4. Table or cards for all variations
+5. Each variation row/card should allow editing:
+   - attribute values
+   - regular price
+   - sale price
+   - stock
+   - SKU
+   - image
+   - enabled status
+6. Allow deleting a variation
+7. Allow adding a variation manually
+8. Allow bulk creation of all combinations based on attributes
+9. Validate duplicate combinations and prevent invalid duplicates
+10. Save everything correctly to the database
+
+Storefront / product page requirements:
+1. If the product is simple:
+   - keep current behavior
+2. If the product is variable:
+   - show selectors for each attribute
+   - if the attribute is Color, prefer visual color swatches when possible
+   - otherwise use dropdowns or buttons
+3. When the user selects options:
+   - find the matching variation
+   - update displayed price immediately
+   - update sale price if relevant
+   - update stock status
+   - update SKU
+   - update product image if the variation has its own image
+4. If the selected combination does not exist:
+   - show “This combination is unavailable”
+   - disable Add to Cart
+5. Add to Cart must store:
+   - product id
+   - variation id
+   - selected attributes
+   - correct price
+   - quantity
+6. Cart, checkout, and order summary must display selected variation details clearly, for example:
+   - Laptop / Black / 16GB RAM / 512GB SSD
+
+Important behavior rules:
+- Some products may have only one attribute, such as Color only.
+- Some products may have two or more attributes, such as Color + RAM + SSD.
+- The system must support products with no variations as well.
+- Only valid combinations should be purchasable.
+- Price should come from the selected variation, not the parent product.
+- If needed, the parent product can show:
+  - a minimum price
+  - or a price range like “From X to Y”
+before the user selects a variation.
+
+UI/UX requirements:
+- Make the variation selection UI clean and modern.
+- Keep it mobile-friendly.
+- Show clear validation messages.
+- Avoid page reload when selecting options.
+- Use dynamic client-side updates for good UX.
+- Ensure selectors work well in RTL if the site uses Hebrew.
+
+Implementation tasks:
+1. Inspect existing product schema, admin panel, product page, cart logic, and API routes.
+2. Create or extend backend models and endpoints for variable products.
+3. Create/update admin forms for managing attributes and variations.
+4. Create/update product page UI for variation selection.
+5. Update cart logic to store variation-specific data.
+6. Update order summaries to include chosen variation details.
+7. Add validations for missing selection, duplicate combinations, and unavailable combinations.
+8. Migrate existing products safely so old products still work as simple products.
+9. Add comments in code where useful.
+10. At the end, provide a short summary of what was changed and list any files created or modified.
+
+Expected output:
+- Fully working code integrated into the current Replit project
+- No pseudo-code only
+- Make the changes directly in the project files
+- Keep the code organized and reusable
+- Do not remove existing features unless necessary
+- If the project structure is unclear, infer the best structure from the existing codebase and implement accordingly
+
+Extra enhancement:
+If possible, also add:
+- per-variation image gallery
+- per-variation stock management
+- automatic disabling/hiding of impossible combinations
+- display of “Only X left in stock” for a selected variation
+- variation-specific SKU in cart and orders
+
+Please start by analyzing the current codebase and then implement this feature end-to-end in the existing project.

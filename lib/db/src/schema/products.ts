@@ -39,6 +39,8 @@ export const productsTable = pgTable("products", {
   weight: numeric("weight", { precision: 8, scale: 3 }),
   metaTitle: text("meta_title"),
   metaDescription: text("meta_description"),
+  productType: text("product_type", { enum: ["simple", "variable"] }).notNull().default("simple"),
+  attributes: jsonb("attributes").notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
