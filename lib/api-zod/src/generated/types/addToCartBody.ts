@@ -5,8 +5,11 @@
  * Hebrew RTL E-Commerce Platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { AddToCartBodyVariationAttributes } from "./addToCartBodyVariationAttributes";
 
 export interface AddToCartBody {
   productId: number;
   quantity: number;
+  variationId?: number | null;
+  variationAttributes?: AddToCartBodyVariationAttributes;
 }

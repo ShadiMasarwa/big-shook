@@ -407,13 +407,26 @@ export default function AdminProducts() {
                     <TableCell className="text-center text-sm font-mono">{product.sku || '—'}</TableCell>
                     <TableCell className="text-center">{formatPrice(product.price)}</TableCell>
                     <TableCell className="text-center">
-                      <span className={`inline-block px-2 py-0.5 rounded font-bold text-sm ${
-                        product.stockQuantity === 0 ? "bg-red-100 text-red-800"
-                        : product.stockQuantity <= 10 ? "bg-yellow-100 text-yellow-800"
-                        : "bg-green-100 text-green-800"
-                      }`}>
-                        {product.stockQuantity}
-                      </span>
+                      {(() => {
+                        const isVar = (product as any).productType === "variable";
+                        const stock = isVar
+                          ? ((product as any).totalStock ?? 0)
+                          : product.stockQuantity;
+                        return (
+                          <span className={`inline-block px-2 py-0.5 rounded font-bold text-sm ${
+                            stock === 0 ? "bg-red-100 text-red-800"
+                            : stock <= 10 ? "bg-yellow-100 text-yellow-800"
+                            : "bg-green-100 text-green-800"
+                          }`}>
+                            {stock}
+                            {isVar && (
+                              <span className="text-[10px] font-normal text-muted-foreground ms-1">
+                                ({(product as any).variationCount ?? 0} וריאציות)
+                              </span>
+                            )}
+                          </span>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell className="text-center">
                       {(product as any).supplierId && supplierMap[(product as any).supplierId] ? (

@@ -11,5 +11,4 @@ export type UserRole = (typeof UserRole)[keyof typeof UserRole];
 export const UserRole = {
   customer: "customer",
   admin: "admin",
-  manager: "manager",
 } as const;

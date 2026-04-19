@@ -722,6 +722,8 @@ export const GetCartResponse = zod.object({
 export const AddToCartBody = zod.object({
   productId: zod.number(),
   quantity: zod.number(),
+  variationId: zod.number().nullish(),
+  variationAttributes: zod.record(zod.string(), zod.string()).nullish(),
 });
 
 export const AddToCartResponse = zod.object({

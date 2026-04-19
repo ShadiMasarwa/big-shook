@@ -6,9 +6,4 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ListCategoriesParams = {
-  /**
-   * @nullable
-   */
-  parentId?: number | null;
-};
+export type AddToCartBodyVariationAttributes = { [key: string]: string } | null;

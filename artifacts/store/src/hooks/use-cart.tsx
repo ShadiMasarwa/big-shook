@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 interface CartContextType {
   cart: any;
   isLoading: boolean;
-  addToCart: (args: { productId: number; quantity: number }, options?: any) => Promise<any>;
+  addToCart: (args: { productId: number; quantity: number; variationId?: number | null; variationAttributes?: Record<string, string> | null }, options?: any) => Promise<any>;
   updateItem: (args: { productId: number; quantity: number }, options?: any) => Promise<any>;
   removeItem: (args: { productId: number }, options?: any) => Promise<any>;
   clearCart: (options?: any) => Promise<any>;
@@ -31,8 +31,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
     queryClient.invalidateQueries({ queryKey: getGetCartQueryKey() });
   };
 
-  const addToCart = async ({ productId, quantity }: { productId: number; quantity: number }, options?: any) => {
-    const result = await addToCartMutation.mutateAsync({ data: { productId, quantity } }, options);
+  const addToCart = async (
+    { productId, quantity, variationId, variationAttributes }: { productId: number; quantity: number; variationId?: number | null; variationAttributes?: Record<string, string> | null },
+    options?: any,
+  ) => {
+    const data: any = { productId, quantity };
+    if (variationId != null) data.variationId = variationId;
+    if (variationAttributes) data.variationAttributes = variationAttributes;
+    const result = await addToCartMutation.mutateAsync({ data }, options);
     applyCart(result);
     return result;
   };

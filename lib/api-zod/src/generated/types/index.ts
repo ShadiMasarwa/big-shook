@@ -7,6 +7,7 @@
  */
 
 export * from "./addToCartBody";
+export * from "./addToCartBodyVariationAttributes";
 export * from "./adjustLoyaltyBody";
 export * from "./adjustStockBody";
 export * from "./adminSummary";

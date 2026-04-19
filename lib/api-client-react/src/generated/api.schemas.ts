@@ -199,7 +199,6 @@ export interface User {
   totalSpent: number;
   ordersCount: number;
   isActive: boolean;
-  marketingEmails: boolean;
   createdAt: string;
 }
 
@@ -268,9 +267,13 @@ export interface Cart {
   itemCount: number;
 }
 
+export type AddToCartBodyVariationAttributes = { [key: string]: string } | null;
+
 export interface AddToCartBody {
   productId: number;
   quantity: number;
+  variationId?: number | null;
+  variationAttributes?: AddToCartBodyVariationAttributes;
 }
 
 export interface UpdateCartItemBody {
@@ -668,26 +671,6 @@ export type ListProductsParams = {
    * @nullable
    */
   tags?: string | null;
-  /**
-   * @nullable
-   */
-  admin?: boolean | null;
-  /**
-   * @nullable
-   */
-  supplierId?: number | null;
-  /**
-   * @nullable
-   */
-  sku?: string | null;
-  /**
-   * @nullable
-   */
-  outOfStock?: boolean | null;
-  /**
-   * @nullable
-   */
-  isActive?: boolean | null;
 };
 
 export type ListProductsSort =

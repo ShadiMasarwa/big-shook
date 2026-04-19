@@ -21,6 +21,11 @@ export function ProductCard({ product }: ProductCardProps) {
   const [, setLocation] = useLocation();
 
   const handleAddToCart = () => {
+    if ((product as any).productType === "variable") {
+      setLocation(`/product/${product.id}`);
+      toast({ title: "יש לבחור אפשרויות לפני ההוספה לעגלה" });
+      return;
+    }
     addToCart({ productId: product.id, quantity: 1 })
       .then(() => toast({
         title: "נוסף לעגלה בהצלחה!",

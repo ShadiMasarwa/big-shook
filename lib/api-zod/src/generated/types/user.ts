@@ -15,16 +15,6 @@ export interface User {
   lastName: string;
   /** @nullable */
   phone?: string | null;
-  /** @nullable */
-  city?: string | null;
-  /** @nullable */
-  street?: string | null;
-  /** @nullable */
-  houseNumber?: string | null;
-  /** @nullable */
-  zipCode?: string | null;
-  /** @nullable */
-  addressNote?: string | null;
   role: UserRole;
   loyaltyPoints: number;
   loyaltyTier: UserLoyaltyTier;
@@ -32,6 +22,4 @@ export interface User {
   ordersCount: number;
   isActive: boolean;
   createdAt: Date;
-  privileges?: Record<string, string> | null;
-  managerId?: number | null;
 }

@@ -1868,6 +1868,14 @@ components:
           type: integer
         quantity:
           type: integer
+        variationId:
+          type: integer
+          nullable: true
+        variationAttributes:
+          type: object
+          additionalProperties:
+            type: string
+          nullable: true
       required:
         - productId
         - quantity
