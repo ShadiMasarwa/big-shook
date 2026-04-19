@@ -270,7 +270,7 @@ export default function AdminProductForm() {
       }
       const targetId = (savedProduct as any)?.id ?? productId;
       if (formData.productType === "variable" && targetId) {
-        await fetch(`/api/products/${targetId}/variations/bulk`, {
+        const bulkRes = await fetch(`/api/products/${targetId}/variations/bulk`, {
           method: "POST",
           headers: { "Content-Type": "application/json", ...authHeaders() },
           body: JSON.stringify({
@@ -287,6 +287,15 @@ export default function AdminProductForm() {
             })),
           }),
         });
+        if (!bulkRes.ok) {
+          const errText = await bulkRes.text().catch(() => "");
+          toast({
+            title: "שגיאה בשמירת הוריאציות",
+            description: errText.slice(0, 200) || `קוד ${bulkRes.status}`,
+            variant: "destructive",
+          });
+          return;
+        }
       }
       toast({ title: isEditing ? "המוצר עודכן בהצלחה" : "המוצר נוצר בהצלחה" });
       setLocation("/admin/products");
@@ -296,7 +305,7 @@ export default function AdminProductForm() {
   };
 
   function authHeaders(): Record<string, string> {
-    const token = typeof window !== "undefined" ? localStorage.getItem("manager_token") : null;
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
