@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "-zbGF8ZIzl3IkIc7ms_y6"
+uri = "file://exports/project.tar.gz"
+type = "unspecified"
+title = "ביג-שווק - Project Source (tar.gz)"
