@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, gte, lte, ilike, desc, asc, gt, sql, inArray } from "drizzle-orm";
+import { eq, and, or, gte, lte, ilike, desc, asc, gt, sql, inArray } from "drizzle-orm";
 import { db, productsTable, suppliersTable, categoriesTable, productCategoriesTable, productVariationsTable } from "@workspace/db";
 import { requireManagerPrivilegeCheck } from "../lib/managerAuth.js";
 
@@ -70,6 +70,49 @@ async function syncProductCategories(productId: number, categoryIds: number[]) {
     ).onConflictDoNothing();
   }
 }
+
+router.get("/products/suggest", async (req, res): Promise<void> => {
+  const q = String(req.query.q ?? "").trim();
+  if (q.length < 1) {
+    res.json({ products: [], tags: [] });
+    return;
+  }
+  const like = `%${q}%`;
+  const rows = await db
+    .select({
+      id: productsTable.id,
+      nameHe: productsTable.nameHe,
+      slug: productsTable.slug,
+      images: productsTable.images,
+      tags: productsTable.tags,
+    })
+    .from(productsTable)
+    .where(
+      and(
+        eq(productsTable.isActive, true),
+        or(
+          ilike(productsTable.nameHe, like),
+          sql`array_to_string(${productsTable.tags}, ',') ILIKE ${like}`,
+        )!,
+      ),
+    )
+    .limit(8);
+  const tagSet = new Set<string>();
+  for (const r of rows) {
+    for (const t of (r.tags ?? []) as string[]) {
+      if (t && t.toLowerCase().includes(q.toLowerCase())) tagSet.add(t);
+    }
+  }
+  res.json({
+    products: rows.map((r) => ({
+      id: r.id,
+      nameHe: r.nameHe,
+      slug: r.slug,
+      image: (r.images as string[] | null)?.[0] ?? null,
+    })),
+    tags: Array.from(tagSet).slice(0, 8),
+  });
+});
 
 router.get("/products/featured", async (req, res): Promise<void> => {
   const limit = parseInt(String(req.query.limit ?? "12"), 10);
@@ -234,7 +277,15 @@ router.get("/products", async (req, res): Promise<void> => {
     if (!isNaN(sId)) conditions.push(eq(productsTable.supplierId, sId));
   }
   if (search) {
-    conditions.push(ilike(productsTable.nameHe, `%${search}%`));
+    const q = `%${String(search)}%`;
+    conditions.push(
+      or(
+        ilike(productsTable.nameHe, q),
+        ilike(productsTable.descriptionHe, q),
+        ilike(productsTable.sku, q),
+        sql`array_to_string(${productsTable.tags}, ',') ILIKE ${q}`,
+      )!,
+    );
   }
   if (sku) {
     conditions.push(ilike(productsTable.sku, `%${sku}%`));

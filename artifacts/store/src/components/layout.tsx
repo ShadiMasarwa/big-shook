@@ -26,6 +26,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useListCategories, useGetWishlist } from "@workspace/api-client-react";
+import { SearchSuggest } from "@/components/search-suggest";
 
 type AdItem = {
   id: number;
@@ -268,34 +269,21 @@ export function Layout({ children }: { children: ReactNode }) {
           </Link>
 
           {/* Desktop search */}
-          <form
-            role="search"
-            aria-label="חיפוש מוצרים"
-            onSubmit={handleSearch}
-            className="flex-1 max-w-2xl hidden md:flex relative"
-          >
-            <label htmlFor="desktop-search" className="sr-only">
-              חיפוש מוצרים, מותגים וקטגוריות
-            </label>
-            <Input
-              id="desktop-search"
-              placeholder="חפש מוצרים, מותגים וקטגוריות..."
-              className="w-full pr-10 rounded-full bg-muted border-none"
+          <div className="flex-1 max-w-2xl hidden md:flex relative">
+            <SearchSuggest
+              inputId="desktop-search"
+              placeholder="חפש מוצרים, מותגים, תגיות..."
+              inputClassName="w-full pr-10 rounded-full bg-muted border-none h-10 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              data-testid="input-search"
+              onChange={setSearchValue}
+              onSubmit={() => {
+                const q = searchValue.trim();
+                if (q) navigate(`/catalog?q=${encodeURIComponent(q)}`);
+              }}
+              testId="input-search"
+              variant="desktop"
             />
-            <button
-              type="submit"
-              className="absolute right-3 top-1/2 -translate-y-1/2"
-              aria-label="חפש"
-            >
-              <Search
-                className="h-5 w-5 text-muted-foreground hover:text-primary transition-colors"
-                aria-hidden="true"
-              />
-            </button>
-          </form>
+          </div>
 
           <div className="flex items-center gap-2 shrink-0">
             <div className="hidden md:flex items-center gap-1 text-sm mr-4">
@@ -581,26 +569,23 @@ export function Layout({ children }: { children: ReactNode }) {
           </SheetHeader>
 
           {/* Mobile search */}
-          <form
-            role="search"
-            aria-label="חיפוש מוצרים"
-            onSubmit={handleSearch}
-            className="px-4 py-3 border-b flex gap-2"
-          >
-            <label htmlFor="mobile-search" className="sr-only">
-              חיפוש מוצרים
-            </label>
-            <Input
-              id="mobile-search"
-              placeholder="חפש מוצרים..."
-              className="flex-1"
+          <div className="px-4 py-3 border-b">
+            <SearchSuggest
+              inputId="mobile-search"
+              placeholder="חפש מוצרים, תגיות..."
+              inputClassName="w-full h-10 px-3 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
+              onChange={setSearchValue}
+              onSubmit={() => {
+                const q = searchValue.trim();
+                if (q) {
+                  navigate(`/catalog?q=${encodeURIComponent(q)}`);
+                  setMobileOpen(false);
+                }
+              }}
+              variant="mobile"
             />
-            <Button type="submit" size="icon" variant="ghost" aria-label="חפש">
-              <Search className="h-4 w-4" aria-hidden="true" />
-            </Button>
-          </form>
+          </div>
 
           {/* Mobile nav links */}
           <nav aria-label="ניווט ראשי" className="flex-1 overflow-y-auto">
