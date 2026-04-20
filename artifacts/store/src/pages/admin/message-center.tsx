@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin-layout";
 import { useAuth } from "@/hooks/use-auth";
@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import {
   Inbox, Send, Archive, AlertTriangle, Trash2, RefreshCw,
-  Search, Reply, ArrowRight, Mail, MailOpen,
+  Search, Reply, ArrowRight, Mail, PenSquare, X,
 } from "lucide-react";
 
 const ACCOUNTS = [
@@ -70,6 +70,7 @@ export default function MessageCenter() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [replyOpen, setReplyOpen] = useState(false);
   const [replyBody, setReplyBody] = useState("");
+  const [composeOpen, setComposeOpen] = useState(false);
 
   const listKey = ["admin-messages", account, folder, search];
   const { data: list, isLoading } = useQuery({
@@ -114,6 +115,50 @@ export default function MessageCenter() {
     qc.invalidateQueries({ queryKey: ["admin-messages"] });
     qc.invalidateQueries({ queryKey: ["admin-messages-unread"] });
   }
+
+  // ── 3-second auto-mark-as-read ─────────────────────────────────────────
+  const markRead = useMutation({
+    mutationFn: async (id: number) => {
+      await fetch(`/api/admin/messages/${id}/read`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ isRead: true }),
+      });
+    },
+    onSuccess: (_d, id) => {
+      // Optimistically flip isRead in every cached list and the detail view.
+      qc.setQueriesData<{ messages: Msg[] } | undefined>(
+        { queryKey: ["admin-messages"] },
+        (data) =>
+          data
+            ? {
+                ...data,
+                messages: data.messages.map((m) =>
+                  m.id === id ? { ...m, isRead: true } : m,
+                ),
+              }
+            : data,
+      );
+      qc.setQueryData<Msg | undefined>(["admin-message", id], (m) =>
+        m ? { ...m, isRead: true } : m,
+      );
+      qc.invalidateQueries({ queryKey: ["admin-messages-unread"] });
+    },
+  });
+
+  const readTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (readTimerRef.current) clearTimeout(readTimerRef.current);
+    if (!selected || selected.isRead) return;
+    const id = selected.id;
+    readTimerRef.current = setTimeout(() => {
+      markRead.mutate(id);
+    }, 3000);
+    return () => {
+      if (readTimerRef.current) clearTimeout(readTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.id, selected?.isRead]);
 
   const action = useMutation({
     mutationFn: async ({ id, kind }: { id: number; kind: "archive" | "spam" | "delete" | "restore" }) => {
@@ -174,11 +219,28 @@ export default function MessageCenter() {
             {unread?.total ? `${unread.total} הודעות שלא נקראו` : "כל ההודעות נקראו"}
           </p>
         </div>
-        <Button onClick={() => sync.mutate()} disabled={sync.isPending} variant="outline" data-testid="btn-sync-mail">
-          <RefreshCw className={`h-4 w-4 ml-2 ${sync.isPending ? "animate-spin" : ""}`} />
-          סנכרון מהשרת
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setComposeOpen(true)} data-testid="btn-compose">
+            <PenSquare className="h-4 w-4 ml-2" />
+            הודעה חדשה
+          </Button>
+          <Button onClick={() => sync.mutate()} disabled={sync.isPending} variant="outline" data-testid="btn-sync-mail">
+            <RefreshCw className={`h-4 w-4 ml-2 ${sync.isPending ? "animate-spin" : ""}`} />
+            סנכרון מהשרת
+          </Button>
+        </div>
       </div>
+
+      {composeOpen && (
+        <ComposeDialog
+          onClose={() => setComposeOpen(false)}
+          onSent={() => {
+            setComposeOpen(false);
+            invalidate();
+            toast({ title: "ההודעה נשלחה" });
+          }}
+        />
+      )}
 
       <div className="grid grid-cols-12 gap-4 h-[calc(100vh-200px)] min-h-[500px]">
         {/* Sidebar: accounts + folders */}
@@ -371,5 +433,168 @@ export default function MessageCenter() {
         </section>
       </div>
     </AdminLayout>
+  );
+}
+
+// ── Compose dialog ─────────────────────────────────────────────────────────
+type Contact = { email: string; name: string | null; lastSeen: string };
+
+function ComposeDialog({
+  onClose,
+  onSent,
+}: {
+  onClose: () => void;
+  onSent: () => void;
+}) {
+  const { toast } = useToast();
+  const [from, setFrom] = useState("support@bigshook.com");
+  const [to, setTo] = useState("");
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [showSugg, setShowSugg] = useState(false);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  const { data: sugg } = useQuery({
+    queryKey: ["admin-message-contacts", to],
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/admin/messages/contacts?q=${encodeURIComponent(to)}`,
+        { headers: authHeaders() },
+      );
+      if (!res.ok) return { contacts: [] as Contact[] };
+      return (await res.json()) as { contacts: Contact[] };
+    },
+  });
+
+  useEffect(() => {
+    function onDoc(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setShowSugg(false);
+      }
+    }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  const send = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/admin/messages/compose`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ from, to: to.trim(), subject, body }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "שליחה נכשלה");
+      }
+    },
+    onSuccess: () => onSent(),
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" dir="rtl">
+      <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h2 className="text-lg font-bold">הודעה חדשה</h2>
+          <button
+            onClick={onClose}
+            className="text-muted-foreground hover:text-foreground"
+            aria-label="סגור"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="p-4 space-y-3 overflow-y-auto">
+          <div>
+            <label className="text-xs font-bold text-muted-foreground mb-1 block">
+              שלח מ-
+            </label>
+            <select
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              className="w-full p-2 rounded-md border border-input bg-background text-sm"
+              data-testid="select-compose-from"
+            >
+              <option value="support@bigshook.com">שירות לקוחות — support@bigshook.com</option>
+              <option value="info@bigshook.com">מידע — info@bigshook.com</option>
+              <option value="suppliers@bigshook.com">ספקים — suppliers@bigshook.com</option>
+              <option value="admin@bigshook.com">הנהלה — admin@bigshook.com</option>
+            </select>
+          </div>
+
+          <div ref={wrapRef} className="relative">
+            <label className="text-xs font-bold text-muted-foreground mb-1 block">
+              אל
+            </label>
+            <Input
+              value={to}
+              onChange={(e) => { setTo(e.target.value); setShowSugg(true); }}
+              onFocus={() => setShowSugg(true)}
+              placeholder="someone@example.com"
+              data-testid="input-compose-to"
+            />
+            {showSugg && sugg?.contacts && sugg.contacts.length > 0 && (
+              <div className="absolute z-10 mt-1 w-full bg-popover border border-border rounded-md shadow-lg max-h-60 overflow-y-auto">
+                {sugg.contacts.map((c) => (
+                  <button
+                    key={c.email}
+                    type="button"
+                    onClick={() => { setTo(c.email); setShowSugg(false); }}
+                    className="w-full text-right px-3 py-2 text-sm hover:bg-muted flex flex-col"
+                    data-testid={`sugg-${c.email}`}
+                  >
+                    {c.name && <span className="font-medium truncate">{c.name}</span>}
+                    <span className="text-xs text-muted-foreground truncate">{c.email}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-muted-foreground mb-1 block">
+              נושא
+            </label>
+            <Input
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="נושא ההודעה"
+              data-testid="input-compose-subject"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-muted-foreground mb-1 block">
+              גוף ההודעה
+            </label>
+            <textarea
+              rows={10}
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder="כתוב את הודעתך..."
+              className="w-full p-3 rounded-md border border-input bg-background text-sm resize-y"
+              data-testid="textarea-compose-body"
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 p-4 border-t border-border">
+          <Button variant="outline" onClick={onClose}>ביטול</Button>
+          <Button
+            onClick={() => send.mutate()}
+            disabled={
+              send.isPending ||
+              !to.trim() ||
+              !subject.trim() ||
+              !body.trim()
+            }
+            data-testid="btn-compose-send"
+          >
+            <Send className="h-4 w-4 ml-1" />
+            {send.isPending ? "שולח..." : "שלח"}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -2,7 +2,14 @@ import { Router, type IRouter } from "express";
 import { eq, and, or, desc, sql, ilike, inArray } from "drizzle-orm";
 import { db, messagesTable, usersTable, MESSAGE_ACCOUNTS, MESSAGE_DEPARTMENT_TO_ACCOUNT } from "@workspace/db";
 import { getManagerFromRequest, isManagerToken } from "../lib/managerAuth.js";
-import { sendMailFromAlias, syncIncomingMail } from "../lib/mail.js";
+import {
+  sendMailFromAlias,
+  syncIncomingMail,
+  imapMarkSeen,
+  imapMoveTo,
+  imapDeletePermanent,
+  imapAppendSent,
+} from "../lib/mail.js";
 
 const router: IRouter = Router();
 
@@ -169,16 +176,58 @@ router.get("/admin/messages", async (req, res): Promise<void> => {
   res.json({ messages: rows });
 });
 
+// Contact suggestions for autocomplete — MUST be declared before /:id.
+router.get("/admin/messages/contacts", async (req, res): Promise<void> => {
+  if (!(await requireManager(req, res))) return;
+  const q = String(req.query.q ?? "").trim().toLowerCase();
+  const rows = await db
+    .select({
+      addr: sql<string>`lower(${messagesTable.fromEmail})`,
+      name: messagesTable.fromName,
+      lastSeen: sql<string>`max(${messagesTable.receivedAt})`,
+    })
+    .from(messagesTable)
+    .where(eq(messagesTable.direction, "incoming"))
+    .groupBy(messagesTable.fromEmail, messagesTable.fromName);
+  const sentRows = await db
+    .select({
+      addr: sql<string>`lower(${messagesTable.toEmail})`,
+      lastSeen: sql<string>`max(${messagesTable.receivedAt})`,
+    })
+    .from(messagesTable)
+    .where(eq(messagesTable.direction, "outgoing"))
+    .groupBy(messagesTable.toEmail);
+  const map = new Map<string, { email: string; name: string | null; lastSeen: string }>();
+  for (const r of rows) {
+    if (!r.addr) continue;
+    if ((MESSAGE_ACCOUNTS as readonly string[]).includes(r.addr)) continue;
+    map.set(r.addr, { email: r.addr, name: r.name, lastSeen: r.lastSeen });
+  }
+  for (const r of sentRows) {
+    if (!r.addr) continue;
+    if ((MESSAGE_ACCOUNTS as readonly string[]).includes(r.addr)) continue;
+    if (!map.has(r.addr)) {
+      map.set(r.addr, { email: r.addr, name: null, lastSeen: r.lastSeen });
+    }
+  }
+  let arr = Array.from(map.values());
+  if (q) {
+    arr = arr.filter(
+      (c) => c.email.includes(q) || (c.name ?? "").toLowerCase().includes(q),
+    );
+  }
+  arr.sort((a, b) => (b.lastSeen ?? "").localeCompare(a.lastSeen ?? ""));
+  res.json({ contacts: arr.slice(0, 30) });
+});
+
 router.get("/admin/messages/:id", async (req, res): Promise<void> => {
   if (!(await requireManager(req, res))) return;
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "id לא חוקי" }); return; }
   const [row] = await db.select().from(messagesTable).where(eq(messagesTable.id, id));
   if (!row) { res.status(404).json({ error: "לא נמצא" }); return; }
-  if (!row.isRead) {
-    await db.update(messagesTable).set({ isRead: true }).where(eq(messagesTable.id, id));
-    row.isRead = true;
-  }
+  // Reading the full message body alone does NOT mark it read anymore — the
+  // client now calls /read explicitly after a 3-second delay.
   res.json(row);
 });
 
@@ -186,7 +235,12 @@ router.post("/admin/messages/:id/read", async (req, res): Promise<void> => {
   if (!(await requireManager(req, res))) return;
   const id = parseInt(req.params.id, 10);
   const isRead = req.body?.isRead !== false;
+  const [row] = await db.select().from(messagesTable).where(eq(messagesTable.id, id));
   await db.update(messagesTable).set({ isRead }).where(eq(messagesTable.id, id));
+  // Sync \Seen flag to IMAP — only meaningful when marking as read on incoming.
+  if (isRead && row?.direction === "incoming" && row.messageId) {
+    imapMarkSeen(row.messageId).catch((e) => console.warn("[messages] imapMarkSeen", e));
+  }
   res.json({ ok: true });
 });
 
@@ -196,19 +250,30 @@ async function moveMessage(id: number, folder: "inbox" | "archive" | "spam" | "t
 
 router.post("/admin/messages/:id/archive", async (req, res): Promise<void> => {
   if (!(await requireManager(req, res))) return;
-  await moveMessage(parseInt(req.params.id, 10), "archive");
+  const id = parseInt(req.params.id, 10);
+  const [row] = await db.select().from(messagesTable).where(eq(messagesTable.id, id));
+  await moveMessage(id, "archive");
+  if (row?.direction === "incoming" && row.messageId) {
+    imapMoveTo(row.messageId, "Archive").catch((e) => console.warn("[messages] imapMoveTo Archive", e));
+  }
   res.json({ ok: true });
 });
 
 router.post("/admin/messages/:id/spam", async (req, res): Promise<void> => {
   if (!(await requireManager(req, res))) return;
-  await moveMessage(parseInt(req.params.id, 10), "spam");
+  const id = parseInt(req.params.id, 10);
+  const [row] = await db.select().from(messagesTable).where(eq(messagesTable.id, id));
+  await moveMessage(id, "spam");
+  if (row?.direction === "incoming" && row.messageId) {
+    imapMoveTo(row.messageId, "Spam").catch((e) => console.warn("[messages] imapMoveTo Spam", e));
+  }
   res.json({ ok: true });
 });
 
 router.post("/admin/messages/:id/restore", async (req, res): Promise<void> => {
   if (!(await requireManager(req, res))) return;
   await moveMessage(parseInt(req.params.id, 10), "inbox");
+  // We don't try to move back from Spam/Trash in IMAP automatically — too ambiguous.
   res.json({ ok: true });
 });
 
@@ -218,9 +283,20 @@ router.delete("/admin/messages/:id", async (req, res): Promise<void> => {
   const [existing] = await db.select().from(messagesTable).where(eq(messagesTable.id, id));
   if (!existing) { res.json({ ok: true }); return; }
   if (existing.folder === "trash") {
+    // Permanent delete — also expunge from IMAP server.
     await db.delete(messagesTable).where(eq(messagesTable.id, id));
+    if (existing.direction === "incoming" && existing.messageId) {
+      imapDeletePermanent(existing.messageId).catch((e) =>
+        console.warn("[messages] imapDeletePermanent", e),
+      );
+    }
   } else {
     await db.update(messagesTable).set({ folder: "trash" }).where(eq(messagesTable.id, id));
+    if (existing.direction === "incoming" && existing.messageId) {
+      imapMoveTo(existing.messageId, "Trash").catch((e) =>
+        console.warn("[messages] imapMoveTo Trash", e),
+      );
+    }
   }
   res.json({ ok: true });
 });
@@ -274,6 +350,68 @@ router.post("/admin/messages/sync", async (req, res): Promise<void> => {
   if (!(await requireManager(req, res))) return;
   const result = await syncIncomingMail();
   res.json(result);
+});
+
+// ── Compose new message ────────────────────────────────────────────────────
+router.post("/admin/messages/compose", async (req, res): Promise<void> => {
+  if (!(await requireManager(req, res))) return;
+  const { from, to, subject, body } = req.body ?? {};
+  const fromAddr = String(from ?? "").trim().toLowerCase();
+  const toAddr = String(to ?? "").trim();
+  const subj = String(subject ?? "").trim();
+  const bodyStr = String(body ?? "");
+  if (!(MESSAGE_ACCOUNTS as readonly string[]).includes(fromAddr)) {
+    res.status(400).json({ error: "כתובת שולח לא חוקית" });
+    return;
+  }
+  if (!toAddr || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toAddr)) {
+    res.status(400).json({ error: "כתובת נמען לא חוקית" });
+    return;
+  }
+  if (!subj) {
+    res.status(400).json({ error: "נושא הוא חובה" });
+    return;
+  }
+  if (!bodyStr.trim()) {
+    res.status(400).json({ error: "גוף ההודעה הוא חובה" });
+    return;
+  }
+  try {
+    const html = `<div dir="rtl" style="font-family:sans-serif;line-height:1.6;white-space:pre-wrap">${escapeHtml(bodyStr)}</div>`;
+    const sendRes = await sendMailFromAlias({
+      fromAlias: fromAddr,
+      to: toAddr,
+      subject: subj,
+      text: bodyStr,
+      html,
+    });
+    await db.insert(messagesTable).values({
+      account: fromAddr,
+      direction: "outgoing",
+      folder: "sent",
+      fromName: "ביג-שווק",
+      fromEmail: fromAddr,
+      toEmail: toAddr,
+      subject: subj,
+      bodyText: bodyStr,
+      bodyHtml: html,
+      isRead: true,
+      messageId: sendRes.messageId,
+    });
+    // Best-effort: append to IMAP "Sent" folder so it shows up in webmail too.
+    imapAppendSent({
+      fromAlias: fromAddr,
+      to: toAddr,
+      subject: subj,
+      text: bodyStr,
+      html,
+      messageId: sendRes.messageId,
+    }).catch((e) => console.warn("[messages] imapAppendSent", e));
+    res.json({ ok: true });
+  } catch (err: any) {
+    console.error("[messages] compose send failed", err);
+    res.status(500).json({ error: err?.message ?? "שליחה נכשלה" });
+  }
 });
 
 export default router;

@@ -162,6 +162,188 @@ export async function syncIncomingMail(): Promise<{
   return { fetched, stored };
 }
 
+// ── IMAP sync helpers (best-effort) ────────────────────────────────────────
+async function withImapClient<T>(
+  fn: (client: ImapFlow) => Promise<T>,
+): Promise<T | null> {
+  const cfg = getImapConfig();
+  if (!cfg.user || !cfg.pass) return null;
+  const client = new ImapFlow({
+    host: cfg.host,
+    port: cfg.port,
+    secure: true,
+    auth: { user: cfg.user, pass: cfg.pass },
+    logger: false,
+    tls: { rejectUnauthorized: false },
+  });
+  try {
+    await client.connect();
+    return await fn(client);
+  } catch (e: any) {
+    console.warn("[imap-op]", e?.message ?? e);
+    return null;
+  } finally {
+    try {
+      await client.logout();
+    } catch {}
+  }
+}
+
+type IntentFolder = "Archive" | "Spam" | "Trash";
+
+async function resolveFolder(
+  client: ImapFlow,
+  intent: IntentFolder,
+): Promise<string | null> {
+  const list = (await client.list()) as Array<{
+    path: string;
+    name: string;
+    specialUse?: string;
+  }>;
+  const match = (re: RegExp, special?: string) =>
+    list.find(
+      (l) =>
+        (special && l.specialUse === special) ||
+        re.test(l.name) ||
+        re.test(l.path),
+    );
+  if (intent === "Archive") return match(/^archive$/i)?.path ?? match(/archive/i)?.path ?? null;
+  if (intent === "Spam") return match(/^(spam|junk)$/i, "\\Junk")?.path ?? match(/spam|junk/i)?.path ?? null;
+  if (intent === "Trash") return match(/^trash$/i, "\\Trash")?.path ?? match(/trash|deleted/i)?.path ?? null;
+  return null;
+}
+
+async function findUidByMessageId(
+  client: ImapFlow,
+  mailbox: string,
+  messageId: string,
+): Promise<number[]> {
+  try {
+    const lock = await client.getMailboxLock(mailbox);
+    try {
+      const result = await client.search(
+        { header: { "message-id": messageId } } as any,
+        { uid: true },
+      );
+      return Array.isArray(result) ? (result as number[]) : [];
+    } finally {
+      lock.release();
+    }
+  } catch {
+    return [];
+  }
+}
+
+const SEARCH_MAILBOXES = ["INBOX", "INBOX.Archive", "Archive", "INBOX.Spam", "Spam", "Junk", "INBOX.Trash", "Trash"];
+
+/** Mark a message as Seen on the IMAP server (best-effort). */
+export async function imapMarkSeen(messageId: string): Promise<void> {
+  if (!messageId) return;
+  await withImapClient(async (client) => {
+    for (const box of SEARCH_MAILBOXES) {
+      const uids = await findUidByMessageId(client, box, messageId);
+      if (uids.length) {
+        const lock = await client.getMailboxLock(box);
+        try {
+          await client.messageFlagsAdd(uids, ["\\Seen"], { uid: true });
+        } finally {
+          lock.release();
+        }
+        return;
+      }
+    }
+  });
+}
+
+/** Move a message to Archive/Spam/Trash on the IMAP server (best-effort). */
+export async function imapMoveTo(
+  messageId: string,
+  intent: IntentFolder,
+): Promise<void> {
+  if (!messageId) return;
+  await withImapClient(async (client) => {
+    const target = await resolveFolder(client, intent);
+    if (!target) {
+      console.warn(`[imap-op] no folder found for intent=${intent}`);
+      return;
+    }
+    for (const box of SEARCH_MAILBOXES) {
+      if (box === target) continue;
+      const uids = await findUidByMessageId(client, box, messageId);
+      if (uids.length) {
+        const lock = await client.getMailboxLock(box);
+        try {
+          await client.messageMove(uids, target, { uid: true });
+        } finally {
+          lock.release();
+        }
+        return;
+      }
+    }
+  });
+}
+
+/** Permanently delete a message from the IMAP server (best-effort). */
+export async function imapDeletePermanent(messageId: string): Promise<void> {
+  if (!messageId) return;
+  await withImapClient(async (client) => {
+    for (const box of SEARCH_MAILBOXES) {
+      const uids = await findUidByMessageId(client, box, messageId);
+      if (uids.length) {
+        const lock = await client.getMailboxLock(box);
+        try {
+          await client.messageDelete(uids, { uid: true });
+        } finally {
+          lock.release();
+        }
+      }
+    }
+  });
+}
+
+/** Append a sent message to the Sent folder on the IMAP server (best-effort). */
+export async function imapAppendSent(opts: {
+  fromAlias: string;
+  fromName?: string;
+  to: string;
+  subject: string;
+  text?: string;
+  html?: string;
+  messageId?: string;
+}): Promise<void> {
+  await withImapClient(async (client) => {
+    const list = (await client.list()) as Array<{
+      path: string;
+      name: string;
+      specialUse?: string;
+    }>;
+    const sent =
+      list.find(
+        (l) => l.specialUse === "\\Sent" || /^sent$/i.test(l.name) || /sent/i.test(l.path),
+      )?.path;
+    if (!sent) return;
+    const fromName = opts.fromName ?? "ביג-שווק";
+    const lines = [
+      `From: "${fromName}" <${opts.fromAlias}>`,
+      `To: ${opts.to}`,
+      `Subject: ${opts.subject}`,
+      `Date: ${new Date().toUTCString()}`,
+      ...(opts.messageId ? [`Message-ID: ${opts.messageId}`] : []),
+      `MIME-Version: 1.0`,
+      `Content-Type: text/${opts.html ? "html" : "plain"}; charset=utf-8`,
+      `Content-Transfer-Encoding: 8bit`,
+      ``,
+      opts.html ?? opts.text ?? "",
+    ];
+    const raw = lines.join("\r\n");
+    try {
+      await client.append(sent, raw, ["\\Seen"]);
+    } catch (e: any) {
+      console.warn("[imap-op] append-sent failed", e?.message ?? e);
+    }
+  });
+}
+
 export function startMailPoller(intervalMs = 5 * 60 * 1000) {
   const cfg = getImapConfig();
   if (!cfg.user || !cfg.pass) {
