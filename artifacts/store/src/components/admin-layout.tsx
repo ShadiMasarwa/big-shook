@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import {
   LayoutDashboard,
@@ -19,6 +20,7 @@ import {
   Images,
   Settings2,
   UserCog,
+  Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -38,8 +40,39 @@ const ALL_NAV_ITEMS = [
   { href: "/admin/ads", label: "מודעות", icon: Megaphone, section: "ads" },
   { href: "/admin/media", label: "ספריית מדיה", icon: Images, section: "media" },
   { href: "/admin/site-info", label: "מידע האתר", icon: Settings2, section: "settings" },
+  { href: "/admin/messages", label: "מרכז הודעות", icon: Mail, section: null },
   { href: "/admin/managers", label: "ניהול מנהלים", icon: UserCog, section: "managers_only" },
 ];
+
+function AdminHeaderBell() {
+  const { data } = useQuery({
+    queryKey: ["admin-messages-unread"],
+    queryFn: async () => {
+      const t = localStorage.getItem("token");
+      const headers: Record<string, string> = t ? { Authorization: `Bearer ${t}` } : {};
+      const res = await fetch("/api/admin/messages/unread-count", { headers });
+      if (!res.ok) return { total: 0 };
+      return res.json() as Promise<{ total: number }>;
+    },
+    refetchInterval: 30000,
+  });
+  const count = data?.total ?? 0;
+  return (
+    <Link
+      href="/admin/messages"
+      className="relative inline-flex items-center justify-center h-10 w-10 rounded-full hover:bg-muted transition-colors"
+      aria-label={count ? `${count} הודעות חדשות` : "מרכז הודעות"}
+      data-testid="header-messages-bell"
+    >
+      <Mail className="h-5 w-5" />
+      {count > 0 && (
+        <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center border-2 border-card">
+          {count > 99 ? "99+" : count}
+        </span>
+      )}
+    </Link>
+  );
+}
 
 export function AdminLayout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
@@ -146,8 +179,10 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-16 bg-card border-b border-border flex items-center px-6 sticky top-0 z-10 md:hidden">
-          <h1 className="text-xl font-bold">לוח בקרה מנהלים</h1>
+        <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6 sticky top-0 z-10">
+          <h1 className="text-xl font-bold md:hidden">לוח בקרה מנהלים</h1>
+          <div className="hidden md:block" />
+          <AdminHeaderBell />
         </header>
         <div className="flex-1 p-6 overflow-y-auto">
           {children}

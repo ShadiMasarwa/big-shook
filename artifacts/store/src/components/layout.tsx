@@ -891,6 +891,11 @@ export function Layout({ children }: { children: ReactNode }) {
           <div>
             <h3 className="font-bold text-lg mb-4">צור קשר</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
+              <li>
+                <Link href="/contact" className="hover:text-primary font-semibold">
+                  טופס יצירת קשר ←
+                </Link>
+              </li>
               <li>טלפון: 051-5008661</li>
               <li>דוא"ל: support@bigshook.com</li>
               <li>כתובת: ת.ד. 3869, טייבה 4040000</li>

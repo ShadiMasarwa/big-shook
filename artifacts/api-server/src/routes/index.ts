@@ -23,6 +23,7 @@ import adsRouter from "./ads.js";
 import siteSettingsRouter from "./siteSettings.js";
 import reviewsRouter from "./reviews.js";
 import managersRouter from "./managers.js";
+import messagesRouter from "./messages.js";
 
 const router: IRouter = Router();
 
@@ -50,5 +51,6 @@ router.use(adsRouter);
 router.use(siteSettingsRouter);
 router.use(reviewsRouter);
 router.use(managersRouter);
+router.use(messagesRouter);
 
 export default router;

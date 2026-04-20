@@ -19,3 +19,4 @@ export * from "./passwordResetTokens";
 export * from "./reviews";
 export * from "./productCategories";
 export * from "./managers";
+export * from "./messages";

@@ -20,6 +20,7 @@ import Compare from "@/pages/compare";
 import Profile from "@/pages/profile";
 import InfoPage from "@/pages/info-page";
 import ResetPassword from "@/pages/reset-password";
+import Contact from "@/pages/contact";
 
 // Admin
 import AdminDashboard from "@/pages/admin/dashboard";
@@ -43,6 +44,7 @@ import AdminAds from "@/pages/admin/ads";
 import AdminMedia from "@/pages/admin/media";
 import AdminSiteInfo from "@/pages/admin/site-info";
 import AdminManagers from "@/pages/admin/managers";
+import AdminMessageCenter from "@/pages/admin/message-center";
 import SetupManagerPassword from "@/pages/admin/setup-password";
 
 const queryClient = new QueryClient();
@@ -74,6 +76,7 @@ function Router() {
       <Route path="/profile" component={Profile} />
       <Route path="/info/:slug" component={InfoPage} />
       <Route path="/reset-password" component={ResetPassword} />
+      <Route path="/contact" component={Contact} />
 
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/products" component={AdminProducts} />
@@ -99,6 +102,7 @@ function Router() {
       <Route path="/admin/media" component={AdminMedia} />
       <Route path="/admin/site-info" component={AdminSiteInfo} />
       <Route path="/admin/managers" component={AdminManagers} />
+      <Route path="/admin/messages" component={AdminMessageCenter} />
       <Route path="/setup-manager-password" component={SetupManagerPassword} />
 
       <Route component={NotFound} />
