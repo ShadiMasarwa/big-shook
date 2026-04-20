@@ -329,6 +329,17 @@ export default function MessageCenter() {
                           <span className="text-[10px] text-muted-foreground shrink-0">{relTime(m.receivedAt)}</span>
                         </div>
                         <div className={`text-sm truncate ${!m.isRead ? "font-bold text-foreground" : "text-muted-foreground"}`}>
+                          {folder === "archive" && (
+                            <span
+                              className={`inline-block text-[10px] font-bold px-1.5 py-0.5 rounded ml-1 align-middle ${
+                                m.direction === "outgoing"
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : "bg-sky-100 text-sky-700"
+                              }`}
+                            >
+                              {m.direction === "outgoing" ? "נשלח" : "התקבל"}
+                            </span>
+                          )}
                           {m.subject || "(ללא נושא)"}
                         </div>
                         <div className="text-xs text-muted-foreground truncate mt-0.5">
