@@ -59,6 +59,38 @@ router.post("/contact", async (req, res): Promise<void> => {
     MESSAGE_DEPARTMENT_TO_ACCOUNT[String(department)] ?? "support@bigshook.com";
   const subject = `פנייה חדשה מטופס יצירת קשר — ${fullName}`;
   const bodyText = `שם: ${fullName}\nאימייל: ${email}\nמחלקה: ${department}\n\n${message}`;
+  const bodyHtml = `<div dir="rtl" style="font-family:sans-serif;line-height:1.6">
+    <h3>פנייה חדשה מטופס יצירת קשר</h3>
+    <p><b>שם:</b> ${escapeHtml(fullName)}<br>
+       <b>אימייל:</b> ${escapeHtml(email)}<br>
+       <b>מחלקה:</b> ${escapeHtml(department)}</p>
+    <p style="white-space:pre-wrap;border-right:3px solid #2563eb;padding-right:12px">${escapeHtml(message)}</p>
+  </div>`;
+
+  // Pre-compute a deterministic Message-ID so the IMAP poller can dedupe
+  // the SMTP-forwarded copy against our direct DB insert.
+  const messageId = `<contact-${Date.now()}-${Math.random().toString(36).slice(2, 10)}@bigshook.com>`;
+
+  // Forward to the mailbox so it also lands in Hostinger inbox (with our chosen Message-ID).
+  let sentOk = false;
+  try {
+    await sendMailFromAlias({
+      fromAlias: account,
+      fromName: `טופס יצירת קשר — ${fullName}`,
+      to: account,
+      subject,
+      text: bodyText,
+      html: bodyHtml,
+      messageId,
+      replyToOverride: String(email),
+    });
+    sentOk = true;
+  } catch (e) {
+    console.warn("[contact] forward to mailbox failed", e);
+  }
+
+  // Store directly in DB with the SAME Message-ID so the IMAP poller skips the
+  // forwarded copy on its next sweep.
   await db.insert(messagesTable).values({
     account,
     direction: "incoming",
@@ -68,28 +100,12 @@ router.post("/contact", async (req, res): Promise<void> => {
     toEmail: account,
     subject,
     bodyText,
-    bodyHtml: `<div dir="rtl" style="font-family:sans-serif;line-height:1.6">
-      <h3>פנייה חדשה מטופס יצירת קשר</h3>
-      <p><b>שם:</b> ${escapeHtml(fullName)}<br>
-         <b>אימייל:</b> ${escapeHtml(email)}<br>
-         <b>מחלקה:</b> ${escapeHtml(department)}</p>
-      <p style="white-space:pre-wrap;border-right:3px solid #2563eb;padding-right:12px">${escapeHtml(message)}</p>
-    </div>`,
+    bodyHtml,
     department: String(department),
     isRead: false,
+    messageId: sentOk ? messageId : null,
   });
-  // Optionally forward to mailbox so it also lands in Hostinger inbox.
-  try {
-    await sendMailFromAlias({
-      fromAlias: account,
-      fromName: `טופס יצירת קשר — ${fullName}`,
-      to: account,
-      subject,
-      text: bodyText,
-    });
-  } catch (e) {
-    console.warn("[contact] forward to mailbox failed", e);
-  }
+
   res.json({ ok: true });
 });
 

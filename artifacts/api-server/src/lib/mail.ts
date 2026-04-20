@@ -36,6 +36,8 @@ export async function sendMailFromAlias(opts: {
   html?: string;
   inReplyTo?: string | null;
   references?: string | null;
+  messageId?: string;
+  replyToOverride?: string;
 }): Promise<{ messageId: string }> {
   const transporter = getMailTransporter();
   if (!transporter) throw new Error("SMTP not configured");
@@ -43,13 +45,14 @@ export async function sendMailFromAlias(opts: {
   const info = await transporter.sendMail({
     from: `"${fromName}" <${opts.fromAlias}>`,
     sender: getSmtpConfig().user!,
-    replyTo: opts.fromAlias,
+    replyTo: opts.replyToOverride ?? opts.fromAlias,
     to: opts.to,
     subject: opts.subject,
     text: opts.text,
     html: opts.html,
     inReplyTo: opts.inReplyTo ?? undefined,
     references: opts.references ?? undefined,
+    messageId: opts.messageId,
   });
   return { messageId: info.messageId };
 }

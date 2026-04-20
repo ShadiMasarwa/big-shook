@@ -10,8 +10,8 @@ import { Mail, Phone, MapPin } from "lucide-react";
 const DEPARTMENTS = [
   { value: "customer_service", label: "שירות לקוחות" },
   { value: "info", label: "בקשת מידע" },
-  { value: "suppliers", label: "ספקים" },
-  { value: "admin", label: "הנהלה" },
+  // { value: "suppliers", label: "ספקים" },
+  // { value: "admin", label: "הנהלה" },
 ];
 
 export default function Contact() {
@@ -47,7 +47,12 @@ export default function Contact() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          fullName, email, department, message, captcha: true, hp,
+          fullName,
+          email,
+          department,
+          message,
+          captcha: true,
+          hp,
         }),
       });
       if (!res.ok) {
@@ -59,7 +64,11 @@ export default function Contact() {
         title: "פנייתך נשלחה בהצלחה",
         description: "פנייתך התקבלה ותטופל תוך 3 ימי עסקים.",
       });
-      setFullName(""); setEmail(""); setMessage(""); setAnswer(""); setCaptcha(false);
+      setFullName("");
+      setEmail("");
+      setMessage("");
+      setAnswer("");
+      setCaptcha(false);
     } catch (err: any) {
       toast({ title: err.message ?? "שליחה נכשלה", variant: "destructive" });
     } finally {
@@ -71,7 +80,9 @@ export default function Contact() {
     <Layout>
       <div className="container mx-auto px-4 py-10 max-w-5xl">
         <h1 className="text-3xl font-black mb-2">צור קשר</h1>
-        <p className="text-muted-foreground mb-8">נשמח לשמוע ממך — מלא את הטופס ונחזור אליך בהקדם.</p>
+        <p className="text-muted-foreground mb-8">
+          נשמח לשמוע ממך — מלא את הטופס ונחזור אליך בהקדם.
+        </p>
 
         <div className="grid md:grid-cols-3 gap-8">
           <div className="md:col-span-2 bg-card border border-border rounded-2xl p-6 shadow-sm">
@@ -80,9 +91,15 @@ export default function Contact() {
                 <div className="h-16 w-16 mx-auto rounded-full bg-green-100 flex items-center justify-center mb-4">
                   <Mail className="h-8 w-8 text-green-600" />
                 </div>
-                <h2 className="text-2xl font-bold mb-2">פנייתך נשלחה בהצלחה!</h2>
-                <p className="text-muted-foreground mb-6">פנייתך התקבלה ותטופל תוך 3 ימי עסקים.</p>
-                <Button onClick={() => setSuccess(false)} variant="outline">שלח פנייה נוספת</Button>
+                <h2 className="text-2xl font-bold mb-2">
+                  פנייתך נשלחה בהצלחה!
+                </h2>
+                <p className="text-muted-foreground mb-6">
+                  פנייתך התקבלה ותטופל תוך 3 ימי עסקים.
+                </p>
+                <Button onClick={() => setSuccess(false)} variant="outline">
+                  שלח פנייה נוספת
+                </Button>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-5">
@@ -100,12 +117,25 @@ export default function Contact() {
 
                 <div>
                   <Label htmlFor="fullName">שם מלא *</Label>
-                  <Input id="fullName" required value={fullName} onChange={(e) => setFullName(e.target.value)} data-testid="input-contact-name" />
+                  <Input
+                    id="fullName"
+                    required
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    data-testid="input-contact-name"
+                  />
                 </div>
 
                 <div>
                   <Label htmlFor="email">כתובת אימייל *</Label>
-                  <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} data-testid="input-contact-email" />
+                  <Input
+                    id="email"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    data-testid="input-contact-email"
+                  />
                 </div>
 
                 <div>
@@ -118,7 +148,9 @@ export default function Contact() {
                     data-testid="select-contact-department"
                   >
                     {DEPARTMENTS.map((d) => (
-                      <option key={d.value} value={d.value}>{d.label}</option>
+                      <option key={d.value} value={d.value}>
+                        {d.label}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -126,7 +158,9 @@ export default function Contact() {
                 <div>
                   <div className="flex justify-between items-center">
                     <Label htmlFor="message">תוכן ההודעה *</Label>
-                    <span className={`text-xs ${message.length > 200 ? "text-destructive" : "text-muted-foreground"}`}>
+                    <span
+                      className={`text-xs ${message.length > 200 ? "text-destructive" : "text-muted-foreground"}`}
+                    >
                       {message.length} / 200
                     </span>
                   </div>
@@ -150,11 +184,18 @@ export default function Contact() {
                       onCheckedChange={(v) => setCaptcha(!!v)}
                       data-testid="checkbox-captcha"
                     />
-                    <Label htmlFor="captcha" className="cursor-pointer font-medium">אני לא רובוט</Label>
+                    <Label
+                      htmlFor="captcha"
+                      className="cursor-pointer font-medium"
+                    >
+                      אני לא רובוט
+                    </Label>
                   </div>
                   {captcha && (
                     <div className="flex items-center gap-2 text-sm">
-                      <span>פתור: {a} + {b} =</span>
+                      <span>
+                        פתור: {a} + {b} =
+                      </span>
                       <Input
                         type="number"
                         value={answer}
@@ -163,7 +204,9 @@ export default function Contact() {
                         data-testid="input-captcha-answer"
                       />
                       {parseInt(answer || "-1", 10) === a + b && (
-                        <span className="text-green-600 font-medium">✓ אומת</span>
+                        <span className="text-green-600 font-medium">
+                          ✓ אומת
+                        </span>
                       )}
                     </div>
                   )}
@@ -171,7 +214,9 @@ export default function Contact() {
 
                 <Button
                   type="submit"
-                  disabled={submitting || !captchaPasses || message.length === 0}
+                  disabled={
+                    submitting || !captchaPasses || message.length === 0
+                  }
                   className="w-full"
                   data-testid="btn-contact-submit"
                 >
@@ -185,14 +230,28 @@ export default function Contact() {
             <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
               <h3 className="font-bold mb-4">פרטי התקשרות</h3>
               <ul className="space-y-3 text-sm">
-                <li className="flex items-center gap-2"><Phone className="h-4 w-4 text-primary" /> 051-5008661</li>
-                <li className="flex items-center gap-2"><Mail className="h-4 w-4 text-primary" /> support@bigshook.com</li>
-                <li className="flex items-center gap-2"><MapPin className="h-4 w-4 text-primary" /> ת.ד. 3869, טייבה 4040000</li>
+                <li className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-primary" /> 051-5008661
+                </li>
+                <li className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-primary" /> support@bigshook.com
+                </li>
+                <li className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-primary" /> info@bigshook.com
+                </li>
+                <li className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-primary" /> ת.ד. 3869, טייבה
+                  4040000
+                </li>
               </ul>
             </div>
             <div className="bg-card border border-border rounded-2xl p-6 shadow-sm text-sm text-muted-foreground">
               <h3 className="font-bold text-foreground mb-2">שעות פעילות</h3>
-              <p>א'-ה' 9:00 — 18:00<br />ו' 9:00 — 13:00</p>
+              <p>
+                א'-ה' 9:00 — 18:00
+                <br />
+                ו' 9:00 — 13:00
+              </p>
             </div>
           </aside>
         </div>
