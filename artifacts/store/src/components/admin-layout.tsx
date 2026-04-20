@@ -44,9 +44,10 @@ const ALL_NAV_ITEMS = [
   { href: "/admin/managers", label: "ניהול מנהלים", icon: UserCog, section: "managers_only" },
 ];
 
-function AdminHeaderBell() {
+function AdminHeaderBell({ enabled }: { enabled: boolean }) {
   const { data } = useQuery({
     queryKey: ["admin-messages-unread"],
+    enabled,
     queryFn: async () => {
       const t = localStorage.getItem("token");
       const headers: Record<string, string> = t ? { Authorization: `Bearer ${t}` } : {};
@@ -182,7 +183,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6 sticky top-0 z-10">
           <h1 className="text-xl font-bold md:hidden">לוח בקרה מנהלים</h1>
           <div className="hidden md:block" />
-          <AdminHeaderBell />
+          <AdminHeaderBell enabled={isAdmin || isManager} />
         </header>
         <div className="flex-1 p-6 overflow-y-auto">
           {children}

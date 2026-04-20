@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin-layout";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -61,6 +62,8 @@ function relTime(iso: string): string {
 export default function MessageCenter() {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const isManagerUser = user?.role === "manager" || user?.role === "admin";
   const [account, setAccount] = useState<string>("all");
   const [folder, setFolder] = useState<string>("inbox");
   const [search, setSearch] = useState("");
@@ -71,6 +74,7 @@ export default function MessageCenter() {
   const listKey = ["admin-messages", account, folder, search];
   const { data: list, isLoading } = useQuery({
     queryKey: listKey,
+    enabled: isManagerUser,
     queryFn: async () => {
       const params = new URLSearchParams({ account, folder, search });
       const res = await fetch(`/api/admin/messages?${params}`, { headers: authHeaders() });
@@ -82,6 +86,7 @@ export default function MessageCenter() {
 
   const { data: unread } = useQuery({
     queryKey: ["admin-messages-unread"],
+    enabled: isManagerUser,
     queryFn: async () => {
       const res = await fetch("/api/admin/messages/unread-count", { headers: authHeaders() });
       if (!res.ok) return { total: 0, byAccount: {} as Record<string, number> };
@@ -97,7 +102,7 @@ export default function MessageCenter() {
 
   const { data: full } = useQuery({
     queryKey: ["admin-message", selectedId],
-    enabled: !!selectedId,
+    enabled: !!selectedId && isManagerUser,
     queryFn: async () => {
       const res = await fetch(`/api/admin/messages/${selectedId}`, { headers: authHeaders() });
       if (!res.ok) throw new Error("לא נמצא");
