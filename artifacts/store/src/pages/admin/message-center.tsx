@@ -71,6 +71,21 @@ export default function MessageCenter() {
   const [replyOpen, setReplyOpen] = useState(false);
   const [replyBody, setReplyBody] = useState("");
   const [composeOpen, setComposeOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+  // Reset selection when changing folder/account/search.
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [account, folder, search]);
+
+  function toggleSel(id: number) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   const listKey = ["admin-messages", account, folder, search];
   const { data: list, isLoading } = useQuery({
@@ -197,6 +212,43 @@ export default function MessageCenter() {
     onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
   });
 
+  const bulk = useMutation({
+    mutationFn: async (action: "archive" | "spam" | "sent" | "trash" | "delete") => {
+      const res = await fetch(`/api/admin/messages/bulk`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ ids: Array.from(selectedIds), action }),
+      });
+      if (!res.ok) throw new Error("פעולה נכשלה");
+      return (await res.json()) as { count: number };
+    },
+    onSuccess: (r) => {
+      toast({ title: `הועברו ${r.count} הודעות` });
+      setSelectedIds(new Set());
+      setSelectedId(null);
+      invalidate();
+    },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const emptyTrash = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/admin/messages/empty-trash`, {
+        method: "POST",
+        headers: authHeaders(),
+      });
+      if (!res.ok) throw new Error("ניקוי האשפה נכשל");
+      return (await res.json()) as { deleted: number };
+    },
+    onSuccess: (r) => {
+      toast({ title: `נמחקו ${r.deleted} הודעות לצמיתות` });
+      setSelectedIds(new Set());
+      setSelectedId(null);
+      invalidate();
+    },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
+
   const sync = useMutation({
     mutationFn: async () => {
       const res = await fetch("/api/admin/messages/sync", { method: "POST", headers: authHeaders() });
@@ -291,7 +343,7 @@ export default function MessageCenter() {
 
         {/* Message list */}
         <section className="col-span-12 md:col-span-4 lg:col-span-4 bg-card border border-border rounded-2xl flex flex-col overflow-hidden">
-          <div className="p-3 border-b border-border">
+          <div className="p-3 border-b border-border space-y-2">
             <div className="relative">
               <Search className="h-4 w-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -302,6 +354,82 @@ export default function MessageCenter() {
                 data-testid="input-message-search"
               />
             </div>
+            {/* Select-all + empty-trash row */}
+            {(list?.messages.length ?? 0) > 0 && (
+              <div className="flex items-center justify-between gap-2 text-sm">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={
+                      !!list?.messages.length &&
+                      list.messages.every((m) => selectedIds.has(m.id))
+                    }
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedIds(new Set(list?.messages.map((m) => m.id) ?? []));
+                      } else {
+                        setSelectedIds(new Set());
+                      }
+                    }}
+                    data-testid="checkbox-select-all"
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    {selectedIds.size > 0
+                      ? `${selectedIds.size} נבחרו`
+                      : "בחר הכל"}
+                  </span>
+                </label>
+                {folder === "trash" && selectedIds.size === 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => {
+                      if (confirm("למחוק את כל ההודעות בתיקיית האשפה לצמיתות?")) {
+                        emptyTrash.mutate();
+                      }
+                    }}
+                    disabled={emptyTrash.isPending}
+                    data-testid="btn-empty-trash"
+                  >
+                    <Trash2 className="h-3 w-3 ml-1" />
+                    {emptyTrash.isPending ? "מנקה..." : "רוקן אשפה"}
+                  </Button>
+                )}
+              </div>
+            )}
+            {/* Bulk action toolbar — shown when at least one row is selected */}
+            {selectedIds.size > 0 && (
+              <div className="flex flex-wrap gap-1.5" data-testid="bulk-toolbar">
+                {folder !== "archive" && (
+                  <Button size="sm" variant="outline" onClick={() => bulk.mutate("archive")} disabled={bulk.isPending} data-testid="btn-bulk-archive">
+                    <Archive className="h-3 w-3 ml-1" /> ארכיון
+                  </Button>
+                )}
+                {folder !== "spam" && (
+                  <Button size="sm" variant="outline" onClick={() => bulk.mutate("spam")} disabled={bulk.isPending} data-testid="btn-bulk-spam">
+                    <AlertTriangle className="h-3 w-3 ml-1" /> ספאם
+                  </Button>
+                )}
+                {folder !== "sent" && (
+                  <Button size="sm" variant="outline" onClick={() => bulk.mutate("sent")} disabled={bulk.isPending} data-testid="btn-bulk-sent">
+                    <Send className="h-3 w-3 ml-1" /> נשלחו
+                  </Button>
+                )}
+                {folder !== "trash" && (
+                  <Button size="sm" variant="outline" onClick={() => bulk.mutate("trash")} disabled={bulk.isPending} data-testid="btn-bulk-trash">
+                    <Trash2 className="h-3 w-3 ml-1" /> אשפה
+                  </Button>
+                )}
+                {folder === "trash" && (
+                  <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => {
+                    if (confirm(`למחוק ${selectedIds.size} הודעות לצמיתות?`)) bulk.mutate("delete");
+                  }} disabled={bulk.isPending} data-testid="btn-bulk-delete">
+                    <Trash2 className="h-3 w-3 ml-1" /> מחק לצמיתות
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex-1 overflow-y-auto">
             {isLoading ? (
@@ -312,14 +440,27 @@ export default function MessageCenter() {
               list.messages.map((m) => {
                 const acc = ACCOUNTS.find((a) => a.value === m.account);
                 const isSel = selectedId === m.id;
+                const isChecked = selectedIds.has(m.id);
                 return (
-                  <button
+                  <div
                     key={m.id}
-                    onClick={() => setSelectedId(m.id)}
-                    className={`w-full text-right p-3 border-b border-border transition-colors ${isSel ? "bg-primary/10" : "hover:bg-muted"} ${!m.isRead ? "bg-blue-50/50" : ""}`}
-                    data-testid={`message-row-${m.id}`}
+                    className={`w-full p-3 border-b border-border transition-colors ${isSel ? "bg-primary/10" : "hover:bg-muted"} ${!m.isRead ? "bg-blue-50/50" : ""}`}
                   >
                     <div className="flex items-start gap-2 mb-1">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => { e.stopPropagation(); toggleSel(m.id); }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="mt-1.5 shrink-0"
+                        data-testid={`checkbox-row-${m.id}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setSelectedId(m.id)}
+                        className="flex-1 text-right flex items-start gap-2 min-w-0"
+                        data-testid={`message-row-${m.id}`}
+                      >
                       <span className={`h-2 w-2 mt-2 rounded-full shrink-0 ${acc?.color ?? "bg-slate-400"}`} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
@@ -346,8 +487,9 @@ export default function MessageCenter() {
                           {m.bodyText.slice(0, 80)}
                         </div>
                       </div>
+                      </button>
                     </div>
-                  </button>
+                  </div>
                 );
               })
             )}

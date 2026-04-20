@@ -352,6 +352,71 @@ router.post("/admin/messages/sync", async (req, res): Promise<void> => {
   res.json(result);
 });
 
+// ── Empty trash: permanently delete every message in the trash folder. ─────
+router.post("/admin/messages/empty-trash", async (req, res): Promise<void> => {
+  if (!(await requireManager(req, res))) return;
+  const rows = await db
+    .select({ id: messagesTable.id, messageId: messagesTable.messageId, direction: messagesTable.direction })
+    .from(messagesTable)
+    .where(eq(messagesTable.folder, "trash"));
+  if (!rows.length) { res.json({ deleted: 0 }); return; }
+  await db.delete(messagesTable).where(eq(messagesTable.folder, "trash"));
+  // Best-effort: expunge each from IMAP too.
+  for (const r of rows) {
+    if (r.direction === "incoming" && r.messageId) {
+      imapDeletePermanent(r.messageId).catch((e) =>
+        console.warn("[messages] empty-trash imapDeletePermanent", e),
+      );
+    }
+  }
+  res.json({ deleted: rows.length });
+});
+
+// ── Bulk move: move multiple messages to a destination folder. ─────────────
+router.post("/admin/messages/bulk", async (req, res): Promise<void> => {
+  if (!(await requireManager(req, res))) return;
+  const { ids, action } = req.body ?? {};
+  const idArr = Array.isArray(ids) ? ids.map((x: any) => parseInt(x, 10)).filter((n) => !isNaN(n)) : [];
+  if (!idArr.length) { res.status(400).json({ error: "לא נבחרו הודעות" }); return; }
+  const allowed = ["archive", "spam", "sent", "trash", "inbox", "delete"] as const;
+  if (!allowed.includes(action)) { res.status(400).json({ error: "פעולה לא חוקית" }); return; }
+
+  const rows = await db
+    .select({ id: messagesTable.id, messageId: messagesTable.messageId, direction: messagesTable.direction })
+    .from(messagesTable)
+    .where(inArray(messagesTable.id, idArr));
+
+  if (action === "delete") {
+    await db.delete(messagesTable).where(inArray(messagesTable.id, idArr));
+    for (const r of rows) {
+      if (r.direction === "incoming" && r.messageId) {
+        imapDeletePermanent(r.messageId).catch((e) =>
+          console.warn("[messages] bulk imapDeletePermanent", e),
+        );
+      }
+    }
+  } else {
+    await db
+      .update(messagesTable)
+      .set({ folder: action as any })
+      .where(inArray(messagesTable.id, idArr));
+    const intent =
+      action === "archive" ? "Archive" :
+      action === "spam" ? "Spam" :
+      action === "trash" ? "Trash" : null;
+    if (intent) {
+      for (const r of rows) {
+        if (r.direction === "incoming" && r.messageId) {
+          imapMoveTo(r.messageId, intent).catch((e) =>
+            console.warn("[messages] bulk imapMoveTo", intent, e),
+          );
+        }
+      }
+    }
+  }
+  res.json({ ok: true, count: idArr.length });
+});
+
 // ── Compose new message ────────────────────────────────────────────────────
 router.post("/admin/messages/compose", async (req, res): Promise<void> => {
   if (!(await requireManager(req, res))) return;
