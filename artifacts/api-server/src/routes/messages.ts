@@ -1,18 +1,34 @@
 import { Router, type IRouter } from "express";
 import { eq, and, or, desc, sql, ilike, inArray } from "drizzle-orm";
-import { db, messagesTable, MESSAGE_ACCOUNTS, MESSAGE_DEPARTMENT_TO_ACCOUNT } from "@workspace/db";
-import { getManagerFromRequest } from "../lib/managerAuth.js";
+import { db, messagesTable, usersTable, MESSAGE_ACCOUNTS, MESSAGE_DEPARTMENT_TO_ACCOUNT } from "@workspace/db";
+import { getManagerFromRequest, isManagerToken } from "../lib/managerAuth.js";
 import { sendMailFromAlias, syncIncomingMail } from "../lib/mail.js";
 
 const router: IRouter = Router();
 
 async function requireManager(req: any, res: any): Promise<boolean> {
-  const m = await getManagerFromRequest(req);
-  if (!m || !m.isActive) {
-    res.status(401).json({ error: "אין הרשאה" });
-    return false;
+  // Accept either a manager token, or a regular user token whose user.role is "admin".
+  const authHeader = req.headers.authorization as string | undefined;
+  if (authHeader) {
+    const token = authHeader.replace("Bearer ", "");
+    if (isManagerToken(token)) {
+      const m = await getManagerFromRequest(req);
+      if (m && m.isActive) return true;
+    } else {
+      try {
+        const decoded = Buffer.from(token, "base64").toString("utf-8");
+        const userId = parseInt(decoded.split(":")[0], 10);
+        if (!isNaN(userId)) {
+          const [u] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+          if (u && u.isActive && (u.role === "admin" || u.role === "manager")) return true;
+        }
+      } catch {
+        // fall through to 401
+      }
+    }
   }
-  return true;
+  res.status(401).json({ error: "אין הרשאה" });
+  return false;
 }
 
 // ── Public: contact form ────────────────────────────────────────────────────
