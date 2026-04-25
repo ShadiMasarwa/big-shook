@@ -6,9 +6,16 @@ import { verifyCustomerToken } from "../lib/managerAuth.js";
 
 const router: IRouter = Router();
 
-function getSessionId(req: { headers: Record<string, string | string[] | undefined>; ip?: string }): string {
+const SESSION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function getSessionId(req: { headers: Record<string, string | string[] | undefined>; ip?: string }): string | null {
   const sessionHeader = req.headers["x-session-id"];
-  return (Array.isArray(sessionHeader) ? sessionHeader[0] : sessionHeader) ?? "default-session";
+  const raw = (Array.isArray(sessionHeader) ? sessionHeader[0] : sessionHeader) ?? null;
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (trimmed === "" || trimmed === "default-session") return null;
+  if (!SESSION_ID_RE.test(trimmed)) return null;
+  return trimmed;
 }
 
 function getUserId(req: { headers: Record<string, string | string[] | undefined> }): number | null {
@@ -282,6 +289,7 @@ async function revalidateDiscounts(
 
 router.get("/cart", async (req, res): Promise<void> => {
   const sessionId = getSessionId(req as Parameters<typeof getSessionId>[0]);
+  if (!sessionId) { res.status(400).json({ error: "x-session-id header is required" }); return; }
   const userId = getUserId(req as Parameters<typeof getUserId>[0]);
   const cart = await buildCart(sessionId, userId);
   res.json(cart);
@@ -289,6 +297,7 @@ router.get("/cart", async (req, res): Promise<void> => {
 
 router.post("/cart/items", async (req, res): Promise<void> => {
   const sessionId = getSessionId(req as Parameters<typeof getSessionId>[0]);
+  if (!sessionId) { res.status(400).json({ error: "x-session-id header is required" }); return; }
   const userId = getUserId(req as Parameters<typeof getUserId>[0]);
   const { productId, quantity, variationId } = req.body;
   if (!productId || !quantity) {
@@ -359,6 +368,7 @@ router.post("/cart/items", async (req, res): Promise<void> => {
 
 router.patch("/cart/items/:productId", async (req, res): Promise<void> => {
   const sessionId = getSessionId(req as Parameters<typeof getSessionId>[0]);
+  if (!sessionId) { res.status(400).json({ error: "x-session-id header is required" }); return; }
   const userId = getUserId(req as Parameters<typeof getUserId>[0]);
   const raw = Array.isArray(req.params.productId) ? req.params.productId[0] : req.params.productId;
   const productId = parseInt(raw, 10);
@@ -386,6 +396,7 @@ router.patch("/cart/items/:productId", async (req, res): Promise<void> => {
 
 router.delete("/cart/items/:productId", async (req, res): Promise<void> => {
   const sessionId = getSessionId(req as Parameters<typeof getSessionId>[0]);
+  if (!sessionId) { res.status(400).json({ error: "x-session-id header is required" }); return; }
   const userId = getUserId(req as Parameters<typeof getUserId>[0]);
   const raw = Array.isArray(req.params.productId) ? req.params.productId[0] : req.params.productId;
   const productId = parseInt(raw, 10);
@@ -409,6 +420,7 @@ router.delete("/cart/items/:productId", async (req, res): Promise<void> => {
 
 router.post("/cart/coupon", async (req, res): Promise<void> => {
   const sessionId = getSessionId(req as Parameters<typeof getSessionId>[0]);
+  if (!sessionId) { res.status(400).json({ error: "x-session-id header is required" }); return; }
   const userId = getUserId(req as Parameters<typeof getUserId>[0]);
   const { code } = req.body;
   if (!code) {
@@ -500,6 +512,7 @@ router.post("/cart/coupon", async (req, res): Promise<void> => {
 
 router.delete("/cart/coupon", async (req, res): Promise<void> => {
   const sessionId = getSessionId(req as Parameters<typeof getSessionId>[0]);
+  if (!sessionId) { res.status(400).json({ error: "x-session-id header is required" }); return; }
   const userId = getUserId(req as Parameters<typeof getUserId>[0]);
   const code = (req.query.code ?? req.body?.code) as string | undefined;
   if (code) {
@@ -516,6 +529,7 @@ router.delete("/cart/coupon", async (req, res): Promise<void> => {
 
 router.delete("/cart/clear", async (req, res): Promise<void> => {
   const sessionId = getSessionId(req as Parameters<typeof getSessionId>[0]);
+  if (!sessionId) { res.status(400).json({ error: "x-session-id header is required" }); return; }
   const userId = getUserId(req as Parameters<typeof getUserId>[0]);
   await db.delete(cartItemsTable).where(eq(cartItemsTable.sessionId, sessionId));
   await db.delete(cartCouponsTable).where(eq(cartCouponsTable.sessionId, sessionId));
@@ -527,6 +541,7 @@ router.delete("/cart/clear", async (req, res): Promise<void> => {
 // ── Loyalty points redemption ────────────────────────────────────────────────
 router.post("/cart/loyalty", async (req, res): Promise<void> => {
   const sessionId = getSessionId(req as Parameters<typeof getSessionId>[0]);
+  if (!sessionId) { res.status(400).json({ error: "x-session-id header is required" }); return; }
   const userId = getUserId(req as Parameters<typeof getUserId>[0]);
 
   if (!userId) {
@@ -571,6 +586,7 @@ router.post("/cart/loyalty", async (req, res): Promise<void> => {
 
 router.delete("/cart/loyalty", async (req, res): Promise<void> => {
   const sessionId = getSessionId(req as Parameters<typeof getSessionId>[0]);
+  if (!sessionId) { res.status(400).json({ error: "x-session-id header is required" }); return; }
   const userId = getUserId(req as Parameters<typeof getUserId>[0]);
   await db.delete(cartLoyaltyTable).where(eq(cartLoyaltyTable.sessionId, sessionId));
   const cart = await buildCart(sessionId, userId);

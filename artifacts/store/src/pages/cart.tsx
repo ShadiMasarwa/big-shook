@@ -22,12 +22,19 @@ export default function Cart() {
   const removeCoupon = useRemoveCouponFromCart();
   const queryClient = useQueryClient();
 
+  const getSessionId = () => {
+    const existing = localStorage.getItem("sessionId");
+    if (existing && existing !== "default-session") return existing;
+    const id = crypto.randomUUID();
+    localStorage.setItem("sessionId", id);
+    return id;
+  };
+
   const cartHeaders = () => {
-    const sid = localStorage.getItem("sessionId") ?? "default-session";
     const token = localStorage.getItem("token");
     return {
       "Content-Type": "application/json",
-      "x-session-id": sid,
+      "x-session-id": getSessionId(),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
   };
@@ -91,12 +98,11 @@ export default function Cart() {
     setLoyaltyPending(true);
     try {
       const token = localStorage.getItem("token");
-      const sid = localStorage.getItem("sessionId") ?? "default-session";
       const res = await fetch("/api/cart/loyalty", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-session-id": sid,
+          "x-session-id": getSessionId(),
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ points }),
@@ -116,12 +122,11 @@ export default function Cart() {
   const handleRemoveLoyalty = async () => {
     setLoyaltyPending(true);
     try {
-      const sid = localStorage.getItem("sessionId") ?? "default-session";
       const token = localStorage.getItem("token");
       const res = await fetch("/api/cart/loyalty", {
         method: "DELETE",
         headers: {
-          "x-session-id": sid,
+          "x-session-id": getSessionId(),
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       });
@@ -150,13 +155,12 @@ export default function Cart() {
 
   const handleRemoveCoupon = async (code?: string) => {
     try {
-      const sid = localStorage.getItem("sessionId") ?? "default-session";
       const token = localStorage.getItem("token");
       const url = code ? `/api/cart/coupon?code=${encodeURIComponent(code)}` : "/api/cart/coupon";
       const res = await fetch(url, {
         method: "DELETE",
         headers: {
-          "x-session-id": sid,
+          "x-session-id": getSessionId(),
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       });
