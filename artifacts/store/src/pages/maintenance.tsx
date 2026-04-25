@@ -19,7 +19,7 @@ export default function MaintenancePage() {
 
   const message =
     settings?.maintenance_message ||
-    "אנו מבצעים עבודות תחזוקה קצרות. נשוב בקרוב!";
+    "אנו מבצעים עבודות תחזוקה קצרות. נשוב בהקדם!";
 
   const previewLiveSite = () => {
     if (typeof window === "undefined") return;
@@ -38,7 +38,7 @@ export default function MaintenancePage() {
         </div>
 
         <h1 className="text-3xl md:text-5xl font-black text-slate-900 mb-3">
-          האתר בתחזוקה
+          האתר נמצא בתחזוקה
         </h1>
         <p className="text-lg md:text-xl text-slate-600 mb-2">ביג-שווק</p>
         <div className="h-1 w-20 bg-gradient-to-r from-blue-500 to-indigo-600 mx-auto rounded-full mb-6" />
@@ -63,7 +63,7 @@ export default function MaintenancePage() {
             className="flex items-center gap-3 text-blue-700 hover:text-blue-900 transition-colors"
           >
             <Phone className="h-5 w-5 shrink-0" />
-            <span dir="ltr">077-1234577</span>
+            <span dir="ltr">051-500-8661</span>
           </a>
         </div>
 
