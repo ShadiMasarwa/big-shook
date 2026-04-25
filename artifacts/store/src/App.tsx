@@ -96,16 +96,21 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
   if (isError || !settings) return <>{children}</>;
 
   const isMaintenance = settings.maintenance_mode === "on";
-  if (!isMaintenance) return <>{children}</>;
+  if (!isMaintenance || allowed) return <>{children}</>;
 
-  // Maintenance is ON. While auth is still loading, don't briefly show the
-  // maintenance page to an admin/manager who is about to be authenticated.
-  if (authLoading) {
-    return allowed ? <>{children}</> : null;
+  // While auth is still loading, hold off rendering on public routes to avoid
+  // a brief flash before we know whether the user opted into admin preview.
+  if (authLoading) return null;
+
+  // Per-tab admin "preview live site" override. An admin/manager can choose
+  // to bypass the maintenance gate just for this tab (e.g. to QA the site).
+  // The flag is set from inside MaintenancePage and cleared from the dashboard.
+  const isAdmin = user?.role === "admin" || user?.role === "manager";
+  if (isAdmin && typeof window !== "undefined" &&
+      window.sessionStorage.getItem("adminPreviewSite") === "1") {
+    return <>{children}</>;
   }
 
-  const isAdmin = user?.role === "admin" || user?.role === "manager";
-  if (isAdmin || allowed) return <>{children}</>;
   return <MaintenancePage />;
 }
 
