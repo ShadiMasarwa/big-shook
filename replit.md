@@ -68,6 +68,7 @@ A production-ready Israeli tech/electronics store with full Hebrew RTL UI.
 - Inventory management (multi-warehouse)
 - Full admin panel (dashboard, products, orders, users, analytics, coupons, loyalty, inventory)
 - Hebrew UI (he-IL), RTL layout, Heebo font, ₪ price format
+- **Site on-air / maintenance mode**: Dashboard switch (`MaintenanceToggle`) flips `site_settings.maintenance_mode` between `"on"` and `"off"`. When ON, public visitors see the styled Hebrew RTL `MaintenancePage` (`artifacts/store/src/pages/maintenance.tsx`). `MaintenanceGuard` in `App.tsx` allows `/admin`, `/auth`, `/setup-manager-password`, `/reset-password`, plus any logged-in admin/manager. Toggle endpoint: `PUT /api/admin/site-settings/maintenance_mode` is now in the `PROTECTED_KEYS` set and requires manager OR admin/manager-role user token (other site-settings keys still use the existing pattern).
 
 ### Test Credentials
 - Admin: `admin@store.co.il` / `Admin123!`

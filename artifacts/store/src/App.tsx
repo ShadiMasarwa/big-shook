@@ -1,6 +1,8 @@
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { useEffect } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
+import MaintenancePage from "@/pages/maintenance";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/use-auth";
@@ -57,9 +59,59 @@ function ScrollToTop() {
   return null;
 }
 
+function MaintenanceGuard({ children }: { children: React.ReactNode }) {
+  const [location] = useLocation();
+  const { user, isLoading: authLoading } = useAuth();
+  const { data: settings, isLoading: settingsLoading, isError } = useQuery<Record<string, string>>({
+    queryKey: ["site-settings"],
+    queryFn: async () => {
+      const res = await fetch("/api/site-settings");
+      if (!res.ok) throw new Error("failed to load site settings");
+      return res.json();
+    },
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+    staleTime: 10_000,
+    retry: 1,
+  });
+
+  // Always-allowed paths, even during maintenance, so managers can sign in
+  // and customers can still finish password recovery if needed.
+  const allowed =
+    location.startsWith("/admin") ||
+    location.startsWith("/setup-manager-password") ||
+    location.startsWith("/auth") ||
+    location.startsWith("/reset-password");
+
+  // While the settings query is still resolving (no data yet) and we have no
+  // signal one way or the other, render children optimistically — but only on
+  // allowed paths. On public paths we wait one tick to avoid showing the
+  // storefront to a customer when maintenance is actually ON.
+  if (settingsLoading && !settings) {
+    return allowed ? <>{children}</> : null;
+  }
+
+  // If the settings call errored, fail-open: don't block users from the site
+  // because of a transient network issue.
+  if (isError || !settings) return <>{children}</>;
+
+  const isMaintenance = settings.maintenance_mode === "on";
+  if (!isMaintenance) return <>{children}</>;
+
+  // Maintenance is ON. While auth is still loading, don't briefly show the
+  // maintenance page to an admin/manager who is about to be authenticated.
+  if (authLoading) {
+    return allowed ? <>{children}</> : null;
+  }
+
+  const isAdmin = user?.role === "admin" || user?.role === "manager";
+  if (isAdmin || allowed) return <>{children}</>;
+  return <MaintenancePage />;
+}
+
 function Router() {
   return (
-    <>
+    <MaintenanceGuard>
       <ScrollToTop />
       <Switch>
       <Route path="/" component={Catalog} />
@@ -107,7 +159,7 @@ function Router() {
 
       <Route component={NotFound} />
     </Switch>
-    </>
+    </MaintenanceGuard>
   );
 }
 

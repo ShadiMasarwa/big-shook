@@ -478,7 +478,7 @@ export function Layout({ children }: { children: ReactNode }) {
                                 : "hover:opacity-90"
                             }`}
                           >
-                            <div className="relative w-24 h-16 rounded-xl overflow-hidden bg-muted border border-border">
+                            <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-muted border border-border">
                               {child.imageUrl ? (
                                 <img
                                   src={child.imageUrl}
@@ -892,7 +892,10 @@ export function Layout({ children }: { children: ReactNode }) {
             <h3 className="font-bold text-lg mb-4">צור קשר</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
-                <Link href="/contact" className="hover:text-primary font-semibold">
+                <Link
+                  href="/contact"
+                  className="hover:text-primary font-semibold"
+                >
                   טופס יצירת קשר ←
                 </Link>
               </li>

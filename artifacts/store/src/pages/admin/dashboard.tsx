@@ -2,9 +2,112 @@ import { AdminLayout } from "@/components/admin-layout";
 import { useGetAdminSummary, getGetAdminSummaryQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatPrice } from "@/lib/utils";
-import { DollarSign, ShoppingCart, Package, Users, AlertTriangle, Tag, Star, TrendingUp, Calendar } from "lucide-react";
+import { DollarSign, ShoppingCart, Package, Users, AlertTriangle, Tag, Star, TrendingUp, Calendar, Wrench, Power } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+
+function MaintenanceToggle() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { data: settings } = useQuery<Record<string, string>>({
+    queryKey: ["site-settings"],
+    queryFn: async () => {
+      const res = await fetch("/api/site-settings");
+      if (!res.ok) return {} as Record<string, string>;
+      return res.json();
+    },
+  });
+  const isMaintenance = settings?.maintenance_mode === "on";
+
+  const toggle = useMutation({
+    mutationFn: async (next: boolean) => {
+      const token = localStorage.getItem("token") ?? "";
+      const res = await fetch(`/api/admin/site-settings/maintenance_mode`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ value: next ? "on" : "off" }),
+      });
+      if (!res.ok) throw new Error("שמירה נכשלה");
+    },
+    onSuccess: (_d, next) => {
+      qc.invalidateQueries({ queryKey: ["site-settings"] });
+      toast({
+        title: next ? "האתר עבר למצב תחזוקה" : "האתר חזר לפעילות",
+        description: next
+          ? "כל המבקרים שאינם מנהלים יראו דף תחזוקה."
+          : "האתר זמין לכלל המשתמשים.",
+      });
+    },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  return (
+    <Card
+      className={`border-2 ${
+        isMaintenance
+          ? "border-amber-300 bg-amber-50/60"
+          : "border-emerald-300 bg-emerald-50/60"
+      }`}
+      data-testid="card-site-status"
+    >
+      <CardContent className="p-4 md:p-5 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 md:gap-4">
+          <div
+            className={`h-12 w-12 rounded-full flex items-center justify-center shrink-0 ${
+              isMaintenance ? "bg-amber-500" : "bg-emerald-500"
+            }`}
+          >
+            {isMaintenance ? (
+              <Wrench className="h-6 w-6 text-white" />
+            ) : (
+              <Power className="h-6 w-6 text-white" />
+            )}
+          </div>
+          <div>
+            <div className="text-sm text-muted-foreground">סטטוס האתר</div>
+            <div
+              className={`text-lg md:text-xl font-black ${
+                isMaintenance ? "text-amber-700" : "text-emerald-700"
+              }`}
+              data-testid="text-site-status"
+            >
+              {isMaintenance ? "במצב תחזוקה" : "באוויר — פעיל"}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {isMaintenance
+                ? "המבקרים רואים כעת דף תחזוקה. רק מנהלים יכולים לגלוש באתר."
+                : "כל המשתמשים יכולים לגלוש באתר ולבצע רכישות."}
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          role="switch"
+          aria-checked={!isMaintenance}
+          aria-label="העברת האתר בין מצב פעיל למצב תחזוקה"
+          onClick={() => toggle.mutate(!isMaintenance)}
+          disabled={toggle.isPending}
+          className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors disabled:opacity-50 shrink-0 ${
+            isMaintenance ? "bg-amber-500" : "bg-emerald-500"
+          }`}
+          data-testid="switch-site-status"
+        >
+          <span
+            className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition-transform ${
+              isMaintenance ? "translate-x-1" : "translate-x-9"
+            }`}
+          />
+        </button>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function AdminDashboard() {
   const { data: summary, isLoading } = useGetAdminSummary({
@@ -70,7 +173,12 @@ export default function AdminDashboard() {
 
   return (
     <AdminLayout>
-      <h1 className="text-3xl font-bold mb-8 text-foreground">לוח בקרה</h1>
+      <h1 className="text-3xl font-bold mb-6 text-foreground">לוח בקרה</h1>
+
+      {/* Site on-air / maintenance switch */}
+      <div className="mb-6">
+        <MaintenanceToggle />
+      </div>
 
       {/* Stat cards grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 mb-6">
