@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, asc } from "drizzle-orm";
 import { db, loyaltyTransactionsTable, loyaltyRulesTable, loyaltyTiersTable } from "@workspace/db";
+import { requireAdminOrManager } from "../lib/managerAuth.js";
 
 const router: IRouter = Router();
 
@@ -49,6 +50,7 @@ router.get("/loyalty/tiers", async (_req, res): Promise<void> => {
 });
 
 router.put("/loyalty/tiers/:name", async (req, res): Promise<void> => {
+  if (!await requireAdminOrManager(req, res)) return;
   const { name } = req.params;
   const { nameHe, minSpent, shekelPerPoint, color } = req.body;
   await seedTiersIfEmpty();
@@ -83,6 +85,7 @@ router.get("/loyalty/rules", async (_req, res): Promise<void> => {
 });
 
 router.put("/loyalty/rules", async (req, res): Promise<void> => {
+  if (!await requireAdminOrManager(req, res)) return;
   const { pointsPerShekel, shekelPerPoint, minRedemptionPoints, maxRedemptionPercent } = req.body;
   const [existing] = await db.select().from(loyaltyRulesTable);
   if (existing) {
@@ -104,6 +107,7 @@ router.put("/loyalty/rules", async (req, res): Promise<void> => {
 });
 
 router.get("/loyalty/history/:userId", async (req, res): Promise<void> => {
+  if (!await requireAdminOrManager(req, res)) return;
   const raw = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
   const userId = parseInt(raw, 10);
   const page = parseInt(String(req.query.page ?? "1"), 10);

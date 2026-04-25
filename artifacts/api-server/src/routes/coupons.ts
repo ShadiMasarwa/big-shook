@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
 import { db, couponsTable } from "@workspace/db";
-import { requireManagerPrivilegeCheck } from "../lib/managerAuth.js";
+import { requireManagerPrivilegeCheck, requireAdminOrManager } from "../lib/managerAuth.js";
 
 const router: IRouter = Router();
 const PRIV_DENIED = "אין לך הרשאה לבצע פעולה זו";
@@ -22,6 +22,7 @@ function serializeCoupon(c: typeof couponsTable.$inferSelect) {
 }
 
 router.get("/coupons", async (req, res): Promise<void> => {
+  if (!await requireAdminOrManager(req, res)) return;
   const page = parseInt(String(req.query.page ?? "1"), 10);
   const limit = parseInt(String(req.query.limit ?? "50"), 10);
   const offset = (page - 1) * limit;

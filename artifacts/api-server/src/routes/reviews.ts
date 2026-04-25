@@ -7,6 +7,7 @@ import {
   orderItemsTable,
   usersTable,
 } from "@workspace/db";
+import { verifyCustomerToken } from "../lib/managerAuth.js";
 
 const router: IRouter = Router();
 
@@ -16,9 +17,7 @@ function getUserId(req: { headers: Record<string, string | string[] | undefined>
   try {
     const token = Array.isArray(auth) ? auth[0] : auth;
     const base64 = token.replace(/^Bearer\s+/i, "");
-    const decoded = Buffer.from(base64, "base64").toString("utf-8");
-    const userId = parseInt(decoded.split(":")[0], 10);
-    return Number.isFinite(userId) ? userId : null;
+    return verifyCustomerToken(base64);
   } catch {
     return null;
   }

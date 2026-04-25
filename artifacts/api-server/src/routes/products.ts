@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and, or, gte, lte, ilike, desc, asc, gt, sql, inArray } from "drizzle-orm";
 import { db, productsTable, suppliersTable, categoriesTable, productCategoriesTable, productVariationsTable } from "@workspace/db";
-import { requireManagerPrivilegeCheck } from "../lib/managerAuth.js";
+import { requireManagerPrivilegeCheck, requireAdminOrManager, checkIsAdminOrManager } from "../lib/managerAuth.js";
 
 /**
  * For each product whose productType === "variable", fetch its variations and
@@ -42,13 +42,14 @@ const PRIV_DENIED = "אין לך הרשאה לבצע פעולה זו";
 
 function serializeProduct(
   p: typeof productsTable.$inferSelect,
-  extra?: { supplierName?: string | null; categoryIds?: number[] }
+  extra?: { supplierName?: string | null; categoryIds?: number[] },
+  adminView = false
 ) {
-  return {
+  const base = {
     ...p,
     price: parseFloat(p.price),
     salePrice: p.salePrice ? parseFloat(p.salePrice) : null,
-    costPrice: p.costPrice ? parseFloat(p.costPrice) : null,
+    costPrice: adminView && p.costPrice ? parseFloat(p.costPrice) : null,
     ratingAverage: parseFloat(p.ratingAverage),
     weight: p.weight ? parseFloat(p.weight) : null,
     createdAt: p.createdAt.toISOString(),
@@ -56,9 +57,25 @@ function serializeProduct(
     images: p.images ?? [],
     tags: p.tags ?? [],
     specs: p.specs ?? {},
-    supplierName: extra?.supplierName ?? null,
+    supplierName: adminView ? (extra?.supplierName ?? null) : null,
+    supplierId: adminView ? p.supplierId : null,
     categoryIds: extra?.categoryIds ?? (p.categoryId ? [p.categoryId] : []),
   };
+  return base;
+}
+
+function serializePublicProduct(
+  p: typeof productsTable.$inferSelect,
+  extra?: { categoryIds?: number[] }
+) {
+  return serializeProduct(p, extra, false);
+}
+
+function serializeAdminProduct(
+  p: typeof productsTable.$inferSelect,
+  extra?: { supplierName?: string | null; categoryIds?: number[] }
+) {
+  return serializeProduct(p, extra, true);
 }
 
 /** Sync product_categories join table for a product */
@@ -120,7 +137,7 @@ router.get("/products/featured", async (req, res): Promise<void> => {
     .where(and(eq(productsTable.isActive, true), eq(productsTable.isFeatured, true)))
     .orderBy(desc(productsTable.createdAt))
     .limit(limit);
-  const out = products.map(p => serializeProduct(p));
+  const out = products.map(p => serializePublicProduct(p));
   await attachVariationAggregates(out);
   res.json(out);
 });
@@ -131,7 +148,7 @@ router.get("/products/top-selling", async (req, res): Promise<void> => {
     .where(eq(productsTable.isActive, true))
     .orderBy(desc(productsTable.salesCount))
     .limit(limit);
-  const out = products.map(p => serializeProduct(p));
+  const out = products.map(p => serializePublicProduct(p));
   await attachVariationAggregates(out);
   res.json(out);
 });
@@ -143,11 +160,17 @@ router.get("/products/slug/:slug", async (req, res): Promise<void> => {
     res.status(404).json({ error: "מוצר לא נמצא" });
     return;
   }
+  const isAdminCaller = await checkIsAdminOrManager(req);
+  if (!product.isActive && !isAdminCaller) {
+    res.status(404).json({ error: "מוצר לא נמצא" });
+    return;
+  }
   await db.update(productsTable).set({ viewsCount: product.viewsCount + 1 }).where(eq(productsTable.id, product.id));
   const catRows = await db.select({ categoryId: productCategoriesTable.categoryId })
     .from(productCategoriesTable).where(eq(productCategoriesTable.productId, product.id));
   const categoryIds = catRows.map(r => r.categoryId);
-  const slugOut = serializeProduct({ ...product, viewsCount: product.viewsCount + 1 }, { categoryIds });
+  const serializer = isAdminCaller ? serializeAdminProduct : serializePublicProduct;
+  const slugOut = serializer({ ...product, viewsCount: product.viewsCount + 1 }, { categoryIds });
   const slugArr = [slugOut];
   await attachVariationAggregates(slugArr);
   res.json(slugArr[0]);
@@ -169,7 +192,7 @@ router.get("/products/:id/related", async (req, res): Promise<void> => {
     .where(and(...conditions))
     .orderBy(desc(productsTable.salesCount))
     .limit(limit + 1);
-  const relatedOut = related.filter(p => p.id !== id).slice(0, limit).map(p => serializeProduct(p));
+  const relatedOut = related.filter(p => p.id !== id).slice(0, limit).map(p => serializePublicProduct(p));
   await attachVariationAggregates(relatedOut);
   res.json(relatedOut);
 });
@@ -187,11 +210,17 @@ router.get("/products/:id", async (req, res): Promise<void> => {
     return;
   }
   const { product, supplierName } = row;
+  const isAdminCaller = await checkIsAdminOrManager(req);
+  if (!product.isActive && !isAdminCaller) {
+    res.status(404).json({ error: "מוצר לא נמצא" });
+    return;
+  }
   await db.update(productsTable).set({ viewsCount: product.viewsCount + 1 }).where(eq(productsTable.id, id));
   const catRows = await db.select({ categoryId: productCategoriesTable.categoryId })
     .from(productCategoriesTable).where(eq(productCategoriesTable.productId, id));
   const categoryIds = catRows.map(r => r.categoryId);
-  const idOut = serializeProduct({ ...product, viewsCount: product.viewsCount + 1 }, { supplierName, categoryIds });
+  const detailSerializer = isAdminCaller ? serializeAdminProduct : serializePublicProduct;
+  const idOut = detailSerializer({ ...product, viewsCount: product.viewsCount + 1 }, { supplierName, categoryIds });
   const idArr = [idOut];
   await attachVariationAggregates(idArr);
   res.json(idArr[0]);
@@ -202,7 +231,11 @@ router.get("/products", async (req, res): Promise<void> => {
   const page = parseInt(String(req.query.page ?? "1"), 10);
   const limit = parseInt(String(req.query.limit ?? "20"), 10);
   const offset = (page - 1) * limit;
-  const isAdmin = admin === "true";
+
+  // Admin mode (showing inactive/hidden products) requires authentication.
+  const requestedAdmin = admin === "true";
+  if (requestedAdmin && !await requireAdminOrManager(req, res)) return;
+  const isAdmin = requestedAdmin;
 
   const conditions: any[] = [];
 
@@ -308,7 +341,8 @@ router.get("/products", async (req, res): Promise<void> => {
   const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(productsTable).where(whereClause);
   const products = await db.select().from(productsTable).where(whereClause).orderBy(orderBy).limit(limit).offset(offset);
 
-  const listOut = products.map(p => serializeProduct(p));
+  const productSerializer = isAdmin ? serializeAdminProduct : serializePublicProduct;
+  const listOut = products.map(p => productSerializer(p));
   await attachVariationAggregates(listOut);
   res.json({
     products: listOut,
@@ -414,7 +448,7 @@ router.post("/products/:id/duplicate", async (req, res): Promise<void> => {
     ).onConflictDoNothing();
   }
 
-  res.status(201).json(serializeProduct(newProduct));
+  res.status(201).json(serializeAdminProduct(newProduct));
 });
 
 router.post("/products", async (req, res): Promise<void> => {
@@ -453,7 +487,7 @@ router.post("/products", async (req, res): Promise<void> => {
   }).returning();
 
   await syncProductCategories(product.id, resolvedCategoryIds);
-  res.status(201).json(serializeProduct(product, { categoryIds: resolvedCategoryIds }));
+  res.status(201).json(serializeAdminProduct(product, { categoryIds: resolvedCategoryIds }));
 });
 
 router.patch("/products/:id", async (req, res): Promise<void> => {
@@ -498,7 +532,7 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
     .from(productCategoriesTable).where(eq(productCategoriesTable.productId, id));
   const categoryIds = catRows.map(r => r.categoryId);
 
-  res.json(serializeProduct(product, { categoryIds }));
+  res.json(serializeAdminProduct(product, { categoryIds }));
 });
 
 router.delete("/products/:id", async (req, res): Promise<void> => {

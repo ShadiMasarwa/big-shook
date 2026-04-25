@@ -4,7 +4,7 @@ import { db, ordersTable, orderItemsTable, cartItemsTable, cartCouponsTable, pro
 import { getSessionId, getUserId, buildCart } from "./cart.js";
 import { getTierBySpent } from "./loyalty.js";
 import nodemailer from "nodemailer";
-import { requireManagerPrivilegeCheck } from "../lib/managerAuth.js";
+import { requireManagerPrivilegeCheck, requireAdminOrManager } from "../lib/managerAuth.js";
 
 const router: IRouter = Router();
 const PRIV_DENIED = "אין לך הרשאה לבצע פעולה זו";
@@ -263,6 +263,7 @@ function serializeOrder(order: typeof ordersTable.$inferSelect, items: any[], cu
 }
 
 router.get("/orders", async (req, res): Promise<void> => {
+  if (!await requireAdminOrManager(req, res)) return;
   const page = parseInt(String(req.query.page ?? "1"), 10);
   const limit = parseInt(String(req.query.limit ?? "20"), 10);
   const offset = (page - 1) * limit;
@@ -516,6 +517,7 @@ router.post("/orders", async (req, res): Promise<void> => {
 });
 
 router.get("/orders/:id", async (req, res): Promise<void> => {
+  if (!await requireAdminOrManager(req, res)) return;
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   const [row] = await db

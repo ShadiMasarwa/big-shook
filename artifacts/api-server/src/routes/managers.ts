@@ -6,6 +6,7 @@ import nodemailer from "nodemailer";
 import {
   generateManagerToken,
   isManagerToken,
+  verifyCustomerToken,
   serializeManager,
   DEFAULT_MANAGER_PRIVILEGES,
 } from "../lib/managerAuth.js";
@@ -73,8 +74,8 @@ async function requireAdmin(req: Request, res: Response): Promise<boolean> {
   try {
     const token = authHeader.replace("Bearer ", "");
     if (isManagerToken(token)) { res.status(403).json({ error: "מנהלים אינם מורשים לבצע פעולה זו" }); return false; }
-    const decoded = Buffer.from(token, "base64").toString("utf-8");
-    const userId = parseInt(decoded.split(":")[0], 10);
+    const userId = verifyCustomerToken(token);
+    if (userId === null) { res.status(401).json({ error: "טוקן לא תקין" }); return false; }
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
     if (!user || user.role !== "admin") { res.status(403).json({ error: "אין הרשאה" }); return false; }
     return true;

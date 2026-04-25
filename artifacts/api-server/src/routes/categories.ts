@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and, sql } from "drizzle-orm";
 import { db, categoriesTable, productsTable } from "@workspace/db";
-import { requireManagerPrivilegeCheck } from "../lib/managerAuth.js";
+import { requireManagerPrivilegeCheck, requireAdminOrManager } from "../lib/managerAuth.js";
 
 const router: IRouter = Router();
 const PRIV_DENIED = "אין לך הרשאה לבצע פעולה זו";
@@ -9,7 +9,11 @@ const PRIV_DENIED = "אין לך הרשאה לבצע פעולה זו";
 router.get("/categories", async (req, res): Promise<void> => {
   const parentIdParam = req.query.parentId;
   const onlyWithProducts = req.query.onlyWithProducts === "true";
-  const isAdmin = req.query.admin === "true";
+  const requestedAdmin = req.query.admin === "true";
+
+  // Admin mode (showing inactive categories) requires authentication.
+  if (requestedAdmin && !await requireAdminOrManager(req, res)) return;
+  const isAdmin = requestedAdmin;
 
   const hasProductsCondition = sql`EXISTS (
     SELECT 1 FROM ${productsTable}

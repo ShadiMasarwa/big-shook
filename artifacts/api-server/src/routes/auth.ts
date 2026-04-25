@@ -5,8 +5,10 @@ import crypto from "crypto";
 import nodemailer from "nodemailer";
 import {
   isManagerToken,
-  parseManagerTokenId,
+  verifyManagerToken,
   generateManagerToken,
+  generateCustomerToken,
+  verifyCustomerToken,
   serializeManager,
 } from "../lib/managerAuth.js";
 
@@ -51,7 +53,7 @@ function serializeUser(u: typeof usersTable.$inferSelect) {
 }
 
 function generateToken(userId: number): string {
-  return Buffer.from(`${userId}:${Date.now()}:${crypto.randomBytes(16).toString("hex")}`).toString("base64");
+  return generateCustomerToken(userId);
 }
 
 function generateOtp(): string {
@@ -254,15 +256,15 @@ router.get("/auth/me", async (req, res): Promise<void> => {
   try {
     const token = authHeader.replace("Bearer ", "");
     if (isManagerToken(token)) {
-      const managerId = parseManagerTokenId(token);
+      const managerId = verifyManagerToken(token);
       if (!managerId) { res.status(401).json({ error: "טוקן לא תקין" }); return; }
       const [manager] = await db.select().from(managersTable).where(eq(managersTable.id, managerId));
       if (!manager) { res.status(401).json({ error: "מנהל לא נמצא" }); return; }
       if (!manager.isActive) { res.status(403).json({ error: "account_inactive" }); return; }
       res.json(serializeManager(manager)); return;
     }
-    const decoded = Buffer.from(token, "base64").toString("utf-8");
-    const userId = parseInt(decoded.split(":")[0], 10);
+    const userId = verifyCustomerToken(token);
+    if (userId === null) { res.status(401).json({ error: "טוקן לא תקין" }); return; }
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
     if (!user) { res.status(401).json({ error: "משתמש לא נמצא" }); return; }
     res.json(serializeUser(user));
@@ -276,8 +278,8 @@ router.put("/auth/profile", async (req, res): Promise<void> => {
   if (!authHeader) { res.status(401).json({ error: "לא מחובר" }); return; }
   try {
     const token = authHeader.replace("Bearer ", "");
-    const decoded = Buffer.from(token, "base64").toString("utf-8");
-    const userId = parseInt(decoded.split(":")[0], 10);
+    const userId = verifyCustomerToken(token);
+    if (userId === null) { res.status(401).json({ error: "טוקן לא תקין" }); return; }
     const [existing] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
     if (!existing) { res.status(401).json({ error: "משתמש לא נמצא" }); return; }
 

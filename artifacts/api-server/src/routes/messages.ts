@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and, or, desc, sql, ilike, inArray } from "drizzle-orm";
 import { db, messagesTable, usersTable, MESSAGE_ACCOUNTS, MESSAGE_DEPARTMENT_TO_ACCOUNT } from "@workspace/db";
-import { getManagerFromRequest, isManagerToken } from "../lib/managerAuth.js";
+import { getManagerFromRequest, isManagerToken, verifyCustomerToken } from "../lib/managerAuth.js";
 import {
   sendMailFromAlias,
   syncIncomingMail,
@@ -23,9 +23,8 @@ async function requireManager(req: any, res: any): Promise<boolean> {
       if (m && m.isActive) return true;
     } else {
       try {
-        const decoded = Buffer.from(token, "base64").toString("utf-8");
-        const userId = parseInt(decoded.split(":")[0], 10);
-        if (!isNaN(userId)) {
+        const userId = verifyCustomerToken(token);
+        if (userId !== null) {
           const [u] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
           if (u && u.isActive && (u.role === "admin" || u.role === "manager")) return true;
         }

@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, desc } from "drizzle-orm";
 import { db, suppliersTable, productsTable } from "@workspace/db";
-import { requireManagerPrivilegeCheck } from "../lib/managerAuth.js";
+import { requireManagerPrivilegeCheck, requireAdminOrManager } from "../lib/managerAuth.js";
 
 const router: IRouter = Router();
 const PRIV_DENIED = "אין לך הרשאה לבצע פעולה זו";
@@ -14,12 +14,14 @@ function serializeSupplier(s: typeof suppliersTable.$inferSelect) {
   };
 }
 
-router.get("/suppliers", async (_req, res): Promise<void> => {
+router.get("/suppliers", async (req, res): Promise<void> => {
+  if (!await requireAdminOrManager(req, res)) return;
   const suppliers = await db.select().from(suppliersTable).orderBy(desc(suppliersTable.createdAt));
   res.json(suppliers.map(serializeSupplier));
 });
 
 router.get("/suppliers/:id", async (req, res): Promise<void> => {
+  if (!await requireAdminOrManager(req, res)) return;
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "מזהה לא תקין" }); return; }
   const [supplier] = await db.select().from(suppliersTable).where(eq(suppliersTable.id, id));
@@ -28,6 +30,7 @@ router.get("/suppliers/:id", async (req, res): Promise<void> => {
 });
 
 router.get("/suppliers/:id/products", async (req, res): Promise<void> => {
+  if (!await requireAdminOrManager(req, res)) return;
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "מזהה לא תקין" }); return; }
   const products = await db.select().from(productsTable)

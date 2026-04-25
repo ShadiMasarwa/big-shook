@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { sql, eq, gte, lte } from "drizzle-orm";
 import { db, ordersTable, usersTable, productsTable, couponsTable, inventoryTable, loyaltyTransactionsTable } from "@workspace/db";
+import { requireAdminOrManager } from "../lib/managerAuth.js";
 
 const router: IRouter = Router();
 
@@ -13,7 +14,8 @@ function serializeProduct(p: typeof productsTable.$inferSelect) {
   };
 }
 
-router.get("/admin/summary", async (_req, res): Promise<void> => {
+router.get("/admin/summary", async (req, res): Promise<void> => {
+  if (!await requireAdminOrManager(req, res)) return;
   const now = new Date();
 
   const today = new Date(now);
@@ -61,10 +63,6 @@ router.get("/admin/summary", async (_req, res): Promise<void> => {
     .where(eq(couponsTable.isActive, false))
     .orderBy(couponsTable.code);
 
-  // ── Loyalty stats (ground-truth approach) ────────────────────────────────
-  // "redeemed" transactions store NEGATIVE points; take abs() to get magnitude.
-  // Welcome bonuses bypass the transaction log, so we derive earned from:
-  //   earned = current_balance + redeemed  (mathematically consistent)
   const [balanceRow]  = await db.select({
     total: sql<number>`coalesce(sum(loyalty_points), 0)`,
   }).from(usersTable);
@@ -75,7 +73,7 @@ router.get("/admin/summary", async (_req, res): Promise<void> => {
 
   const currentBalance = Math.round(Number(balanceRow.total)  || 0);
   const totalRedeemed  = Math.round(Number(redeemedRow.total) || 0);
-  const totalEarned    = currentBalance + totalRedeemed; // balance = earned - redeemed
+  const totalEarned    = currentBalance + totalRedeemed;
 
   res.json({
     todayRevenue: parseFloat(String(todayRevRow.revenue)) || 0,
@@ -114,6 +112,7 @@ router.get("/admin/summary", async (_req, res): Promise<void> => {
 });
 
 router.post("/admin/import/products", async (req, res): Promise<void> => {
+  if (!await requireAdminOrManager(req, res)) return;
   const { products } = req.body;
   if (!products || !Array.isArray(products)) {
     res.status(400).json({ error: "products array is required" });
@@ -145,12 +144,14 @@ router.post("/admin/import/products", async (req, res): Promise<void> => {
   res.json({ imported, failed: errors.length, errors });
 });
 
-router.get("/admin/export/products", async (_req, res): Promise<void> => {
+router.get("/admin/export/products", async (req, res): Promise<void> => {
+  if (!await requireAdminOrManager(req, res)) return;
   const products = await db.select().from(productsTable);
   res.json(products.map(serializeProduct));
 });
 
 router.get("/admin/export/orders", async (req, res): Promise<void> => {
+  if (!await requireAdminOrManager(req, res)) return;
   const orders = await db.select().from(ordersTable);
   res.json(orders.map(o => ({
     ...o,

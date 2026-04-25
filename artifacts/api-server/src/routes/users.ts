@@ -3,10 +3,12 @@ import { eq, ilike, or, sql } from "drizzle-orm";
 import { db, usersTable, loyaltyTransactionsTable } from "@workspace/db";
 import { getTierBySpent } from "./loyalty.js";
 import { serializeUser } from "./auth.js";
+import { requireAdminOrManager } from "../lib/managerAuth.js";
 
 const router: IRouter = Router();
 
 router.get("/users", async (req, res): Promise<void> => {
+  if (!await requireAdminOrManager(req, res)) return;
   const page = parseInt(String(req.query.page ?? "1"), 10);
   const limit = parseInt(String(req.query.limit ?? "20"), 10);
   const offset = (page - 1) * limit;
@@ -34,6 +36,7 @@ router.get("/users", async (req, res): Promise<void> => {
 });
 
 router.get("/users/:id", async (req, res): Promise<void> => {
+  if (!await requireAdminOrManager(req, res)) return;
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id));
@@ -45,6 +48,7 @@ router.get("/users/:id", async (req, res): Promise<void> => {
 });
 
 router.patch("/users/:id", async (req, res): Promise<void> => {
+  if (!await requireAdminOrManager(req, res)) return;
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   const { firstName, lastName, phone, city, street, houseNumber, zipCode, addressNote, isActive, marketingEmails, loyaltyTier } = req.body;
@@ -70,6 +74,7 @@ router.patch("/users/:id", async (req, res): Promise<void> => {
 });
 
 router.patch("/users/:id/loyalty", async (req, res): Promise<void> => {
+  if (!await requireAdminOrManager(req, res)) return;
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   const { points, reason } = req.body;

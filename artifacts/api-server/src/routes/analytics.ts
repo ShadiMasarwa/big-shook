@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { desc, sql, eq, and, lte } from "drizzle-orm";
 import { db, ordersTable, orderItemsTable, usersTable, productsTable, couponsTable, inventoryTable } from "@workspace/db";
+import { requireAdminOrManager } from "../lib/managerAuth.js";
 
 const router: IRouter = Router();
 
@@ -19,13 +20,13 @@ function getStartDate(period: string): Date {
 }
 
 router.get("/analytics/dashboard", async (req, res): Promise<void> => {
+  if (!await requireAdminOrManager(req, res)) return;
   const period = (req.query.period as string) ?? "current-month";
   const startDate = getStartDate(period);
-  const startDateStr = startDate.toISOString().split("T")[0]; // 'YYYY-MM-DD'
+  const startDateStr = startDate.toISOString().split("T")[0];
   const isrStart = sql`(${ordersTable.createdAt} AT TIME ZONE 'Asia/Jerusalem')::date >= ${startDateStr}::date`;
 
   const [totalRevenueRow] = await db.select({ revenue: sql<number>`coalesce(sum(total::numeric), 0)` }).from(ordersTable).where(and(isrStart, ACTIVE_ORDER));
-  // Subtract subtotals of individually-cancelled items in otherwise-active orders
   const [dashCancelledRow] = await db.select({
     subtotal: sql<number>`coalesce(sum(${orderItemsTable.subtotal}::numeric), 0)`,
   }).from(orderItemsTable)
@@ -62,14 +63,9 @@ router.get("/analytics/dashboard", async (req, res): Promise<void> => {
   });
 });
 
-// Returns revenue, orders count, and profit (revenue − cost_price − delivery_cost) for a time bucket.
-// Dates are interpreted in Israel timezone (Asia/Jerusalem) so that the chart aligns with what the
-// admin sees when browsing orders in the browser.
 async function getBucketData(start: Date, end: Date): Promise<{ revenue: number; orders: number; profit: number }> {
-  // Convert JS Date boundaries to plain date strings ('YYYY-MM-DD') and compare against the
-  // order's local Israel date so midnight-Israel orders are never split across buckets.
-  const startStr = start.toISOString().split("T")[0]; // e.g. '2026-04-04'
-  const endStr   = end.toISOString().split("T")[0];   // e.g. '2026-04-05'
+  const startStr = start.toISOString().split("T")[0];
+  const endStr   = end.toISOString().split("T")[0];
   const dateRange = and(
     sql`(${ordersTable.createdAt} AT TIME ZONE 'Asia/Jerusalem')::date >= ${startStr}::date`,
     sql`(${ordersTable.createdAt} AT TIME ZONE 'Asia/Jerusalem')::date <  ${endStr}::date`,
@@ -80,8 +76,6 @@ async function getBucketData(start: Date, end: Date): Promise<{ revenue: number;
     orders:  sql<number>`count(*)::int`,
   }).from(ordersTable).where(and(dateRange, ACTIVE_ORDER));
 
-  // Subtract subtotals of individually-cancelled items inside otherwise-active orders,
-  // so the chart revenue matches the effective total shown on the orders management page.
   const CANCELLED_ITEM = sql`${orderItemsTable.itemStatus} IN ('cancelled', 'refunded')`;
   const [cancelledItemsRow] = await db.select({
     subtotal: sql<number>`coalesce(sum(${orderItemsTable.subtotal}::numeric), 0)`,
@@ -89,8 +83,6 @@ async function getBucketData(start: Date, end: Date): Promise<{ revenue: number;
     .innerJoin(ordersTable, eq(orderItemsTable.orderId, ordersTable.id))
     .where(and(dateRange, ACTIVE_ORDER, CANCELLED_ITEM));
 
-  // Use cost_price and delivery_cost snapshotted on the order item at purchase time,
-  // so the profit reflects the actual margin on the sale price — not the current product price.
   const [costsRow] = await db.select({
     costs: sql<number>`coalesce(sum(${orderItemsTable.quantity} * (${orderItemsTable.costPrice}::numeric + ${orderItemsTable.deliveryCost}::numeric)), 0)`,
   }).from(orderItemsTable)
@@ -105,6 +97,7 @@ async function getBucketData(start: Date, end: Date): Promise<{ revenue: number;
 }
 
 router.get("/analytics/revenue", async (req, res): Promise<void> => {
+  if (!await requireAdminOrManager(req, res)) return;
   const period = (req.query.period as string) ?? "current-month";
   const now = new Date();
   const result: { date: string; revenue: number; orders: number; profit: number }[] = [];
@@ -145,6 +138,7 @@ router.get("/analytics/revenue", async (req, res): Promise<void> => {
 });
 
 router.get("/analytics/top-products", async (req, res): Promise<void> => {
+  if (!await requireAdminOrManager(req, res)) return;
   const limit = parseInt(String(req.query.limit ?? "10"), 10);
   const topItems = await db.select({
     productId: orderItemsTable.productId,
@@ -172,6 +166,7 @@ router.get("/analytics/top-products", async (req, res): Promise<void> => {
 });
 
 router.get("/analytics/top-customers", async (req, res): Promise<void> => {
+  if (!await requireAdminOrManager(req, res)) return;
   const limit = parseInt(String(req.query.limit ?? "10"), 10);
   const users = await db.select().from(usersTable)
     .orderBy(desc(usersTable.totalSpent))
