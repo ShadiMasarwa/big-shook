@@ -52,11 +52,16 @@ export function isGif(item: MediaItem) {
 
 export const MEDIA_QUERY_KEY = ["media"];
 
+function authHeaders(): Record<string, string> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export function useMedia() {
   return useQuery<MediaItem[]>({
     queryKey: MEDIA_QUERY_KEY,
     queryFn: async () => {
-      const res = await fetch("/api/media");
+      const res = await fetch("/api/media", { headers: authHeaders() });
       if (!res.ok) throw new Error("Failed to load media");
       return res.json();
     },
@@ -90,6 +95,8 @@ export function useUploadMedia() {
         };
         xhr.onerror = () => reject(new Error("Upload failed"));
         xhr.open("POST", "/api/media/upload");
+        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+        if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
         xhr.send(formData);
       });
     } catch {
@@ -130,7 +137,10 @@ export function MediaPickerModal({
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await fetch(`/api/media/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/media/${id}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
       if (!res.ok) throw new Error("Failed to delete");
     },
     onSuccess: () => {

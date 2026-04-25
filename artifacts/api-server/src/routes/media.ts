@@ -5,6 +5,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import { requireManagerPrivilegeCheck } from "../lib/managerAuth";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = path.resolve(__dirname, "../uploads");
@@ -33,29 +34,63 @@ const upload = multer({
 
 const router: IRouter = Router();
 
-router.get("/media", async (_req: Request, res: Response): Promise<void> => {
+/**
+ * Auth gate for media routes. The media library is an admin-only management
+ * surface; all reads/writes require a valid admin or manager token with the
+ * appropriate privilege on the "media" section.
+ *
+ * Note: actual media file serving lives at `app.use("/api/uploads", ...)`
+ * (express.static) and remains public — that is how the storefront displays
+ * product/category/banner images. Locking down management endpoints prevents
+ * unauthenticated callers from enumerating, uploading, mutating, or deleting
+ * media records, which is the access-control gap.
+ */
+async function gate(
+  req: Request,
+  res: Response,
+  action: "read" | "write" | "delete",
+): Promise<boolean> {
+  const { allowed } = await requireManagerPrivilegeCheck(req, "media", action);
+  if (!allowed) {
+    res.status(401).json({ error: "אין הרשאה" });
+    return false;
+  }
+  return true;
+}
+
+router.get("/media", async (req: Request, res: Response): Promise<void> => {
+  if (!(await gate(req, res, "read"))) return;
   const items = await db.select().from(mediaTable).orderBy(desc(mediaTable.createdAt));
   res.json(items);
 });
 
-router.post("/media/upload", upload.single("file"), async (req: Request, res: Response): Promise<void> => {
-  if (!req.file) {
-    res.status(400).json({ error: "קובץ לא נמצא" });
-    return;
-  }
-  const [item] = await db
-    .insert(mediaTable)
-    .values({
-      objectPath: req.file.filename,
-      originalName: req.file.originalname,
-      mimeType: req.file.mimetype,
-      size: req.file.size,
-    })
-    .returning();
-  res.status(201).json(item);
-});
+router.post(
+  "/media/upload",
+  async (req: Request, res: Response, next): Promise<void> => {
+    if (!(await gate(req, res, "write"))) return;
+    next();
+  },
+  upload.single("file"),
+  async (req: Request, res: Response): Promise<void> => {
+    if (!req.file) {
+      res.status(400).json({ error: "קובץ לא נמצא" });
+      return;
+    }
+    const [item] = await db
+      .insert(mediaTable)
+      .values({
+        objectPath: req.file.filename,
+        originalName: req.file.originalname,
+        mimeType: req.file.mimetype,
+        size: req.file.size,
+      })
+      .returning();
+    res.status(201).json(item);
+  },
+);
 
 router.put("/media/:id", async (req: Request, res: Response): Promise<void> => {
+  if (!(await gate(req, res, "write"))) return;
   const id = Number(req.params.id);
   if (!id) { res.status(400).json({ error: "מזהה לא תקין" }); return; }
   const { altText, title } = req.body;
@@ -69,6 +104,7 @@ router.put("/media/:id", async (req: Request, res: Response): Promise<void> => {
 });
 
 router.delete("/media/:id", async (req: Request, res: Response): Promise<void> => {
+  if (!(await gate(req, res, "delete"))) return;
   const id = Number(req.params.id);
   if (!id) { res.status(400).json({ error: "מזהה לא תקין" }); return; }
   const [item] = await db.select().from(mediaTable).where(eq(mediaTable.id, id));
