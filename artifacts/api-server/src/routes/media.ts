@@ -34,17 +34,6 @@ const upload = multer({
 
 const router: IRouter = Router();
 
-/**
- * Auth gate for media routes. The media library is an admin-only management
- * surface; all reads/writes require a valid admin or manager token with the
- * appropriate privilege on the "media" section.
- *
- * Note: actual media file serving lives at `app.use("/api/uploads", ...)`
- * (express.static) and remains public — that is how the storefront displays
- * product/category/banner images. Locking down management endpoints prevents
- * unauthenticated callers from enumerating, uploading, mutating, or deleting
- * media records, which is the access-control gap.
- */
 async function gate(
   req: Request,
   res: Response,

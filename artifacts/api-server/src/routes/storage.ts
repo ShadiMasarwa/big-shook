@@ -15,14 +15,6 @@ import {
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
 
-/**
- * POST /storage/uploads/request-url
- *
- * Request a presigned URL for file upload.
- * Admin/manager only — anonymous callers cannot mint upload URLs into the
- * private bucket. The contentType is validated by RequestUploadUrlBody to
- * prevent HTML/script payloads from being staged in private storage.
- */
 router.post("/storage/uploads/request-url", async (req: Request, res: Response) => {
   if (!(await requireAdminOrManager(req, res))) return;
 
@@ -35,7 +27,7 @@ router.post("/storage/uploads/request-url", async (req: Request, res: Response) 
   try {
     const { name, size, contentType } = parsed.data;
 
-    const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+    const uploadURL = await objectStorageService.getObjectEntityUploadURL(contentType);
     const objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
 
     res.json(
@@ -51,12 +43,6 @@ router.post("/storage/uploads/request-url", async (req: Request, res: Response) 
   }
 });
 
-/**
- * GET /storage/public-objects/*
- *
- * Serve public assets from PUBLIC_OBJECT_SEARCH_PATHS.
- * These are unconditionally public — no authentication or ACL checks.
- */
 router.get("/storage/public-objects/*filePath", async (req: Request, res: Response) => {
   try {
     const raw = req.params.filePath;
@@ -84,26 +70,7 @@ router.get("/storage/public-objects/*filePath", async (req: Request, res: Respon
   }
 });
 
-/**
- * GET /storage/objects/*
- *
- * Serve private object entities from PRIVATE_OBJECT_DIR.
- * Access policy:
- *   1. Resolve the object file (404 if missing).
- *   2. Inspect the object's ACL policy.
- *      - visibility="public" → allow anyone (READ).
- *      - Otherwise: caller must be an admin/manager OR a signed-in customer
- *        for whom canAccessObjectEntity() returns true.
- *   3. Otherwise → 401/403.
- *
- * This closes the unauthenticated read of arbitrary private paths.
- */
 router.get("/storage/objects/*path", async (req: Request, res: Response) => {
-  // Collapse "exists but forbidden" and "does not exist" into a single 404
-  // response for any caller who cannot read the object. This prevents
-  // unauthenticated path enumeration / existence oracles on the private
-  // bucket. Authenticated callers who still fail authz also get 404 for
-  // the same reason (they have no business knowing the object exists).
   const sendNotFound = () => {
     res.status(404).json({ error: "Object not found" });
   };
