@@ -71,7 +71,6 @@ function getTransporter() {
     port: smtpPort,
     secure: true,
     auth: { user: smtpUser, pass: smtpPass },
-    tls: { rejectUnauthorized: false },
   });
 }
 
@@ -327,8 +326,14 @@ router.post("/auth/forgot-password", async (req, res): Promise<void> => {
 
   await db.insert(passwordResetTokensTable).values({ userId: user.id, token, expiresAt });
 
-  const origin = req.get("origin") ?? `http://${req.get("host")}`;
-  const resetLink = `${origin}/reset-password?token=${token}`;
+  const rawAppUrl = process.env.APP_URL;
+  if (!rawAppUrl) {
+    console.error("[auth] APP_URL env var is not set; cannot generate password-reset link");
+    res.status(500).json({ error: "שגיאת תצורת שרת — לא ניתן לשלוח מייל איפוס" });
+    return;
+  }
+  const appUrl = rawAppUrl.replace(/\/$/, "");
+  const resetLink = `${appUrl}/reset-password?token=${token}`;
 
   const emailSent = await sendPasswordResetEmail(user.email, user.firstName, resetLink).catch(() => false);
 

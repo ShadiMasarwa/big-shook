@@ -1,6 +1,7 @@
 import nodemailer, { type Transporter } from "nodemailer";
 import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
+import sanitizeHtml from "sanitize-html";
 import { db, messagesTable, MESSAGE_ACCOUNTS } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 
@@ -22,7 +23,6 @@ export function getMailTransporter(): Transporter | null {
     port: cfg.port,
     secure: true,
     auth: { user: cfg.user, pass: cfg.pass },
-    tls: { rejectUnauthorized: false },
   });
   return _transporter;
 }
@@ -93,7 +93,6 @@ export async function syncIncomingMail(): Promise<{
     secure: true,
     auth: { user: cfg.user, pass: cfg.pass },
     logger: false,
-    tls: { rejectUnauthorized: false },
   });
   try {
     await client.connect();
@@ -140,7 +139,20 @@ export async function syncIncomingMail(): Promise<{
             toEmail: toEmail || matchedAccount,
             subject: parsed.subject ?? "(ללא נושא)",
             bodyText: (parsed.text ?? "").slice(0, 50000),
-            bodyHtml: parsed.html ? String(parsed.html).slice(0, 200000) : null,
+            bodyHtml: parsed.html
+              ? sanitizeHtml(String(parsed.html), {
+                  allowedTags: sanitizeHtml.defaults.allowedTags.concat(["img", "table", "thead", "tbody", "tr", "th", "td", "caption", "colgroup", "col", "figure", "figcaption", "details", "summary", "h1", "h2", "h3", "h4", "h5", "h6"]),
+                  allowedAttributes: {
+                    ...sanitizeHtml.defaults.allowedAttributes,
+                    "*": ["style", "dir", "lang", "align", "valign", "width", "height", "colspan", "rowspan", "cellpadding", "cellspacing", "border"],
+                    a: ["href", "name", "target", "rel"],
+                    img: ["src", "alt", "width", "height", "style"],
+                  },
+                  allowedSchemes: ["http", "https", "mailto", "cid"],
+                  allowedSchemesByTag: { img: ["http", "https", "cid", "data"] },
+                  disallowedTagsMode: "discard",
+                }).slice(0, 200000)
+              : null,
             isRead: false,
             messageId: messageIdHeader ?? null,
             inReplyTo: parsed.inReplyTo ?? null,
@@ -174,7 +186,6 @@ async function withImapClient<T>(
     secure: true,
     auth: { user: cfg.user, pass: cfg.pass },
     logger: false,
-    tls: { rejectUnauthorized: false },
   });
   try {
     await client.connect();

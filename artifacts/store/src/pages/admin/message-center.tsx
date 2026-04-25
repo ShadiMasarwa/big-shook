@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import DOMPurify from "dompurify";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin-layout";
 import { useAuth } from "@/hooks/use-auth";
@@ -555,7 +556,7 @@ export default function MessageCenter() {
               </div>
               <div className="flex-1 overflow-y-auto p-4">
                 {full?.bodyHtml ? (
-                  <div className="prose prose-sm max-w-none" dir="rtl" dangerouslySetInnerHTML={{ __html: full.bodyHtml }} />
+                  <div className="prose prose-sm max-w-none" dir="rtl" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(full.bodyHtml, { USE_PROFILES: { html: true } }) }} />
                 ) : (
                   <pre className="whitespace-pre-wrap text-sm font-sans" dir="rtl">{full?.bodyText ?? selected.bodyText}</pre>
                 )}
