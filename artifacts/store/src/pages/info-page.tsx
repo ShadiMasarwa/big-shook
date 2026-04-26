@@ -1,5 +1,6 @@
 import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import DOMPurify from "dompurify";
 import { Layout } from "@/components/layout";
 import { Loader2, FileText } from "lucide-react";
 
@@ -60,7 +61,7 @@ export default function InfoPage() {
           <div
             className="prose prose-sm max-w-none prose-headings:font-bold prose-a:text-primary"
             dir="rtl"
-            dangerouslySetInnerHTML={{ __html: html }}
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }}
           />
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">

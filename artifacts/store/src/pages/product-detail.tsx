@@ -1,4 +1,5 @@
 import { useParams, useLocation, Link } from "wouter";
+import DOMPurify from "dompurify";
 import { Layout } from "@/components/layout";
 import {
   useGetProduct,
@@ -648,7 +649,7 @@ export default function ProductDetail() {
                 <div
                   className="prose prose-sm max-w-none text-muted-foreground"
                   dir="rtl"
-                  dangerouslySetInnerHTML={{ __html: product.descriptionHe }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(product.descriptionHe) }}
                 />
               </div>
             )}

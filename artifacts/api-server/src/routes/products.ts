@@ -2,6 +2,37 @@ import { Router, type IRouter } from "express";
 import { eq, and, or, gte, lte, ilike, desc, asc, gt, sql, inArray } from "drizzle-orm";
 import { db, productsTable, suppliersTable, categoriesTable, productCategoriesTable, productVariationsTable } from "@workspace/db";
 import { requireManagerPrivilegeCheck, requireAdminOrManager, checkIsAdminOrManager } from "../lib/managerAuth.js";
+import sanitizeHtml from "sanitize-html";
+
+const RICH_TEXT_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
+  allowedTags: [
+    "p", "br", "b", "i", "u", "s", "strong", "em",
+    "h1", "h2", "h3", "h4", "h5", "h6",
+    "ul", "ol", "li",
+    "blockquote", "pre", "code",
+    "a", "img",
+    "table", "thead", "tbody", "tr", "th", "td",
+    "figure", "figcaption", "hr", "span",
+  ],
+  allowedAttributes: {
+    "*": ["dir", "lang", "class"],
+    a: ["href", "rel"],
+    img: ["src", "alt", "width", "height"],
+    td: ["colspan", "rowspan"],
+    th: ["colspan", "rowspan"],
+  },
+  allowedSchemes: ["https"],
+  allowedSchemesByTag: { img: ["https", "data"] },
+  disallowedTagsMode: "discard",
+  transformTags: {
+    a: sanitizeHtml.simpleTransform("a", { rel: "noopener noreferrer" }),
+  },
+};
+
+function sanitizeRichText(value: string | null | undefined): string | null {
+  if (!value) return value ?? null;
+  return sanitizeHtml(value, RICH_TEXT_SANITIZE_OPTIONS);
+}
 
 /**
  * For each product whose productType === "variable", fetch its variations and
@@ -474,7 +505,7 @@ router.post("/products", async (req, res): Promise<void> => {
   const primaryCategoryId = resolvedCategoryIds[0] ?? null;
 
   const [product] = await db.insert(productsTable).values({
-    nameHe, nameEn: nameEn ?? null, slug, descriptionHe: descriptionHe ?? null,
+    nameHe, nameEn: nameEn ?? null, slug, descriptionHe: sanitizeRichText(descriptionHe),
     sku: sku ?? null, price: String(price),
     salePrice: salePrice != null && salePrice !== 0 ? String(salePrice) : null,
     costPrice: costPrice != null && costPrice !== 0 ? String(costPrice) : null,
@@ -504,6 +535,9 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
     "productType", "attributes"];
   for (const f of fields) {
     if (body[f] !== undefined) updateData[f] = body[f];
+  }
+  if (updateData.descriptionHe !== undefined) {
+    updateData.descriptionHe = sanitizeRichText(updateData.descriptionHe as string | null);
   }
   if (body.price !== undefined) updateData.price = String(body.price);
   if (body.salePrice !== undefined) updateData.salePrice = body.salePrice != null ? String(body.salePrice) : null;

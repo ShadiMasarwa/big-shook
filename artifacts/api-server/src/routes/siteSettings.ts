@@ -2,6 +2,37 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, siteSettingsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireManagerPrivilegeCheck } from "../lib/managerAuth.js";
+import sanitizeHtml from "sanitize-html";
+
+const RICH_TEXT_KEYS = new Set([
+  "page_takanon", "page_delivery", "page_privacy",
+  "page_accessibility", "page_cancellation", "page_loyalty",
+]);
+
+const RICH_TEXT_OPTIONS: sanitizeHtml.IOptions = {
+  allowedTags: [
+    "p", "br", "b", "i", "u", "s", "strong", "em",
+    "h1", "h2", "h3", "h4", "h5", "h6",
+    "ul", "ol", "li",
+    "blockquote", "pre", "code",
+    "a", "img",
+    "table", "thead", "tbody", "tr", "th", "td",
+    "figure", "figcaption", "hr", "span",
+  ],
+  allowedAttributes: {
+    "*": ["dir", "lang", "class"],
+    a: ["href", "rel"],
+    img: ["src", "alt", "width", "height"],
+    td: ["colspan", "rowspan"],
+    th: ["colspan", "rowspan"],
+  },
+  allowedSchemes: ["https"],
+  allowedSchemesByTag: { img: ["https", "data"] },
+  disallowedTagsMode: "discard",
+  transformTags: {
+    a: sanitizeHtml.simpleTransform("a", { rel: "noopener noreferrer" }),
+  },
+};
 
 const PRIV_DENIED = "אין לך הרשאה לבצע פעולה זו";
 
@@ -45,18 +76,22 @@ router.put("/admin/site-settings/:key", async (req: Request, res: Response): Pro
     return;
   }
 
+  const safeValue = RICH_TEXT_KEYS.has(key)
+    ? sanitizeHtml(value, RICH_TEXT_OPTIONS)
+    : sanitizeHtml(value, { allowedTags: [], allowedAttributes: {} });
+
   const [existing] = await db.select().from(siteSettingsTable).where(eq(siteSettingsTable.key, key));
   if (existing) {
     const [updated] = await db
       .update(siteSettingsTable)
-      .set({ value, updatedAt: new Date() })
+      .set({ value: safeValue, updatedAt: new Date() })
       .where(eq(siteSettingsTable.key, key))
       .returning();
     res.json(updated);
   } else {
     const [created] = await db
       .insert(siteSettingsTable)
-      .values({ key, value })
+      .values({ key, value: safeValue })
       .returning();
     res.json(created);
   }

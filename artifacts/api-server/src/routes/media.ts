@@ -7,6 +7,52 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import { requireManagerPrivilegeCheck } from "../lib/managerAuth";
 
+function matchesBytes(buf: Buffer, offset: number, bytes: number[]): boolean {
+  if (buf.length < offset + bytes.length) return false;
+  return bytes.every((b, i) => buf[offset + i] === b);
+}
+
+function verifyFileSignature(filePath: string, mime: string): boolean {
+  let fd: number | null = null;
+  try {
+    const headerSize = 16;
+    const buf = Buffer.alloc(headerSize);
+    fd = fs.openSync(filePath, "r");
+    const bytesRead = fs.readSync(fd, buf, 0, headerSize, 0);
+    if (bytesRead < 4) return false;
+    switch (mime) {
+      case "image/jpeg":
+        return matchesBytes(buf, 0, [0xFF, 0xD8, 0xFF]);
+      case "image/png":
+        return matchesBytes(buf, 0, [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+      case "image/gif":
+        return matchesBytes(buf, 0, [0x47, 0x49, 0x46, 0x38]);
+      case "image/webp":
+        return matchesBytes(buf, 0, [0x52, 0x49, 0x46, 0x46]) &&
+               matchesBytes(buf, 8, [0x57, 0x45, 0x42, 0x50]);
+      case "image/avif":
+      case "image/heic":
+        return matchesBytes(buf, 4, [0x66, 0x74, 0x79, 0x70]);
+      case "video/mp4":
+      case "video/quicktime":
+        return matchesBytes(buf, 4, [0x66, 0x74, 0x79, 0x70]);
+      case "video/webm":
+        return matchesBytes(buf, 0, [0x1A, 0x45, 0xDF, 0xA3]);
+      case "video/ogg":
+        return matchesBytes(buf, 0, [0x4F, 0x67, 0x67, 0x53]);
+      case "video/x-msvideo":
+        return matchesBytes(buf, 0, [0x52, 0x49, 0x46, 0x46]) &&
+               matchesBytes(buf, 8, [0x41, 0x56, 0x49, 0x20]);
+      default:
+        return false;
+    }
+  } catch {
+    return false;
+  } finally {
+    if (fd !== null) try { fs.closeSync(fd); } catch { /* ignore */ }
+  }
+}
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = path.resolve(__dirname, "../uploads");
 
@@ -14,10 +60,24 @@ if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 
+const MIME_TO_EXT: Record<string, string> = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/gif": ".gif",
+  "image/webp": ".webp",
+  "image/avif": ".avif",
+  "image/heic": ".heic",
+  "video/mp4": ".mp4",
+  "video/webm": ".webm",
+  "video/ogg": ".ogv",
+  "video/quicktime": ".mov",
+  "video/x-msvideo": ".avi",
+};
+
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
   filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
+    const ext = MIME_TO_EXT[file.mimetype] ?? "";
     const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
     cb(null, uniqueName);
   },
@@ -27,8 +87,8 @@ const upload = multer({
   storage,
   limits: { fileSize: 200 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const allowed = /^(image|video)\//;
-    cb(null, allowed.test(file.mimetype));
+    const allowed = Object.prototype.hasOwnProperty.call(MIME_TO_EXT, file.mimetype);
+    cb(null, allowed);
   },
 });
 
@@ -63,6 +123,12 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     if (!req.file) {
       res.status(400).json({ error: "קובץ לא נמצא" });
+      return;
+    }
+    const storedPath = req.file.path;
+    if (!verifyFileSignature(storedPath, req.file.mimetype)) {
+      try { fs.unlinkSync(storedPath); } catch { /* ignore */ }
+      res.status(400).json({ error: "סוג הקובץ אינו תואם לתוכן" });
       return;
     }
     const [item] = await db

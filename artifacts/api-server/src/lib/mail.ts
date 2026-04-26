@@ -141,16 +141,30 @@ export async function syncIncomingMail(): Promise<{
             bodyText: (parsed.text ?? "").slice(0, 50000),
             bodyHtml: parsed.html
               ? sanitizeHtml(String(parsed.html), {
-                  allowedTags: sanitizeHtml.defaults.allowedTags.concat(["img", "table", "thead", "tbody", "tr", "th", "td", "caption", "colgroup", "col", "figure", "figcaption", "details", "summary", "h1", "h2", "h3", "h4", "h5", "h6"]),
+                  allowedTags: [
+                    "p", "br", "b", "i", "u", "s", "strong", "em",
+                    "h1", "h2", "h3", "h4", "h5", "h6",
+                    "ul", "ol", "li",
+                    "blockquote", "pre", "code",
+                    "a", "img",
+                    "table", "thead", "tbody", "tr", "th", "td",
+                    "figure", "figcaption",
+                    "hr", "span",
+                  ],
                   allowedAttributes: {
-                    ...sanitizeHtml.defaults.allowedAttributes,
-                    "*": ["style", "dir", "lang", "align", "valign", "width", "height", "colspan", "rowspan", "cellpadding", "cellspacing", "border"],
-                    a: ["href", "name", "target", "rel"],
-                    img: ["src", "alt", "width", "height", "style"],
+                    "*": ["dir", "lang", "align", "valign"],
+                    a: ["href", "name", "rel"],
+                    img: ["src", "alt", "width", "height"],
+                    td: ["colspan", "rowspan", "width", "height"],
+                    th: ["colspan", "rowspan", "width", "height"],
+                    table: ["width", "border", "cellpadding", "cellspacing"],
                   },
-                  allowedSchemes: ["http", "https", "mailto", "cid"],
-                  allowedSchemesByTag: { img: ["http", "https", "cid", "data"] },
+                  allowedSchemes: ["https", "mailto"],
+                  allowedSchemesByTag: { img: ["https", "cid"] },
                   disallowedTagsMode: "discard",
+                  transformTags: {
+                    a: sanitizeHtml.simpleTransform("a", { rel: "noopener noreferrer" }),
+                  },
                 }).slice(0, 200000)
               : null,
             isRead: false,

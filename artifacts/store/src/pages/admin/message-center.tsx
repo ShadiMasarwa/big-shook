@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import DOMPurify from "dompurify";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin-layout";
 import { useAuth } from "@/hooks/use-auth";
@@ -556,7 +555,13 @@ export default function MessageCenter() {
               </div>
               <div className="flex-1 overflow-y-auto p-4">
                 {full?.bodyHtml ? (
-                  <div className="prose prose-sm max-w-none" dir="rtl" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(full.bodyHtml, { USE_PROFILES: { html: true } }) }} />
+                  <iframe
+                    srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:sans-serif;font-size:14px;direction:rtl;margin:0;padding:0;}</style></head><body>${full.bodyHtml}</body></html>`}
+                    sandbox="allow-popups allow-popups-to-escape-sandbox"
+                    className="w-full border-0"
+                    style={{ minHeight: "400px" }}
+                    title="תוכן ההודעה"
+                  />
                 ) : (
                   <pre className="whitespace-pre-wrap text-sm font-sans" dir="rtl">{full?.bodyText ?? selected.bodyText}</pre>
                 )}

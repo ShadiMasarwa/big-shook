@@ -61,7 +61,12 @@ app.use("/api/auth/verify-otp", strictAuthRateLimit);
 app.use("/api/auth/reset-password", strictAuthRateLimit);
 app.use("/api/auth/send-otp", strictAuthRateLimit);
 
-app.use("/api/uploads", express.static(UPLOADS_DIR, { maxAge: "7d" }));
+app.use("/api/uploads", (_req, res, next) => {
+  res.setHeader("Content-Disposition", "attachment");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Content-Security-Policy", "default-src 'none'");
+  next();
+}, express.static(UPLOADS_DIR, { maxAge: "7d" }));
 
 // Global bearer-session validation: enforces isActive and sessionInvalidatedAt
 // for ALL API routes. Requests without Authorization headers pass through.
