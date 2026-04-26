@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and, asc } from "drizzle-orm";
 import { db, productVariationsTable, productsTable } from "@workspace/db";
-import { requireManagerPrivilegeCheck } from "../lib/managerAuth.js";
+import { requireManagerPrivilegeCheck, checkIsAdminOrManager } from "../lib/managerAuth.js";
 
 const router: IRouter = Router();
 const PRIV_DENIED = "אין לך הרשאה לבצע פעולה זו";
@@ -19,16 +19,44 @@ export function serializeVariation(v: typeof productVariationsTable.$inferSelect
   };
 }
 
+function serializePublicVariation(v: typeof productVariationsTable.$inferSelect) {
+  return {
+    id: v.id,
+    productId: v.productId,
+    price: parseFloat(v.price),
+    salePrice: v.salePrice ? parseFloat(v.salePrice) : null,
+    image: v.image,
+    attributes: (v.attributes ?? {}) as Record<string, string>,
+    isActive: v.isActive,
+    sortOrder: v.sortOrder,
+    weight: v.weight ? parseFloat(v.weight) : null,
+    createdAt: v.createdAt.toISOString(),
+    updatedAt: v.updatedAt.toISOString(),
+  };
+}
+
 router.get("/products/:productId/variations", async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.productId) ? req.params.productId[0] : req.params.productId;
   const productId = parseInt(raw, 10);
   if (isNaN(productId)) { res.json([]); return; }
 
+  const isAdmin = await checkIsAdminOrManager(req);
+
+  if (!isAdmin) {
+    const [product] = await db.select({ id: productsTable.id, isActive: productsTable.isActive })
+      .from(productsTable).where(eq(productsTable.id, productId));
+    if (!product || !product.isActive) { res.json([]); return; }
+  }
+
   const rows = await db.select().from(productVariationsTable)
     .where(eq(productVariationsTable.productId, productId))
     .orderBy(asc(productVariationsTable.sortOrder), asc(productVariationsTable.id));
 
-  res.json(rows.map(serializeVariation));
+  if (isAdmin) {
+    res.json(rows.map(serializeVariation));
+  } else {
+    res.json(rows.filter(v => v.isActive).map(serializePublicVariation));
+  }
 });
 
 router.post("/products/:productId/variations", async (req, res): Promise<void> => {

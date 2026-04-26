@@ -399,6 +399,8 @@ router.post("/products/bulk-update", async (req, res): Promise<void> => {
 });
 
 router.post("/products/:id/duplicate", async (req, res): Promise<void> => {
+  const { allowed } = await requireManagerPrivilegeCheck(req, "products", "write");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }

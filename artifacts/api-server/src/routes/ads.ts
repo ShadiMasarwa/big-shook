@@ -1,7 +1,9 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, adsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { requireAdminOrManager } from "../lib/managerAuth.js";
+import { requireAdminOrManager, requireManagerPrivilegeCheck } from "../lib/managerAuth.js";
+
+const PRIV_DENIED = "אין לך הרשאה לבצע פעולה זו";
 
 const router: IRouter = Router();
 
@@ -20,7 +22,8 @@ router.get("/admin/ads", async (req: Request, res: Response): Promise<void> => {
 });
 
 router.put("/admin/ads/:position", async (req: Request, res: Response): Promise<void> => {
-  if (!await requireAdminOrManager(req, res)) return;
+  const { allowed } = await requireManagerPrivilegeCheck(req, "ads", "write");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const position = parseInt(req.params.position, 10);
   if (isNaN(position) || position < 1 || position > 4) {
     res.status(400).json({ error: "מיקום לא תקין (1-4)" });
@@ -51,7 +54,8 @@ router.put("/admin/ads/:position", async (req: Request, res: Response): Promise<
 });
 
 router.delete("/admin/ads/:position", async (req: Request, res: Response): Promise<void> => {
-  if (!await requireAdminOrManager(req, res)) return;
+  const { allowed } = await requireManagerPrivilegeCheck(req, "ads", "delete");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const position = parseInt(req.params.position, 10);
   if (isNaN(position)) { res.status(400).json({ error: "מיקום לא תקין" }); return; }
   await db.delete(adsTable).where(eq(adsTable.position, position));

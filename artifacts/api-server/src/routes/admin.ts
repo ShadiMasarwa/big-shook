@@ -1,7 +1,9 @@
 import { Router, type IRouter } from "express";
 import { sql, eq, gte, lte } from "drizzle-orm";
 import { db, ordersTable, usersTable, productsTable, couponsTable, inventoryTable, loyaltyTransactionsTable } from "@workspace/db";
-import { requireAdminOrManager } from "../lib/managerAuth.js";
+import { requireAdminOrManager, requireManagerPrivilegeCheck } from "../lib/managerAuth.js";
+
+const PRIV_DENIED = "אין לך הרשאה לבצע פעולה זו";
 
 const router: IRouter = Router();
 
@@ -112,7 +114,8 @@ router.get("/admin/summary", async (req, res): Promise<void> => {
 });
 
 router.post("/admin/import/products", async (req, res): Promise<void> => {
-  if (!await requireAdminOrManager(req, res)) return;
+  const { allowed } = await requireManagerPrivilegeCheck(req, "import", "write");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const { products } = req.body;
   if (!products || !Array.isArray(products)) {
     res.status(400).json({ error: "products array is required" });

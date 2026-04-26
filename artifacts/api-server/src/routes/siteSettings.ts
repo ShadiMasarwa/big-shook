@@ -1,7 +1,9 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, siteSettingsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { requireAdminOrManager } from "../lib/managerAuth.js";
+import { requireManagerPrivilegeCheck } from "../lib/managerAuth.js";
+
+const PRIV_DENIED = "אין לך הרשאה לבצע פעולה זו";
 
 const router: IRouter = Router();
 
@@ -35,7 +37,8 @@ router.put("/admin/site-settings/:key", async (req: Request, res: Response): Pro
     res.status(400).json({ error: "מפתח לא מוכר" });
     return;
   }
-  if (!await requireAdminOrManager(req, res)) return;
+  const { allowed } = await requireManagerPrivilegeCheck(req, "settings", "write");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const { value } = req.body;
   if (typeof value !== "string") {
     res.status(400).json({ error: "ערך לא תקין" });

@@ -1,7 +1,9 @@
 import { Router, type IRouter } from "express";
 import { eq, and, lte, sql } from "drizzle-orm";
 import { db, warehousesTable, inventoryTable, stockHistoryTable, productsTable } from "@workspace/db";
-import { requireAdminOrManager } from "../lib/managerAuth.js";
+import { requireAdminOrManager, requireManagerPrivilegeCheck } from "../lib/managerAuth.js";
+
+const PRIV_DENIED = "אין לך הרשאה לבצע פעולה זו";
 
 const router: IRouter = Router();
 
@@ -25,7 +27,8 @@ router.get("/inventory/warehouses", async (req, res): Promise<void> => {
 });
 
 router.post("/inventory/warehouses", async (req, res): Promise<void> => {
-  if (!await requireAdminOrManager(req, res)) return;
+  const { allowed } = await requireManagerPrivilegeCheck(req, "inventory", "write");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const { nameHe, location, isActive } = req.body;
   if (!nameHe) { res.status(400).json({ error: "nameHe is required" }); return; }
   const [warehouse] = await db.insert(warehousesTable).values({ nameHe, location: location ?? null, isActive: isActive ?? true }).returning();
@@ -57,7 +60,8 @@ router.get("/inventory/stock", async (req, res): Promise<void> => {
 });
 
 router.patch("/inventory/stock", async (req, res): Promise<void> => {
-  if (!await requireAdminOrManager(req, res)) return;
+  const { allowed } = await requireManagerPrivilegeCheck(req, "inventory", "write");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const { productId, warehouseId, quantity, reason } = req.body;
   if (!productId || !warehouseId || quantity === undefined || !reason) {
     res.status(400).json({ error: "productId, warehouseId, quantity, reason required" }); return;

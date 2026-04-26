@@ -3,7 +3,9 @@ import { eq, ilike, or, sql } from "drizzle-orm";
 import { db, usersTable, loyaltyTransactionsTable } from "@workspace/db";
 import { getTierBySpent } from "./loyalty.js";
 import { serializeUser } from "./auth.js";
-import { requireAdminOrManager } from "../lib/managerAuth.js";
+import { requireAdminOrManager, requireManagerPrivilegeCheck } from "../lib/managerAuth.js";
+
+const PRIV_DENIED = "אין לך הרשאה לבצע פעולה זו";
 
 const router: IRouter = Router();
 
@@ -48,7 +50,8 @@ router.get("/users/:id", async (req, res): Promise<void> => {
 });
 
 router.patch("/users/:id", async (req, res): Promise<void> => {
-  if (!await requireAdminOrManager(req, res)) return;
+  const { allowed } = await requireManagerPrivilegeCheck(req, "customers", "write");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   const { firstName, lastName, phone, city, street, houseNumber, zipCode, addressNote, isActive, marketingEmails, loyaltyTier } = req.body;
@@ -74,7 +77,8 @@ router.patch("/users/:id", async (req, res): Promise<void> => {
 });
 
 router.patch("/users/:id/loyalty", async (req, res): Promise<void> => {
-  if (!await requireAdminOrManager(req, res)) return;
+  const { allowed } = await requireManagerPrivilegeCheck(req, "customers", "write");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   const { points, reason } = req.body;

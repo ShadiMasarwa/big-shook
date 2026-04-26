@@ -1,7 +1,9 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, asc } from "drizzle-orm";
 import { db, loyaltyTransactionsTable, loyaltyRulesTable, loyaltyTiersTable } from "@workspace/db";
-import { requireAdminOrManager } from "../lib/managerAuth.js";
+import { requireAdminOrManager, requireManagerPrivilegeCheck } from "../lib/managerAuth.js";
+
+const PRIV_DENIED = "אין לך הרשאה לבצע פעולה זו";
 
 const router: IRouter = Router();
 
@@ -50,7 +52,8 @@ router.get("/loyalty/tiers", async (_req, res): Promise<void> => {
 });
 
 router.put("/loyalty/tiers/:name", async (req, res): Promise<void> => {
-  if (!await requireAdminOrManager(req, res)) return;
+  const { allowed } = await requireManagerPrivilegeCheck(req, "loyalty", "write");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const { name } = req.params;
   const { nameHe, minSpent, shekelPerPoint, color } = req.body;
   await seedTiersIfEmpty();
@@ -85,7 +88,8 @@ router.get("/loyalty/rules", async (_req, res): Promise<void> => {
 });
 
 router.put("/loyalty/rules", async (req, res): Promise<void> => {
-  if (!await requireAdminOrManager(req, res)) return;
+  const { allowed } = await requireManagerPrivilegeCheck(req, "loyalty", "write");
+  if (!allowed) { res.status(403).json({ error: PRIV_DENIED }); return; }
   const { pointsPerShekel, shekelPerPoint, minRedemptionPoints, maxRedemptionPercent } = req.body;
   const [existing] = await db.select().from(loyaltyRulesTable);
   if (existing) {
