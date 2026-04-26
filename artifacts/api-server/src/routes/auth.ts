@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { db, usersTable, passwordResetTokensTable, managersTable } from "@workspace/db";
 import crypto from "crypto";
+import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
 import {
   isManagerToken,
@@ -10,6 +11,8 @@ import {
   generateCustomerToken,
   verifyCustomerToken,
   serializeManager,
+  revokeToken,
+  extractTokenIssuedAt,
 } from "../lib/managerAuth.js";
 
 const router: IRouter = Router();
@@ -18,6 +21,7 @@ const router: IRouter = Router();
 interface PendingReg {
   otp: string;
   expiresAt: number;
+  attempts: number;
   userData: {
     email: string; passwordHash: string;
     firstName: string; lastName: string; phone: string;
@@ -25,6 +29,8 @@ interface PendingReg {
   };
 }
 const pendingRegistrations = new Map<string, PendingReg>();
+
+const MAX_OTP_ATTEMPTS = 5;
 
 setInterval(() => {
   const now = Date.now();
@@ -34,8 +40,32 @@ setInterval(() => {
 }, 10 * 60 * 1000);
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-function hashPassword(password: string): string {
-  return crypto.createHash("sha256").update(password + "ecommerce_salt_2024").digest("hex");
+
+const BCRYPT_ROUNDS = 12;
+
+async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, BCRYPT_ROUNDS);
+}
+
+/** Compare password against stored hash.
+ *  Supports both new bcrypt hashes and legacy SHA-256 hashes for migration. */
+async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
+  if (storedHash.startsWith("$2")) {
+    return bcrypt.compare(password, storedHash);
+  }
+  // Legacy SHA-256 fallback — still validates but caller should re-hash
+  const sha256 = crypto.createHash("sha256").update(password + "ecommerce_salt_2024").digest("hex");
+  return crypto.timingSafeEqual(Buffer.from(sha256, "hex"), Buffer.from(storedHash, "hex"));
+}
+
+/** Check whether a bearer token's issued-at timestamp predates
+ *  a session-invalidation event (logout, password change).
+ *  Returns true if the token should be rejected. */
+function isTokenInvalidatedBySession(token: string, sessionInvalidatedAt: Date | null | undefined): boolean {
+  if (!sessionInvalidatedAt) return false;
+  const issuedAt = extractTokenIssuedAt(token);
+  if (issuedAt === null) return true; // tampered token
+  return issuedAt < sessionInvalidatedAt.getTime();
 }
 
 function serializeUser(u: typeof usersTable.$inferSelect) {
@@ -143,12 +173,8 @@ async function sendPasswordResetEmail(to: string, firstName: string, resetLink: 
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
-router.post("/auth/check-email", async (req, res): Promise<void> => {
-  const { email } = req.body;
-  if (!email) { res.status(400).json({ error: "אימייל נדרש" }); return; }
-  const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email));
-  res.json({ available: !existing });
-});
+// /auth/check-email is intentionally removed to prevent account enumeration.
+// send-otp always returns {success:true} regardless of whether the email already exists.
 
 router.post("/auth/send-otp", async (req, res): Promise<void> => {
   const { email, password, firstName, lastName, phone, marketingEmails } = req.body;
@@ -156,21 +182,29 @@ router.post("/auth/send-otp", async (req, res): Promise<void> => {
     res.status(400).json({ error: "כל השדות נדרשים" }); return;
   }
   const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email));
+  // Always hash the password regardless of account existence to prevent timing-based
+  // enumeration (bcrypt is the dominant cost; skipping it would create a measurable
+  // latency difference between the "email exists" and "email available" code paths).
+  const passwordHash = await hashPassword(password);
+  // Always return the same response to prevent account enumeration.
+  // OTP is logged to server console in dev (see sendOtpEmail).
   if (existing) {
-    res.status(409).json({ error: "כתובת האימייל כבר קיימת במערכת" }); return;
+    res.json({ success: true }); return;
   }
   const otp = generateOtp();
   pendingRegistrations.set(email, {
     otp,
     expiresAt: Date.now() + 5 * 60 * 1000,
+    attempts: 0,
     userData: {
-      email, passwordHash: hashPassword(password),
+      email, passwordHash,
       firstName, lastName, phone,
       marketingEmails: marketingEmails !== false,
     },
   });
-  const emailSent = await sendOtpEmail(email, firstName, otp).catch(() => false);
-  res.json({ success: true, emailSent, ...(!emailSent ? { devOtp: otp } : {}) });
+  await sendOtpEmail(email, firstName, otp).catch(() => false);
+  // Uniform response — dev OTP is available in server console logs only
+  res.json({ success: true });
 });
 
 router.post("/auth/verify-otp", async (req, res): Promise<void> => {
@@ -183,6 +217,12 @@ router.post("/auth/verify-otp", async (req, res): Promise<void> => {
   if (Date.now() > pending.expiresAt) {
     pendingRegistrations.delete(email);
     res.status(400).json({ error: "קוד האימות פג תוקף. אנא שלח מחדש." }); return;
+  }
+  // Enforce maximum OTP attempts to prevent brute-force guessing
+  pending.attempts += 1;
+  if (pending.attempts > MAX_OTP_ATTEMPTS) {
+    pendingRegistrations.delete(email);
+    res.status(429).json({ error: "חרגת ממספר הניסיונות המותרים. אנא התחל מחדש." }); return;
   }
   if (pending.otp !== String(otp).trim()) {
     res.status(400).json({ error: "קוד האימות שגוי" }); return;
@@ -197,55 +237,80 @@ router.post("/auth/verify-otp", async (req, res): Promise<void> => {
   res.status(201).json({ user: serializeUser(user), token, welcomePoints: 1000 });
 });
 
-router.post("/auth/register", async (req, res): Promise<void> => {
-  const { email, password, firstName, lastName, phone, marketingEmails } = req.body;
-  if (!email || !password || !firstName || !lastName) {
-    res.status(400).json({ error: "כל השדות הנדרשים חסרים" }); return;
-  }
-  const existing = await db.select().from(usersTable).where(eq(usersTable.email, email));
-  if (existing.length > 0) {
-    res.status(400).json({ error: "כתובת האימייל כבר קיימת במערכת" }); return;
-  }
-  const [user] = await db.insert(usersTable).values({
-    email, passwordHash: hashPassword(password),
-    firstName, lastName, phone: phone ?? null, role: "customer",
-    loyaltyPoints: 1000, marketingEmails: marketingEmails !== false,
-  }).returning();
-  const token = generateToken(user.id);
-  res.status(201).json({ user: serializeUser(user), token, welcomePoints: 1000 });
-});
+// /auth/register is intentionally removed — all customer accounts must be
+// created through the OTP-verified send-otp → verify-otp flow.
 
 router.post("/auth/login", async (req, res): Promise<void> => {
   const { email, password } = req.body;
   if (!email || !password) { res.status(400).json({ error: "אימייל וסיסמה נדרשים" }); return; }
 
+  const genericError = { error: "פרטי התחברות שגויים" };
+
   const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
   if (user) {
-    if (user.passwordHash !== hashPassword(password)) {
-      res.status(401).json({ error: "פרטי התחברות שגויים" }); return;
+    if (!await verifyPassword(password, user.passwordHash ?? "")) {
+      res.status(401).json(genericError); return;
     }
     if (!user.isActive) { res.status(403).json({ error: "account_inactive" }); return; }
+    // Re-hash with bcrypt if the stored hash is still legacy SHA-256
+    if (user.passwordHash && !user.passwordHash.startsWith("$2")) {
+      const newHash = await hashPassword(password);
+      await db.update(usersTable).set({ passwordHash: newHash }).where(eq(usersTable.id, user.id));
+    }
     const token = generateToken(user.id);
     res.json({ user: serializeUser(user), token }); return;
   }
 
   const [manager] = await db.select().from(managersTable).where(eq(managersTable.email, String(email).toLowerCase()));
   if (manager) {
+    // Use a generic error for managers without passwords to avoid enumeration
     if (!manager.passwordHash) {
-      res.status(403).json({ error: "password_not_set" }); return;
+      res.status(401).json(genericError); return;
     }
-    if (manager.passwordHash !== hashPassword(password)) {
-      res.status(401).json({ error: "פרטי התחברות שגויים" }); return;
+    if (!await verifyPassword(password, manager.passwordHash)) {
+      res.status(401).json(genericError); return;
     }
     if (!manager.isActive) { res.status(403).json({ error: "account_inactive" }); return; }
+    // Re-hash with bcrypt if the stored hash is still legacy SHA-256
+    if (!manager.passwordHash.startsWith("$2")) {
+      const newHash = await hashPassword(password);
+      await db.update(managersTable).set({ passwordHash: newHash }).where(eq(managersTable.id, manager.id));
+    }
     const token = generateManagerToken(manager.id);
     res.json({ user: serializeManager(manager), token }); return;
   }
 
-  res.status(401).json({ error: "פרטי התחברות שגויים" });
+  res.status(401).json(genericError);
 });
 
-router.post("/auth/logout", async (_req, res): Promise<void> => {
+router.post("/auth/logout", async (req, res): Promise<void> => {
+  const authHeader = req.headers.authorization;
+  if (authHeader) {
+    const token = authHeader.replace("Bearer ", "");
+    // Persist session invalidation in DB FIRST (before revoking token so verify still works)
+    try {
+      const now = new Date();
+      if (isManagerToken(token)) {
+        const managerId = verifyManagerToken(token);
+        if (managerId) {
+          await db.update(managersTable)
+            .set({ sessionInvalidatedAt: now })
+            .where(eq(managersTable.id, managerId));
+        }
+      } else {
+        const userId = verifyCustomerToken(token);
+        if (userId !== null) {
+          await db.update(usersTable)
+            .set({ sessionInvalidatedAt: now })
+            .where(eq(usersTable.id, userId));
+        }
+      }
+    } catch {
+      // Non-fatal: fall through to in-process revocation below
+    }
+    // Add to in-process revocation set for fast same-process rejection
+    revokeToken(token);
+  }
   res.json({ success: true });
 });
 
@@ -260,12 +325,19 @@ router.get("/auth/me", async (req, res): Promise<void> => {
       const [manager] = await db.select().from(managersTable).where(eq(managersTable.id, managerId));
       if (!manager) { res.status(401).json({ error: "מנהל לא נמצא" }); return; }
       if (!manager.isActive) { res.status(403).json({ error: "account_inactive" }); return; }
+      if (isTokenInvalidatedBySession(token, manager.sessionInvalidatedAt)) {
+        res.status(401).json({ error: "טוקן לא תקין" }); return;
+      }
       res.json(serializeManager(manager)); return;
     }
     const userId = verifyCustomerToken(token);
     if (userId === null) { res.status(401).json({ error: "טוקן לא תקין" }); return; }
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
     if (!user) { res.status(401).json({ error: "משתמש לא נמצא" }); return; }
+    if (!user.isActive) { res.status(403).json({ error: "account_inactive" }); return; }
+    if (isTokenInvalidatedBySession(token, user.sessionInvalidatedAt)) {
+      res.status(401).json({ error: "טוקן לא תקין" }); return;
+    }
     res.json(serializeUser(user));
   } catch {
     res.status(401).json({ error: "טוקן לא תקין" });
@@ -281,6 +353,10 @@ router.put("/auth/profile", async (req, res): Promise<void> => {
     if (userId === null) { res.status(401).json({ error: "טוקן לא תקין" }); return; }
     const [existing] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
     if (!existing) { res.status(401).json({ error: "משתמש לא נמצא" }); return; }
+    if (!existing.isActive) { res.status(403).json({ error: "account_inactive" }); return; }
+    if (isTokenInvalidatedBySession(token, existing.sessionInvalidatedAt)) {
+      res.status(401).json({ error: "טוקן לא תקין" }); return;
+    }
 
     const { firstName, lastName, phone, city, street, houseNumber, zipCode, addressNote } = req.body;
     if (!firstName || !lastName || !phone || !city || !street || !houseNumber) {
@@ -310,16 +386,28 @@ router.post("/auth/forgot-password", async (req, res): Promise<void> => {
   const { email } = req.body;
   if (!email) { res.status(400).json({ error: "אימייל נדרש" }); return; }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+  // Always return the same response to prevent account enumeration.
+  // A minimum jittered delay is applied for non-existent accounts to reduce
+  // timing-based enumeration (existing accounts do more DB work naturally).
+  const genericOk = { success: true, emailSent: true };
 
-  if (!user) {
-    res.status(404).json({ error: "לא נמצא חשבון עם כתובת אימייל זו" });
-    return;
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+  if (!user || !user.isActive) {
+    // Add a random 100–400 ms delay to match the typical work done for real accounts
+    await new Promise((r) => setTimeout(r, 100 + Math.random() * 300));
+    res.json(genericOk); return;
   }
-  if (!user.isActive) {
-    res.status(403).json({ error: "החשבון מושהה. לסיוע פנה לשירות הלקוחות" });
-    return;
-  }
+
+  // Invalidate any existing unused reset tokens for this user before issuing a new one
+  await db
+    .update(passwordResetTokensTable)
+    .set({ usedAt: new Date() })
+    .where(
+      and(
+        eq(passwordResetTokensTable.userId, user.id),
+        isNull(passwordResetTokensTable.usedAt)
+      )
+    );
 
   const token = crypto.randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -329,15 +417,17 @@ router.post("/auth/forgot-password", async (req, res): Promise<void> => {
   const rawAppUrl = process.env.APP_URL;
   if (!rawAppUrl) {
     console.error("[auth] APP_URL env var is not set; cannot generate password-reset link");
-    res.status(500).json({ error: "שגיאת תצורת שרת — לא ניתן לשלוח מייל איפוס" });
-    return;
+    res.json(genericOk); return;
   }
   const appUrl = rawAppUrl.replace(/\/$/, "");
   const resetLink = `${appUrl}/reset-password?token=${token}`;
 
   const emailSent = await sendPasswordResetEmail(user.email, user.firstName, resetLink).catch(() => false);
 
-  res.json({ success: true, emailSent, ...(!emailSent ? { devLink: resetLink } : {}) });
+  // devLink is intentionally excluded from the response to prevent token leakage.
+  // In development (no SMTP), the reset link is already logged to the server console
+  // by sendPasswordResetEmail (see [RESET LINK DEV] log line).
+  res.json({ success: true, emailSent });
 });
 
 // ── Reset password ──────────────────────────────────────────────────────────
@@ -363,15 +453,25 @@ router.post("/auth/reset-password", async (req, res): Promise<void> => {
     res.status(400).json({ error: "קישור פג תוקף. אנא בקש קישור חדש" }); return;
   }
 
+  const newHash = await hashPassword(newPassword);
+  const now = new Date();
+
+  // Update password and invalidate all existing bearer sessions for this user
   await db
     .update(usersTable)
-    .set({ passwordHash: hashPassword(newPassword) })
+    .set({ passwordHash: newHash, sessionInvalidatedAt: now })
     .where(eq(usersTable.id, resetToken.userId));
 
+  // Mark this token as used AND invalidate all other unused tokens for the same user
   await db
     .update(passwordResetTokensTable)
-    .set({ usedAt: new Date() })
-    .where(eq(passwordResetTokensTable.id, resetToken.id));
+    .set({ usedAt: now })
+    .where(
+      and(
+        eq(passwordResetTokensTable.userId, resetToken.userId),
+        isNull(passwordResetTokensTable.usedAt)
+      )
+    );
 
   res.json({ success: true });
 });

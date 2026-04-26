@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { eq } from "drizzle-orm";
 import { db, usersTable, managersTable } from "@workspace/db";
 import crypto from "crypto";
+import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
 import {
   generateManagerToken,
@@ -14,8 +15,8 @@ import type { ManagerPrivileges } from "../lib/managerAuth.js";
 
 const router: IRouter = Router();
 
-function hashPassword(password: string): string {
-  return crypto.createHash("sha256").update(password + "ecommerce_salt_2024").digest("hex");
+async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 12);
 }
 
 function getTransporter() {
@@ -172,7 +173,7 @@ router.post("/auth/manager-setup", async (req, res): Promise<void> => {
   }
 
   const [updated] = await db.update(managersTable).set({
-    passwordHash: hashPassword(password),
+    passwordHash: await hashPassword(password),
     setupToken: null,
     setupTokenExpiry: null,
     updatedAt: new Date(),

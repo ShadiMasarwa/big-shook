@@ -10,10 +10,60 @@ export { DEFAULT_MANAGER_PRIVILEGES };
 export type PrivilegeAction = "read" | "write" | "delete";
 
 // ── Signing secret ────────────────────────────────────────────────────────────
-// Evaluated once at module load. Use TOKEN_SECRET env-var in production to keep
-// tokens valid across server restarts; the random fallback is safe for dev.
 const TOKEN_SECRET: string =
   process.env.TOKEN_SECRET ?? crypto.randomBytes(32).toString("hex");
+
+// ── Token configuration ───────────────────────────────────────────────────────
+const MAX_TOKEN_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+// ── Token revocation list ─────────────────────────────────────────────────────
+// In-memory blocklist keyed by token hash → expiry timestamp.
+// Entries are pruned lazily to avoid unbounded growth.
+const revokedTokens = new Map<string, number>();
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, expiry] of revokedTokens) {
+    if (expiry < now) revokedTokens.delete(key);
+  }
+}, 60 * 60 * 1000); // prune every hour
+
+function tokenHash(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+export function revokeToken(token: string): void {
+  revokedTokens.set(tokenHash(token), Date.now() + MAX_TOKEN_AGE_MS + 60_000);
+}
+
+function isRevoked(token: string): boolean {
+  return revokedTokens.has(tokenHash(token));
+}
+
+/**
+ * Verifies the HMAC of a token and returns the Unix millisecond timestamp
+ * embedded in it, or null if the token is invalid.
+ * Works for both manager tokens (m:<id>:<ts>:...) and customer tokens (<id>:<ts>:...).
+ */
+export function extractTokenIssuedAt(token: string): number | null {
+  try {
+    const decoded = Buffer.from(token, "base64").toString("utf-8");
+    const lastColon = decoded.lastIndexOf(":");
+    if (lastColon === -1) return null;
+    const payload = decoded.substring(0, lastColon);
+    const sig = decoded.substring(lastColon + 1);
+    const expected = signPayload(payload);
+    if (sig.length !== expected.length) return null;
+    if (!crypto.timingSafeEqual(Buffer.from(sig, "hex"), Buffer.from(expected, "hex"))) return null;
+    const parts = payload.split(":");
+    // manager: ["m", id, timestamp, nonce]  customer: [id, timestamp, nonce]
+    const tsIndex = parts[0] === "m" ? 2 : 1;
+    const ts = parseInt(parts[tsIndex], 10);
+    return isNaN(ts) ? null : ts;
+  } catch {
+    return null;
+  }
+}
 
 function signPayload(payload: string): string {
   return crypto.createHmac("sha256", TOKEN_SECRET).update(payload).digest("hex");
@@ -37,9 +87,10 @@ export function isManagerToken(token: string): boolean {
   }
 }
 
-/** Verify HMAC and return managerId, or null if invalid/tampered. */
+/** Verify HMAC, expiry, and revocation; return managerId, or null if invalid. */
 export function verifyManagerToken(token: string): number | null {
   try {
+    if (isRevoked(token)) return null;
     const decoded = Buffer.from(token, "base64").toString("utf-8");
     if (!decoded.startsWith("m:")) return null;
     const lastColon = decoded.lastIndexOf(":");
@@ -51,6 +102,8 @@ export function verifyManagerToken(token: string): number | null {
     const parts = payload.split(":");
     // parts: ["m", managerId, timestamp, nonce]
     if (parts.length < 4 || parts[0] !== "m") return null;
+    const timestamp = parseInt(parts[2], 10);
+    if (isNaN(timestamp) || Date.now() - timestamp > MAX_TOKEN_AGE_MS) return null;
     const id = parseInt(parts[1], 10);
     return isNaN(id) ? null : id;
   } catch {
@@ -72,9 +125,10 @@ export function generateCustomerToken(userId: number): string {
   return Buffer.from(`${payload}:${sig}`).toString("base64");
 }
 
-/** Verify HMAC and return userId, or null if invalid/tampered. */
+/** Verify HMAC, expiry, and revocation; return userId, or null if invalid. */
 export function verifyCustomerToken(token: string): number | null {
   try {
+    if (isRevoked(token)) return null;
     const decoded = Buffer.from(token, "base64").toString("utf-8");
     if (decoded.startsWith("m:")) return null; // manager token
     const lastColon = decoded.lastIndexOf(":");
@@ -87,6 +141,8 @@ export function verifyCustomerToken(token: string): number | null {
     const parts = payload.split(":");
     // parts: [userId, timestamp, nonce]
     if (parts.length < 3) return null;
+    const timestamp = parseInt(parts[1], 10);
+    if (isNaN(timestamp) || Date.now() - timestamp > MAX_TOKEN_AGE_MS) return null;
     const id = parseInt(parts[0], 10);
     return isNaN(id) ? null : id;
   } catch {
@@ -142,7 +198,13 @@ export async function getManagerFromRequest(req: Request): Promise<typeof manage
   const managerId = verifyManagerToken(token);
   if (!managerId) return null;
   const [manager] = await db.select().from(managersTable).where(eq(managersTable.id, managerId));
-  return manager ?? null;
+  if (!manager) return null;
+  // Reject tokens issued before the last session invalidation (logout or password change)
+  if (manager.sessionInvalidatedAt) {
+    const issuedAt = extractTokenIssuedAt(token);
+    if (issuedAt === null || issuedAt < manager.sessionInvalidatedAt.getTime()) return null;
+  }
+  return manager;
 }
 
 /**
@@ -162,7 +224,12 @@ export async function checkIsAdminOrManager(req: Request): Promise<boolean> {
   const userId = verifyCustomerToken(token);
   if (userId === null) return false;
   const [u] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  return !!(u && u.isActive && (u.role === "admin" || u.role === "manager"));
+  if (!u || !u.isActive || (u.role !== "admin" && u.role !== "manager")) return false;
+  if (u.sessionInvalidatedAt) {
+    const issuedAt = extractTokenIssuedAt(token);
+    if (issuedAt === null || issuedAt < u.sessionInvalidatedAt.getTime()) return false;
+  }
+  return true;
 }
 
 /**
@@ -190,7 +257,16 @@ export async function requireAdminOrManager(req: Request, res: Response): Promis
     return false;
   }
   const [u] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  if (u && u.isActive && (u.role === "admin" || u.role === "manager")) return true;
+  if (u && u.isActive && (u.role === "admin" || u.role === "manager")) {
+    if (u.sessionInvalidatedAt) {
+      const issuedAt = extractTokenIssuedAt(token);
+      if (issuedAt === null || issuedAt < u.sessionInvalidatedAt.getTime()) {
+        res.status(401).json({ error: "טוקן לא תקין" });
+        return false;
+      }
+    }
+    return true;
+  }
 
   res.status(403).json({ error: "אין הרשאה" });
   return false;
@@ -228,6 +304,12 @@ export async function requireManagerPrivilegeCheck(
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (!user || !user.isActive || user.role !== "admin") {
     return { allowed: false, isManager: false };
+  }
+  if (user.sessionInvalidatedAt) {
+    const issuedAt = extractTokenIssuedAt(token);
+    if (issuedAt === null || issuedAt < user.sessionInvalidatedAt.getTime()) {
+      return { allowed: false, isManager: false };
+    }
   }
   return { allowed: true, isManager: false };
 }

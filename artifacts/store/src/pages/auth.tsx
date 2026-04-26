@@ -320,7 +320,6 @@ export default function Auth() {
   const [agreedToMarketing, setAgreedToMarketing] = useState(true);
   const [regError, setRegError] = useState("");
   const [regLoading, setRegLoading] = useState(false);
-  const [devOtp, setDevOtp] = useState<string | null>(null);
 
   // Register – step 2 (OTP)
   const [otpValue, setOtpValue] = useState("");
@@ -370,36 +369,16 @@ export default function Auth() {
     }
   };
 
-  // ── Email blur check ────────────────────────────────────────────────────────
-  const checkEmail = async () => {
-    if (!regEmail) return;
-    if (!isValidEmail(regEmail)) {
-      setRegEmailError("כתובת אימייל לא תקינה");
-      return;
-    }
-    try {
-      const res = await fetch("/api/auth/check-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: regEmail }),
-      });
-      const data = await res.json();
-      setRegEmailError(data.available ? "" : "כתובת האימייל כבר קיימת במערכת");
-    } catch {
-      /* ignore */
-    }
-  };
-
   // ── Register step 1 submit ──────────────────────────────────────────────────
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setRegError("");
+    setRegEmailError("");
 
     if (!isValidEmail(regEmail)) {
       setRegEmailError("כתובת אימייל לא תקינה");
       return;
     }
-    if (regEmailError) return;
     if (!allPwdValid(regPassword)) {
       setRegError("הסיסמה אינה עומדת בדרישות");
       return;
@@ -429,11 +408,9 @@ export default function Auth() {
       });
       const data = await res.json();
       if (!res.ok) {
-        if (res.status === 409) setRegEmailError(data.error);
-        else setRegError(data.error ?? "שגיאה בשליחת קוד");
+        setRegError(data.error ?? "שגיאה בשליחת קוד");
         return;
       }
-      setDevOtp(data.devOtp ?? null);
       setOtpValue("");
       setOtpExpired(false);
       setOtpKey((k) => k + 1);
@@ -680,7 +657,6 @@ export default function Auth() {
                         setRegEmail(e.target.value);
                         setRegEmailError("");
                       }}
-                      onBlur={checkEmail}
                       placeholder="you@example.com"
                       dir="ltr"
                       autoComplete="email"
@@ -877,16 +853,6 @@ export default function Auth() {
                     </p>
                   </div>
 
-                  {devOtp && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
-                      <p className="text-xs text-amber-700 font-medium">
-                        מצב פיתוח — קוד האימות:
-                      </p>
-                      <p className="text-2xl font-bold text-amber-800 tracking-widest mt-1">
-                        {devOtp}
-                      </p>
-                    </div>
-                  )}
                   <OtpInput value={otpValue} onChange={setOtpValue} />
 
                   {otpError && (

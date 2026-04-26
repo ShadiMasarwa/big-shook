@@ -36,6 +36,7 @@ export const managersTable = pgTable("managers", {
   privileges: jsonb("privileges").$type<ManagerPrivileges>().notNull().$defaultFn(() => ({ ...DEFAULT_MANAGER_PRIVILEGES })),
   setupToken: text("setup_token"),
   setupTokenExpiry: timestamp("setup_token_expiry"),
+  sessionInvalidatedAt: timestamp("session_invalidated_at", { withTimezone: true }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

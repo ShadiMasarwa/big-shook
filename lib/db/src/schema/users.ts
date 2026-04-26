@@ -29,6 +29,7 @@ export const usersTable = pgTable("users", {
   ordersCount: integer("orders_count").notNull().default(0),
   marketingEmails: boolean("marketing_emails").notNull().default(true),
   isActive: boolean("is_active").notNull().default(true),
+  sessionInvalidatedAt: timestamp("session_invalidated_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
