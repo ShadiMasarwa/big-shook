@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
-import { db, ordersTable, orderItemsTable, cartItemsTable, cartCouponsTable, productsTable, productVariationsTable, usersTable, loyaltyTransactionsTable, couponsTable, couponUsagesTable, suppliersTable } from "@workspace/db";
+import { db, ordersTable, orderItemsTable, cartItemsTable, cartCouponsTable, cartLoyaltyTable, productsTable, productVariationsTable, usersTable, loyaltyTransactionsTable, couponsTable, couponUsagesTable, suppliersTable } from "@workspace/db";
 import { getSessionId, getUserId, buildCart } from "./cart.js";
 import { getTierBySpent } from "./loyalty.js";
 import nodemailer from "nodemailer";
@@ -436,6 +436,7 @@ router.post("/orders", async (req, res): Promise<void> => {
   // Clear cart
   await db.delete(cartItemsTable).where(eq(cartItemsTable.sessionId, sessionId));
   await db.delete(cartCouponsTable).where(eq(cartCouponsTable.sessionId, sessionId));
+  await db.delete(cartLoyaltyTable).where(eq(cartLoyaltyTable.sessionId, sessionId));
 
   // Loyalty: record earned, deduct used, update user balance; detect tier upgrade
   let tierUpgrade: { from: string; to: string } | null = null;

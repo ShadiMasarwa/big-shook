@@ -157,7 +157,7 @@ async function buildCart(sessionId: string, callerUserId?: number | null) {
   let shekelPerPoint = 0.01;
   let minRedemptionPoints = 100;
 
-  const effectiveUserId = loyaltyRow?.userId ?? callerUserId ?? null;
+  const effectiveUserId = callerUserId ?? null;
   if (effectiveUserId) {
     const [rules] = await db.select().from(loyaltyRulesTable);
     minRedemptionPoints = rules?.minRedemptionPoints ?? 100;
@@ -175,7 +175,7 @@ async function buildCart(sessionId: string, callerUserId?: number | null) {
       const maxDiscountFromPercent = (subtotal - couponDiscount) * (maxRedemptionPercent / 100);
       maxRedeemablePoints = Math.min(user.loyaltyPoints, Math.floor(maxDiscountFromPercent / shekelPerPoint));
 
-      if (loyaltyRow) {
+      if (loyaltyRow && loyaltyRow.userId === effectiveUserId) {
         const requestedPoints = Math.min(loyaltyRow.pointsToUse, user.loyaltyPoints);
         const clampedPoints = Math.min(requestedPoints, maxRedeemablePoints);
         loyaltyPointsUsed = clampedPoints;
@@ -458,8 +458,12 @@ router.post("/cart/coupon", async (req, res): Promise<void> => {
     return;
   }
 
-  // Per-user usage limit
-  if (coupon.usageLimitPerUser != null && userId != null) {
+  // Per-user usage limit — guests cannot use per-user limited coupons
+  if (coupon.usageLimitPerUser != null) {
+    if (userId == null) {
+      res.status(401).json({ error: "יש להתחבר כדי להשתמש בקופון זה" });
+      return;
+    }
     const [usageRow] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(couponUsagesTable)
