@@ -602,34 +602,51 @@ export default function AdminProductForm() {
                   );
                   return (
                     <div ref={brandDropRef} className="relative">
-                      <div className="flex items-center gap-1 border border-input rounded-md px-3 py-2 bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
-                        <input
-                          type="text"
-                          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground min-w-0"
-                          placeholder={selectedBrand ? selectedBrand.nameHe : "חפש או בחר מותג..."}
-                          value={brandDropOpen ? brandSearch : (selectedBrand ? selectedBrand.nameHe : "")}
-                          onFocus={() => {
-                            setBrandSearch("");
-                            setBrandDropOpen(true);
-                          }}
-                          onChange={(e) => {
-                            setBrandSearch(e.target.value);
-                            setBrandDropOpen(true);
-                          }}
-                        />
-                        {formData.brandId && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setFormData((prev) => ({ ...prev, brandId: "" }));
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 flex items-center gap-1 border border-input rounded-md px-3 py-2 bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+                          <input
+                            type="text"
+                            className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground min-w-0"
+                            placeholder={selectedBrand ? selectedBrand.nameHe : "חפש או בחר מותג..."}
+                            value={brandDropOpen ? brandSearch : (selectedBrand ? selectedBrand.nameHe : "")}
+                            onFocus={() => {
                               setBrandSearch("");
+                              setBrandDropOpen(true);
                             }}
-                            className="text-muted-foreground hover:text-destructive shrink-0"
-                            aria-label="נקה מותג"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        )}
+                            onChange={(e) => {
+                              setBrandSearch(e.target.value);
+                              setBrandDropOpen(true);
+                            }}
+                          />
+                          {formData.brandId && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFormData((prev) => ({ ...prev, brandId: "" }));
+                                setBrandSearch("");
+                              }}
+                              className="text-muted-foreground hover:text-destructive shrink-0"
+                              aria-label="נקה מותג"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="shrink-0"
+                          aria-label="הוסף מותג חדש"
+                          title="הוסף מותג חדש"
+                          onClick={() => {
+                            setBrandDropOpen(false);
+                            setNewBrandName(brandSearch.trim());
+                            setNewBrandDialogOpen(true);
+                          }}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
                       </div>
 
                       {brandDropOpen && (
