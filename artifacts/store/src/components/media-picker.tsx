@@ -52,7 +52,7 @@ export function isGif(item: MediaItem) {
 
 export const MEDIA_QUERY_KEY = ["media"];
 
-function authHeaders(): Record<string, string> {
+export function authHeaders(): Record<string, string> {
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   return token ? { Authorization: `Bearer ${token}` } : {};
 }

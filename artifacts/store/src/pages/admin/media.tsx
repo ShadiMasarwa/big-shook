@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { AdminLayout } from "@/components/admin-layout";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useMedia, useUploadMedia, mediaUrl, isVideo, isGif, MEDIA_QUERY_KEY, type MediaItem } from "@/components/media-picker";
+import { useMedia, useUploadMedia, mediaUrl, isVideo, isGif, MEDIA_QUERY_KEY, authHeaders, type MediaItem } from "@/components/media-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -61,7 +61,7 @@ function EditDialog({ item, onClose }: EditDialogProps) {
     mutationFn: async () => {
       const res = await fetch(`/api/media/${item!.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify({ altText, title }),
       });
       if (!res.ok) throw new Error("Failed to save");
@@ -219,7 +219,7 @@ export default function AdminMedia() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await fetch(`/api/media/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/media/${id}`, { method: "DELETE", headers: authHeaders() });
       if (!res.ok) throw new Error("Failed to delete");
     },
     onSuccess: () => {
