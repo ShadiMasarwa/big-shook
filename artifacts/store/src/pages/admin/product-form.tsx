@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -33,7 +34,16 @@ import {
 import { useState, useEffect, useRef } from "react";
 import { toast } from "@/components/ui/use-toast";
 import { X, Plus, ImageIcon, Video, GripVertical } from "lucide-react";
-import { MediaPickerModal } from "@/components/media-picker";
+import { MediaPickerModal, MediaPickerButton } from "@/components/media-picker";
+
+const EMPTY_BRAND_FORM = {
+  nameHe: "",
+  nameEn: "",
+  slug: "",
+  description: "",
+  logoUrl: "",
+  isActive: true,
+};
 
 function toSlug(str: string) {
   return str.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]/g, "").replace(/-+/g, "-");
@@ -106,8 +116,16 @@ export default function AdminProductForm() {
   const [brandDropOpen, setBrandDropOpen] = useState(false);
   const brandDropRef = useRef<HTMLDivElement>(null);
   const [newBrandDialogOpen, setNewBrandDialogOpen] = useState(false);
-  const [newBrandName, setNewBrandName] = useState("");
+  const [newBrandForm, setNewBrandForm] = useState({ ...EMPTY_BRAND_FORM });
+  const [newBrandSlugManual, setNewBrandSlugManual] = useState(false);
   const [isSavingBrand, setIsSavingBrand] = useState(false);
+
+  const openNewBrandDialog = (prefillName: string = "") => {
+    const name = prefillName.trim();
+    setNewBrandForm({ ...EMPTY_BRAND_FORM, nameHe: name, slug: name ? toSlug(name) : "" });
+    setNewBrandSlugManual(false);
+    setNewBrandDialogOpen(true);
+  };
 
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
@@ -177,20 +195,29 @@ export default function AdminProductForm() {
 
   // Create new brand from quick-add dialog
   const handleSaveNewBrand = async () => {
-    const name = newBrandName.trim();
-    if (!name) return;
+    const nameHe = newBrandForm.nameHe.trim();
+    const slug = newBrandForm.slug.trim();
+    if (!nameHe || !slug) return;
     setIsSavingBrand(true);
     try {
-      const slug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]/g, "").replace(/-+/g, "-");
-      const created = await createBrandMutation.mutateAsync({ nameHe: name, nameEn: name, slug, isActive: true } as any);
+      const payload: any = {
+        nameHe,
+        nameEn: newBrandForm.nameEn.trim() || undefined,
+        slug,
+        description: newBrandForm.description.trim() || undefined,
+        logoUrl: newBrandForm.logoUrl.trim() || undefined,
+        isActive: newBrandForm.isActive,
+      };
+      const created = await createBrandMutation.mutateAsync(payload);
       await queryClient.invalidateQueries({ queryKey: getListBrandsQueryKey() });
       setFormData((prev) => ({ ...prev, brandId: String((created as any).id) }));
-      setBrandSearch(name);
+      setBrandSearch(nameHe);
       setNewBrandDialogOpen(false);
-      setNewBrandName("");
-      toast({ title: "מותג נוצר", description: `המותג "${name}" נוסף בהצלחה` });
-    } catch {
-      toast({ title: "שגיאה", description: "לא ניתן היה ליצור את המותג", variant: "destructive" });
+      setNewBrandForm({ ...EMPTY_BRAND_FORM });
+      setNewBrandSlugManual(false);
+      toast({ title: "מותג נוצר", description: `המותג "${nameHe}" נוסף בהצלחה` });
+    } catch (err: any) {
+      toast({ title: "שגיאה", description: err?.message || "לא ניתן היה ליצור את המותג", variant: "destructive" });
     } finally {
       setIsSavingBrand(false);
     }
@@ -641,8 +668,7 @@ export default function AdminProductForm() {
                           title="הוסף מותג חדש"
                           onClick={() => {
                             setBrandDropOpen(false);
-                            setNewBrandName(brandSearch.trim());
-                            setNewBrandDialogOpen(true);
+                            openNewBrandDialog(brandSearch);
                           }}
                         >
                           <Plus className="h-4 w-4" />
@@ -677,8 +703,7 @@ export default function AdminProductForm() {
                               onMouseDown={(e) => e.preventDefault()}
                               onClick={() => {
                                 setBrandDropOpen(false);
-                                setNewBrandName(brandSearch.trim());
-                                setNewBrandDialogOpen(true);
+                                openNewBrandDialog(brandSearch);
                               }}
                             >
                               <Plus className="h-3.5 w-3.5 shrink-0" />
@@ -1436,25 +1461,82 @@ export default function AdminProductForm() {
 
       {/* Quick-add brand dialog */}
       <Dialog open={newBrandDialogOpen} onOpenChange={setNewBrandDialogOpen}>
-        <DialogContent className="max-w-sm" dir="rtl">
+        <DialogContent className="max-w-lg" dir="rtl">
           <DialogHeader>
             <DialogTitle>הוספת מותג חדש</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="new-brand-name">שם המותג</Label>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>שם בעברית *</Label>
+                <Input
+                  autoFocus
+                  value={newBrandForm.nameHe}
+                  onChange={(e) => setNewBrandForm((f) => ({ ...f, nameHe: e.target.value }))}
+                  placeholder="לדוגמה: סמסונג"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>שם באנגלית</Label>
+                <Input
+                  value={newBrandForm.nameEn}
+                  onChange={(e) => setNewBrandForm((f) => ({
+                    ...f,
+                    nameEn: e.target.value,
+                    slug: newBrandSlugManual ? f.slug : toSlug(e.target.value),
+                  }))}
+                  placeholder="Samsung"
+                  dir="ltr"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Slug *</Label>
               <Input
-                id="new-brand-name"
-                value={newBrandName}
-                onChange={(e) => setNewBrandName(e.target.value)}
-                placeholder="שם המותג..."
-                onKeyDown={(e) => e.key === "Enter" && handleSaveNewBrand()}
-                autoFocus
+                value={newBrandForm.slug}
+                onChange={(e) => {
+                  setNewBrandSlugManual(true);
+                  setNewBrandForm((f) => ({ ...f, slug: e.target.value }));
+                }}
+                placeholder="samsung"
+                className="font-mono text-sm"
+                dir="ltr"
               />
+              <p className="text-xs text-muted-foreground">כתובת URL ייחודית — מתמלאת אוטומטית מהשם</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>תיאור</Label>
+              <Input
+                value={newBrandForm.description}
+                onChange={(e) => setNewBrandForm((f) => ({ ...f, description: e.target.value }))}
+                placeholder="תיאור קצר של המותג"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>לוגו</Label>
+              <MediaPickerButton
+                value={newBrandForm.logoUrl}
+                onChange={(url) => setNewBrandForm((f) => ({ ...f, logoUrl: url }))}
+                label="בחר לוגו מהמדיה"
+              />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Switch
+                checked={newBrandForm.isActive}
+                onCheckedChange={(v) => setNewBrandForm((f) => ({ ...f, isActive: v }))}
+              />
+              <Label>{newBrandForm.isActive ? "פעיל" : "לא פעיל"}</Label>
             </div>
           </div>
           <DialogFooter className="gap-2 flex-row-reverse sm:flex-row-reverse">
-            <Button onClick={handleSaveNewBrand} disabled={!newBrandName.trim() || isSavingBrand}>
+            <Button
+              onClick={handleSaveNewBrand}
+              disabled={!newBrandForm.nameHe.trim() || !newBrandForm.slug.trim() || isSavingBrand}
+            >
               {isSavingBrand ? "שומר..." : "הוסף מותג"}
             </Button>
             <Button variant="outline" onClick={() => setNewBrandDialogOpen(false)}>
