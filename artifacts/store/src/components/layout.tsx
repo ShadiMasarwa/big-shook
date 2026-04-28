@@ -169,8 +169,10 @@ export function Layout({ children }: { children: ReactNode }) {
     navigate(`/catalog?${p.toString()}`);
   };
 
-  // Brands for mobile drawer — filtered by current category context
+  // Brands for mobile drawer — filtered by current category context.
+  // Always include withActiveProducts=true so the drawer only shows brands the user can buy from.
   const mobileBrandsQp = new URLSearchParams();
+  mobileBrandsQp.set("withActiveProducts", "true");
   if (searchParams.get("categoryId"))
     mobileBrandsQp.set("categoryId", searchParams.get("categoryId")!);
   if (searchParams.get("parentId"))

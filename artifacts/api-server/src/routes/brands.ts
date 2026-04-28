@@ -7,7 +7,20 @@ const router: IRouter = Router();
 const PRIV_DENIED = "אין לך הרשאה לבצע פעולה זו";
 
 router.get("/brands", async (req, res): Promise<void> => {
-  const { categoryId, parentCategoryId, search, minPrice, maxPrice, inStock } = req.query;
+  const { categoryId, parentCategoryId, search, minPrice, maxPrice, inStock, withActiveProducts } = req.query;
+
+  // Default behavior (no filters / admin pages): return ALL brands.
+  // Storefront passes withActiveProducts=true (or any product-filter param) to limit
+  // the list to brands that have at least one matching active product.
+  const hasProductFilter = withActiveProducts === "true"
+    || categoryId || parentCategoryId || search
+    || minPrice || maxPrice || inStock === "true";
+
+  if (!hasProductFilter) {
+    const all = await db.select().from(brandsTable).orderBy(brandsTable.nameHe);
+    res.json(all.map(serializeBrand));
+    return;
+  }
 
   const productConditions = [
     eq(productsTable.isActive, true),

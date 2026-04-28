@@ -128,8 +128,10 @@ export default function Catalog() {
   // Hover state for sidebar parent category expansion
   const [hoveredParentId, setHoveredParentId] = useState<number | null>(null);
 
-  // Brands query — filter by all active filters except brandId itself
+  // Brands query — filter by all active filters except brandId itself.
+  // Always include withActiveProducts=true so the sidebar only shows brands the user can buy from.
   const brandsQp = new URLSearchParams();
+  brandsQp.set("withActiveProducts", "true");
   if (categoryId) brandsQp.set("categoryId", String(categoryId));
   if (parentCategoryId) brandsQp.set("parentCategoryId", String(parentCategoryId));
   if (search) brandsQp.set("search", search);
