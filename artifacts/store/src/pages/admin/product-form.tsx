@@ -208,7 +208,7 @@ export default function AdminProductForm() {
         logoUrl: newBrandForm.logoUrl.trim() || undefined,
         isActive: newBrandForm.isActive,
       };
-      const created = await createBrandMutation.mutateAsync(payload);
+      const created = await createBrandMutation.mutateAsync({ data: payload });
       await queryClient.invalidateQueries({ queryKey: getListBrandsQueryKey() });
       setFormData((prev) => ({ ...prev, brandId: String((created as any).id) }));
       setBrandSearch(nameHe);
