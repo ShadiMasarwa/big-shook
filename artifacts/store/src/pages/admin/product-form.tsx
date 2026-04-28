@@ -224,11 +224,19 @@ export default function AdminProductForm() {
   };
 
   const addTag = () => {
-    const t = tagInput.trim();
-    if (t && !tags.includes(t)) {
-      setTags([...tags, t]);
-      setTagInput("");
-    }
+    const parts = tagInput
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (parts.length === 0) return;
+    setTags((prev) => {
+      const next = [...prev];
+      for (const p of parts) {
+        if (!next.includes(p)) next.push(p);
+      }
+      return next;
+    });
+    setTagInput("");
   };
 
   const removeTag = (tag: string) => setTags(tags.filter((t) => t !== tag));
@@ -1319,7 +1327,7 @@ export default function AdminProductForm() {
             <div className="flex gap-2">
               <Input
                 dir="ltr"
-                placeholder="הוסף תגית (לחץ Enter)"
+                placeholder="הוסף תגית או כמה תגיות מופרדות בפסיקים (לחץ Enter)"
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={(e) => {
