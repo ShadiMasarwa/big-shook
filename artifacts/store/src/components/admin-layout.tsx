@@ -26,22 +26,82 @@ import { Button } from "@/components/ui/button";
 
 const ALL_NAV_ITEMS = [
   { href: "/admin", label: "לוח בקרה", icon: LayoutDashboard, section: null },
-  { href: "/admin/analytics", label: "דוחות וסטטיסטיקה", icon: LineChart, section: "analytics" },
-  { href: "/admin/orders", label: "הזמנות", icon: ShoppingCart, section: "orders" },
-  { href: "/admin/products", label: "מוצרים", icon: Package, section: "products" },
-  { href: "/admin/categories", label: "קטגוריות", icon: Layers, section: "categories" },
+  {
+    href: "/admin/analytics",
+    label: "דוחות וסטטיסטיקה",
+    icon: LineChart,
+    section: "analytics",
+  },
+  {
+    href: "/admin/orders",
+    label: "הזמנות",
+    icon: ShoppingCart,
+    section: "orders",
+  },
+  {
+    href: "/admin/products",
+    label: "מוצרים",
+    icon: Package,
+    section: "products",
+  },
+  {
+    href: "/admin/categories",
+    label: "קטגוריות",
+    icon: Layers,
+    section: "categories",
+  },
   { href: "/admin/brands", label: "מותגים", icon: Award, section: "brands" },
-  { href: "/admin/suppliers", label: "ספקים", icon: Truck, section: "suppliers" },
+  {
+    href: "/admin/suppliers",
+    label: "ספקים",
+    icon: Truck,
+    section: "suppliers",
+  },
   { href: "/admin/inventory", label: "מלאי", icon: Tags, section: "inventory" },
-  { href: "/admin/customers", label: "לקוחות", icon: Users, section: "customers" },
-  { href: "/admin/coupons", label: "קופונים", icon: Percent, section: "coupons" },
-  { href: "/admin/loyalty", label: "מועדון לקוחות", icon: Star, section: "loyalty" },
-  { href: "/admin/import", label: "ייבוא וייצוא", icon: Download, section: "import" },
+  {
+    href: "/admin/customers",
+    label: "לקוחות",
+    icon: Users,
+    section: "customers",
+  },
+  {
+    href: "/admin/coupons",
+    label: "קופונים",
+    icon: Percent,
+    section: "coupons",
+  },
+  {
+    href: "/admin/loyalty",
+    label: "מועדון לקוחות",
+    icon: Star,
+    section: "loyalty",
+  },
+  {
+    href: "/admin/import",
+    label: "ייבוא וייצוא",
+    icon: Download,
+    section: "import",
+  },
   { href: "/admin/ads", label: "מודעות", icon: Megaphone, section: "ads" },
-  { href: "/admin/media", label: "ספריית מדיה", icon: Images, section: "media" },
-  { href: "/admin/site-info", label: "מידע האתר", icon: Settings2, section: "settings" },
+  {
+    href: "/admin/media",
+    label: "ספריית מדיה",
+    icon: Images,
+    section: "media",
+  },
+  {
+    href: "/admin/site-info",
+    label: "מידע האתר",
+    icon: Settings2,
+    section: "settings",
+  },
   { href: "/admin/messages", label: "מרכז הודעות", icon: Mail, section: null },
-  { href: "/admin/managers", label: "ניהול מנהלים", icon: UserCog, section: "managers_only" },
+  {
+    href: "/admin/managers",
+    label: "ניהול מנהלים",
+    icon: UserCog,
+    section: "managers_only",
+  },
 ];
 
 function AdminHeaderBell({ enabled }: { enabled: boolean }) {
@@ -50,7 +110,9 @@ function AdminHeaderBell({ enabled }: { enabled: boolean }) {
     enabled,
     queryFn: async () => {
       const t = localStorage.getItem("token");
-      const headers: Record<string, string> = t ? { Authorization: `Bearer ${t}` } : {};
+      const headers: Record<string, string> = t
+        ? { Authorization: `Bearer ${t}` }
+        : {};
       const res = await fetch("/api/admin/messages/unread-count", { headers });
       if (!res.ok) return { total: 0 };
       return res.json() as Promise<{ total: number }>;
@@ -87,7 +149,9 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             <Package className="h-8 w-8 text-primary" />
           </div>
           <h1 className="text-2xl font-bold mb-2">כניסה לאדמין</h1>
-          <p className="text-muted-foreground mb-6">יש להתחבר עם חשבון מנהל מערכת כדי לגשת לאזור זה.</p>
+          <p className="text-muted-foreground mb-6">
+            יש להתחבר עם חשבון מנהל מערכת כדי לגשת לאזור זה.
+          </p>
           <Button asChild className="w-full mb-3">
             <Link href="/auth">התחבר כמנהל</Link>
           </Button>
@@ -109,8 +173,12 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
             <Package className="h-8 w-8 text-destructive" />
           </div>
-          <h1 className="text-2xl font-bold text-destructive mb-2">אין הרשאה</h1>
-          <p className="text-muted-foreground mb-6">המשתמש שלך אינו מורשה לגשת לאזור הניהול.</p>
+          <h1 className="text-2xl font-bold text-destructive mb-2">
+            אין הרשאה
+          </h1>
+          <p className="text-muted-foreground mb-6">
+            המשתמש שלך אינו מורשה לגשת לאזור הניהול.
+          </p>
           <Button asChild>
             <Link href="/">חזרה לדף הבית</Link>
           </Button>
@@ -119,7 +187,10 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  const privileges = (user as any).privileges as Record<string, string> | null | undefined;
+  const privileges = (user as any).privileges as
+    | Record<string, string>
+    | null
+    | undefined;
 
   const navItems = ALL_NAV_ITEMS.filter((item) => {
     if (item.section === "managers_only") return isAdmin;
@@ -134,15 +205,25 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       {/* Sidebar */}
       <aside className="w-64 bg-card border-l border-border flex flex-col hidden md:flex sticky top-0 h-screen">
         <div className="p-6 border-b border-border">
-          <Link href="/admin" className="text-2xl font-black text-primary flex items-center gap-2">
-            <Package className="h-6 w-6" />
-            טק-סטור אדמין
+          <Link
+            href="/admin"
+            className="text-2xl font-black text-primary flex items-center gap-2"
+          >
+            <img src="/logo.gif" alt="ביג-שווק" className="h-12 w-auto" />
+            <div className="flex flex-col leading-tight">
+              <span className="text-xl font-black text-primary">ביג שווק</span>
+              <span className="text-xs text-muted-foreground font-medium">
+                חנות מבצעים
+              </span>
+            </div>
           </Link>
         </div>
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location === item.href || (item.href !== "/admin" && location.startsWith(item.href));
+            const isActive =
+              location === item.href ||
+              (item.href !== "/admin" && location.startsWith(item.href));
             return (
               <Link
                 key={item.href}
@@ -165,13 +246,19 @@ export function AdminLayout({ children }: { children: ReactNode }) {
               {user.firstName[0]}
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-medium">{user.firstName} {user.lastName}</span>
+              <span className="text-sm font-medium">
+                {user.firstName} {user.lastName}
+              </span>
               <span className="text-xs text-muted-foreground">
                 {isAdmin ? "מנהל מערכת" : "מנהל"}
               </span>
             </div>
           </div>
-          <Button variant="outline" className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => logout()}>
+          <Button
+            variant="outline"
+            className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={() => logout()}
+          >
             <LogOut className="ml-2 h-4 w-4" />
             התנתק
           </Button>
@@ -185,9 +272,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           <div className="hidden md:block" />
           <AdminHeaderBell enabled={isAdmin || isManager} />
         </header>
-        <div className="flex-1 p-6 overflow-y-auto">
-          {children}
-        </div>
+        <div className="flex-1 p-6 overflow-y-auto">{children}</div>
       </main>
     </div>
   );
