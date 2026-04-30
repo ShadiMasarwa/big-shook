@@ -86,24 +86,46 @@ function MaintenanceToggle() {
           </div>
         </div>
 
-        <button
-          type="button"
-          role="switch"
-          aria-checked={!isMaintenance}
-          aria-label="העברת האתר בין מצב פעיל למצב תחזוקה"
-          onClick={() => toggle.mutate(!isMaintenance)}
-          disabled={toggle.isPending}
-          className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors disabled:opacity-50 shrink-0 ${
-            isMaintenance ? "bg-amber-500" : "bg-emerald-500"
-          }`}
-          data-testid="switch-site-status"
-        >
-          <span
-            className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition-transform ${
-              isMaintenance ? "translate-x-1" : "translate-x-9"
+        <div className="flex flex-col items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            aria-pressed={!isMaintenance}
+            aria-label={
+              isMaintenance
+                ? "החזרת האתר לפעילות"
+                : "העברת האתר למצב תחזוקה"
+            }
+            title={
+              isMaintenance
+                ? "לחצו כדי להחזיר את האתר לפעילות"
+                : "לחצו כדי להעביר את האתר למצב תחזוקה"
+            }
+            onClick={() => toggle.mutate(!isMaintenance)}
+            disabled={toggle.isPending}
+            className={`relative h-16 w-16 md:h-20 md:w-20 rounded-full flex items-center justify-center text-white shadow-lg ring-4 ring-white transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+              isMaintenance
+                ? "bg-amber-500 hover:bg-amber-600 shadow-amber-300/50"
+                : "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-300/50"
             }`}
-          />
-        </button>
+            data-testid="button-site-status"
+          >
+            <Power
+              className="h-7 w-7 md:h-9 md:w-9"
+              strokeWidth={2.5}
+            />
+          </button>
+          <span
+            className={`text-[11px] md:text-xs font-bold ${
+              isMaintenance ? "text-amber-700" : "text-emerald-700"
+            }`}
+          >
+            {toggle.isPending
+              ? "מעדכן…"
+              : isMaintenance
+              ? "לחצו להפעלה"
+              : "לחצו לכיבוי"}
+          </span>
+        </div>
       </CardContent>
     </Card>
   );
