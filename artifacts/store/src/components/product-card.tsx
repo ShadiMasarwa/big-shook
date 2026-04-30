@@ -97,7 +97,7 @@ export function ProductCard({ product }: ProductCardProps) {
           className="hover:underline font-medium text-lg mb-1"
           data-testid={`link-product-${product.id}`}
         >
-          {product.nameHe}
+          {product.nameHe.length > 60 ? `${product.nameHe.slice(0, 60).trimEnd()}...` : product.nameHe}
         </Link>
         <div className="text-sm text-muted-foreground mb-2 flex-1 line-clamp-2" aria-hidden="true">
           {(product.descriptionHe ?? "").replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim().substring(0, 80)}
